@@ -741,9 +741,20 @@ function renderAll() {
     : 'Free round — the reveal is instant, the streak is safe.';
   $('practice-bar').style.display = daily ? 'none' : 'block';
   $('btn-practice').textContent = daily ? 'Practice' : '← Daily';
-  $('day-label').textContent = daily
-    ? [dayTag(round.day) ? `MIXOLOGY ${dayTag(round.day)}` : 'MIXOLOGY', dateForDay(round.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })].join(' · ')
-    : 'Practice mode';
+  // round 72: each part stays whole; on a narrow phone the date wraps to its own
+  // line instead of running under the header buttons (#120+ at 320px)
+  const dayParts = daily
+    ? [dayTag(round.day) ? `MIXOLOGY ${dayTag(round.day)}` : 'MIXOLOGY', dateForDay(round.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })]
+    : ['Practice mode'];
+  const dayHtml = dayParts.map(s => `<span class="nw">${escapeHtml(s)}</span>`).join(' · ');
+  if ($('day-label').innerHTML !== dayHtml) $('day-label').innerHTML = dayHtml;
+  // round 72: a small holiday tag on holiday days (the color name is already public)
+  const hol = daily ? E.holidayOn(dateForDay(round.day)) : null, hTag = $('holiday-tag');
+  if (hTag) {
+    hTag.hidden = !hol;
+    const html = hol ? `<span aria-hidden="true">${hol.emoji}</span> ${escapeHtml(hol.label)}` : '';
+    if (hTag.innerHTML !== html) hTag.innerHTML = html;
+  }
   const st = liveStreaks();
   $('streak-display').innerHTML = st.streak > 0
     ? `<span class="flame${Number(st.streak) >= 7 ? ' hot' : ''}" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}` + (st.parStreak > 0 ? ` · <span title="Days in a row at ${E.PAR_PCT}%+">Par streak ${Number(st.parStreak)}</span>` : '')
@@ -1495,7 +1506,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.15.0',
+  version: '1.16.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

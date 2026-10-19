@@ -2,6 +2,26 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 72 (2026-10-19, Grok Bot): HOLIDAY COLORS (Franklin)
+- **Holiday calendar** (`engine.js`): `holidaysForYear` and `holidayOn`. 20 holidays:
+  - Fixed dates.
+  - Computed: Easter (anonymous Gregorian algorithm), Mardi Gras (Easter − 47), Mother's/Father's Day and Thanksgiving (US).
+  - Tables for 2026–2035: Lunar New Year (Wikipedia/HKO), Hanukkah first candle (Hebcal API), Diwali/Lakshmi Puja (drikpanchang/qppstudio).
+  - When two fall on one day, priority decides. Christmas > Hanukkah > Christmas Eve > New Year > Lunar New Year > Valentine's > Mardi Gras > the rest.
+  - Skipped by a clash: Mardi Gras 2026 and 2029 (= Lunar New Year), Christmas Eve 2027 (= Hanukkah first night), Hanukkah 2035 (= Christmas).
+- **Colors** (`tools/holiday-colors.js`): 2–4 fitting bank names per holiday, all daily-eligible (tested), rotated by year.
+  - Independence Day alternates red (even years) and blue (odd years). Halloween alternates pumpkin and pumpkin orange.
+- **Builder** (`tools/build-schedule.js`): days ≤ 658 (yesterday and earlier, today #2, tomorrow) are untouched, verified by a sha256 of days 0..658.
+  - Each future holiday takes the first rotated candidate that doesn't repeat within 120 days of a frozen day or another holiday pick.
+  - Other uses of that color within ±120 days are cleared. The displaced color moves into a cleared slot where it fits; other holes are refilled from the bag.
+  - Result: 184 holiday days through 2035. 52 nearby repeats cleared, 47 displaced colors re-homed, 5 refilled, 234 future days changed in total.
+  - 0 repeats within 120 days, 0 exceptions, all future colors eligible. A rebuild is idempotent (byte-identical).
+- **Header tag:** on a holiday the header shows a subtle pill under the date ("🎃 Halloween"); the emoji is aria-hidden.
+- **Header fix:** at 320px a 3–4 digit "MIXOLOGY #1132 · Thu, Nov 22" ran 13–28 px under the buttons (latent since r71). The date now wraps to its own line.
+- Live with a mocked date: Oct 31 2026 shows "🎃 Halloween" and Pumpkin, Dec 25 2026 shows "🎄 Christmas" and Crimson, Oct 30 shows no tag. axe is clean.
+- Shots: `r72-halloween.png`, `r72-halloween-320.png`, `r72-christmas.png`, plus `-live` versions.
+- Version 1.16.0. 168 tests.
+
 ## Round 71 (2026-10-19, Grok Bot): STATS AND COLLECTION GET THEIR OWN PANELS; "SUBMIT" (Franklin)
 - **Header buttons.** Calendar, Stats and Collection are now separate header buttons, each a clean SVG icon with an aria-label ("Calendar", "Stats", "Collection").
   - Stats icon: bars. Collection icon: tiles.

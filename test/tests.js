@@ -1341,5 +1341,52 @@ test('UI copy says "Submit", never "Seal" (internal names may stay)', () => {
   assert.deepStrictEqual(bad, []);
   assert.ok(gameSrc.includes('`Submit final attempt` : `Submit attempt ${round.attempts.length + 1}`') && htmlSrc.includes('>Submit attempt 1</button>'));
 });
+console.log('— round 72: holiday colors —');
+{
+  const HC = require('../tools/holiday-colors.js');
+  const S = require('../schedule.js');
+  const byName = new Map(bank.map(c => [c.name, c]));
+  const dayOf = (y, m, d) => E.dayNumber(new Date(y, m - 1, d)) + 1;
+  test('holiday dates: Easter, US floating holidays and the lunar tables are right', () => {
+    assert.deepStrictEqual(E.easterDate(2026), [4, 5]); assert.deepStrictEqual(E.easterDate(2027), [3, 28]); assert.deepStrictEqual(E.easterDate(2030), [4, 21]); assert.deepStrictEqual(E.easterDate(2035), [3, 25]);
+    const on = (y, id) => { const h = E.holidaysForYear(y).find(x => x.id === id); return h ? `${h.month}/${h.day}` : null; };
+    assert.strictEqual(on(2026, 'thanksgiving'), '11/26'); assert.strictEqual(on(2027, 'thanksgiving'), '11/25');
+    assert.strictEqual(on(2027, 'mothers-day'), '5/9'); assert.strictEqual(on(2027, 'fathers-day'), '6/20');
+    assert.strictEqual(on(2027, 'mardi-gras'), '2/9'); assert.strictEqual(on(2026, 'hanukkah'), '12/4'); assert.strictEqual(on(2026, 'diwali'), '11/8');
+    assert.strictEqual(on(2027, 'lunar-new-year'), '2/6');
+    // clashes: the higher-priority holiday keeps the day
+    assert.strictEqual(on(2027, 'christmas-eve'), null); assert.strictEqual(on(2027, 'hanukkah'), '12/24');
+    assert.strictEqual(on(2035, 'hanukkah'), null); assert.strictEqual(on(2035, 'christmas'), '12/25');
+    assert.strictEqual(E.holidayOn(new Date(2026, 9, 31)).label, 'Halloween'); assert.strictEqual(E.holidayOn(new Date(2026, 9, 30)), null);
+  });
+  test('every holiday candidate is in the bank and daily-eligible', () => {
+    for (const [id, spec] of Object.entries(HC.HOLIDAY_COLORS)) {
+      assert.ok(E.HOLIDAY_DEFS.some(h => h.id === id), id);
+      for (const n of spec.byParity ? spec.byParity.flat() : spec) { const c = byName.get(n); assert.ok(c && !c.retired && E.isDailyEligible(c.de), `${id}: ${n}`); }
+    }
+  });
+  test('schedule: every future holiday (through 2035) gets one of its candidates; Halloween 2026 is pumpkin', () => {
+    const FROZEN = 658; let n = 0;
+    for (let y = 2026; y <= 2035; y++) for (const h of E.holidaysForYear(y)) {
+      const d = dayOf(y, h.month, h.day); if (d <= FROZEN || d >= S.length) continue;
+      assert.ok(HC.candidatesFor(h.id, y).includes(S[d]), `${h.id} ${y} (day ${d}) is "${S[d]}"`); n++;
+    }
+    assert.ok(n >= 180, `only ${n} holiday days`);
+    assert.strictEqual(S[dayOf(2026, 10, 31)], 'pumpkin'); assert.strictEqual(S[dayOf(2027, 10, 31)], 'pumpkin orange');
+    assert.strictEqual(S[dayOf(2027, 7, 4)], 'navy blue'); assert.strictEqual(S[dayOf(2028, 7, 4)], 'fire engine red');
+  });
+  test('schedule: frozen days unchanged by the holiday pass, all future colors eligible, no repeat within 120 days', () => {
+    // frozen through 658 (today #2 + tomorrow): days 0..658 hash as they did before round 72
+    assert.strictEqual(require('crypto').createHash('sha256').update(S.slice(0, 659).join('|')).digest('hex'), 'db3515bf034445b6417e57a4856f805ca09260b2f5c87dd7a482c25cf6a0dbe5');
+    assert.strictEqual(S[656], 'lipstick'); assert.strictEqual(S[657], 'dark forest green');
+    for (let d = 659; d < S.length; d++) { const c = byName.get(S[d]); assert.ok(c && !c.retired && E.isDailyEligible(c.de), `day ${d}: ${S[d]}`); }
+    for (let d = 659; d < S.length; d++) for (let j = Math.max(0, d - 120); j < d; j++) assert.ok(S[j] !== S[d], `${S[d]} on days ${j} and ${d}`);
+  });
+  test('holiday tag in the header: daily only, emoji hidden from screen readers', () => {
+    assert.ok(htmlSrc.includes('<p id="holiday-tag" hidden></p>'));
+    assert.ok(gameSrc.includes("const hol = daily ? E.holidayOn(dateForDay(round.day)) : null"));
+    assert.ok(gameSrc.includes('<span aria-hidden="true">${hol.emoji}</span> ${escapeHtml(hol.label)}'));
+  });
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -82,6 +82,7 @@ Consequences that are **invariants**, not implementation details:
   the solver's best recipe scores ≥ par** (`engine.isDailyEligible`,
   `PAR_PCT = 85`, ≈ ΔE ≤ 11.25) — one shared rule for game.js, the solver
   and the colors.js header; no day can be unwinnable at par.
+- **Holiday colors** (round 72, Franklin): `tools/build-schedule.js` gives future holidays a themed, daily-eligible color (`tools/holiday-colors.js`, rotated by year) and shows a small header tag such as "🎃 Halloween". Frozen days are never touched, and the 120-day no-repeat rule still holds. Lunar-calendar holidays come from tables (2026–2035).
 - **Header and panels** (round 71, Franklin):
   - Calendar, Stats and Collection each have their own icon button with an aria-label, and their own dialog with a title (no sub-tabs). The header's right side is two rows (four icons, then Tips and Practice) and fits at 320px.
   - User-facing copy says **Submit** ("Submit attempt 1", "Submit final attempt", "submitted"), never "Seal"; internal names may stay.

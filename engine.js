@@ -647,6 +647,70 @@ function officialRecipeVisible(name, scheduleDays, today, todayName, todayFinish
   return (scheduleDays || []).some(d => d < today);
 }
 
+/* ---------------- Holidays (round 72, Franklin) ----------------
+ * Holiday days get a themed daily color (tools/build-schedule.js) and a small
+ * tag under the header. Pure date math plus fixed tables for the lunar dates
+ * (sources: Wikipedia / HKO for Lunar New Year, Hebcal for the first Hanukkah
+ * candle, drikpanchang / qppstudio for Diwali, Lakshmi Puja); years outside a
+ * table simply have no such holiday. When two land on one day, the one listed
+ * first wins (see HOLIDAY_PRIORITY). */
+const LUNAR_NEW_YEAR = { 2026: '02-17', 2027: '02-06', 2028: '01-26', 2029: '02-13', 2030: '02-03', 2031: '01-23', 2032: '02-11', 2033: '01-31', 2034: '02-19', 2035: '02-08' };
+const HANUKKAH_FIRST_NIGHT = { 2026: '12-04', 2027: '12-24', 2028: '12-12', 2029: '12-01', 2030: '12-20', 2031: '12-09', 2032: '11-27', 2033: '12-16', 2034: '12-06', 2035: '12-25' };
+const DIWALI = { 2026: '11-08', 2027: '10-29', 2028: '10-17', 2029: '11-05', 2030: '10-26', 2031: '11-14', 2032: '11-02', 2033: '10-22', 2034: '11-10', 2035: '10-30' };
+/** Western (Gregorian) Easter Sunday, anonymous Gregorian algorithm. -> [month 1-12, day] */
+function easterDate(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return [month, day];
+}
+/** n-th weekday (0 = Sunday) of a month (1-12). */
+function nthWeekday(y, month, weekday, n) {
+  const first = new Date(Date.UTC(y, month - 1, 1)).getUTCDay();
+  return 1 + ((weekday - first + 7) % 7) + 7 * (n - 1);
+}
+function md(s) { const [m, d] = s.split('-').map(Number); return [m, d]; }
+function shiftDays(y, m, d, n) { const t = new Date(Date.UTC(y, m - 1, d + n)); return [t.getUTCMonth() + 1, t.getUTCDate()]; }
+/* Listed in priority order: on a clash the earlier one keeps the day. */
+const HOLIDAY_DEFS = [
+  { id: 'christmas', label: 'Christmas', emoji: '🎄', on: y => [12, 25] },
+  { id: 'hanukkah', label: 'Hanukkah', emoji: '🕎', on: y => HANUKKAH_FIRST_NIGHT[y] && md(HANUKKAH_FIRST_NIGHT[y]) },
+  { id: 'christmas-eve', label: 'Christmas Eve', emoji: '✨', on: y => [12, 24] },
+  { id: 'new-year', label: "New Year's Day", emoji: '🎉', on: y => [1, 1] },
+  { id: 'lunar-new-year', label: 'Lunar New Year', emoji: '🧧', on: y => LUNAR_NEW_YEAR[y] && md(LUNAR_NEW_YEAR[y]) },
+  { id: 'valentines', label: "Valentine's Day", emoji: '💝', on: y => [2, 14] },
+  { id: 'mardi-gras', label: 'Mardi Gras', emoji: '🎭', on: y => { const [m, d] = easterDate(y); return shiftDays(y, m, d, -47); } },
+  { id: 'groundhog', label: 'Groundhog Day', emoji: '🦫', on: y => [2, 2] },
+  { id: 'pi-day', label: 'Pi Day', emoji: '🥧', on: y => [3, 14] },
+  { id: 'st-patricks', label: "St. Patrick's Day", emoji: '☘️', on: y => [3, 17] },
+  { id: 'easter', label: 'Easter', emoji: '🐣', on: y => easterDate(y) },
+  { id: 'earth-day', label: 'Earth Day', emoji: '🌍', on: y => [4, 22] },
+  { id: 'cinco-de-mayo', label: 'Cinco de Mayo', emoji: '🪅', on: y => [5, 5] },
+  { id: 'mothers-day', label: "Mother's Day", emoji: '💐', on: y => [5, nthWeekday(y, 5, 0, 2)] },
+  { id: 'pride', label: 'Pride Month', emoji: '🏳️‍🌈', on: y => [6, 1] },
+  { id: 'fathers-day', label: "Father's Day", emoji: '👔', on: y => [6, nthWeekday(y, 6, 0, 3)] },
+  { id: 'independence-day', label: 'Independence Day', emoji: '🎆', on: y => [7, 4] },
+  { id: 'halloween', label: 'Halloween', emoji: '🎃', on: y => [10, 31] },
+  { id: 'diwali', label: 'Diwali', emoji: '🪔', on: y => DIWALI[y] && md(DIWALI[y]) },
+  { id: 'thanksgiving', label: 'Thanksgiving', emoji: '🦃', on: y => [11, nthWeekday(y, 11, 4, 4)] }
+];
+/** All holidays of a year as { id, label, emoji, month, day }, one per date (priority wins). */
+function holidaysForYear(y) {
+  const taken = new Set(), out = [];
+  for (const h of HOLIDAY_DEFS) {
+    const r = h.on(y); if (!r) continue;
+    const key = r[0] * 100 + r[1]; if (taken.has(key)) continue;
+    taken.add(key); out.push({ id: h.id, label: h.label, emoji: h.emoji, month: r[0], day: r[1] });
+  }
+  return out.sort((a, b) => a.month * 100 + a.day - (b.month * 100 + b.day));
+}
+/** The holiday on a local calendar date, or null. */
+function holidayOn(date) {
+  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+  return holidaysForYear(y).find(h => h.month === m && h.day === d) || null;
+}
+
 /* ---------------- duel link payload (round 8) ----------------
  * The player's % composition (r.y.b.k.w, %x10 integers) masked with a
  * day-seeded keystream, 2 base36 chars per share. Obfuscation, not
@@ -678,7 +742,7 @@ const MisnomerEngine = {
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName,
-  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

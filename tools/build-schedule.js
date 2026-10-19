@@ -65,6 +65,59 @@ function usedNear(d) {
   return s;
 }
 
+// ---- Round 72 (Franklin): holiday colors on holidays (future days only) ----
+// For every holiday after FREEZE_THROUGH through HORIZON: pick a fitting
+// daily-eligible color (tools/holiday-colors.js), rotating by year, avoiding a
+// repeat within REPEAT_GAP of a frozen day or another holiday pick. Then the
+// pick takes the day: any other (non-holiday, future) use of that color within
+// REPEAT_GAP is cleared, and the displaced color moves into one of those
+// cleared slots when it fits there; remaining holes are refilled from the bag.
+const { candidatesFor } = require('./holiday-colors.js');
+const dayOf = (y, m, d) => E.dayNumber(new Date(y, m - 1, d)) + 1;
+const holidayDays = new Map(); // day -> { id, label, name, exception? }
+const holidayExceptions = [];
+{
+  const firstYear = new Date(2025, 0, 1 + FREEZE_THROUGH).getFullYear(), lastYear = new Date(2025, 0, HORIZON).getFullYear();
+  const list = [];
+  for (let y = firstYear; y <= lastYear; y++) for (const h of E.holidaysForYear(y)) {
+    const d = dayOf(y, h.month, h.day);
+    if (d > FREEZE_THROUGH && d <= HORIZON) list.push({ d, y, h });
+  }
+  list.sort((a, b) => a.d - b.d);
+  const picksNear = (name, d) => {
+    for (const [hd, v] of holidayDays) if (v.name === name && Math.abs(hd - d) <= REPEAT_GAP) return true;
+    for (let i = Math.max(0, d - REPEAT_GAP); i <= Math.min(FREEZE_THROUGH, d + REPEAT_GAP); i++) if (sched[i] === name) return true;
+    return false;
+  };
+  for (const { d, y, h } of list) {
+    const cands = candidatesFor(h.id, y).filter(n => eligible.has(n));
+    if (!cands.length) { holidayExceptions.push(`${h.id} ${y}: no eligible candidate (skipped)`); continue; }
+    // stable across rebuilds: keep the current entry when it is a valid candidate
+    let name = cands.includes(sched[d]) && !picksNear(sched[d], d) ? sched[d] : cands.find(n => !picksNear(n, d));
+    if (!name) { name = cands[0]; holidayExceptions.push(`${h.id} ${y} (day ${d}): "${name}" repeats within ${REPEAT_GAP} days of another holiday/frozen day`); }
+    holidayDays.set(d, { id: h.id, label: h.label, name });
+  }
+  let moved = 0, cleared = 0;
+  for (const [d, v] of holidayDays) {
+    const displaced = sched[d];
+    sched[d] = v.name;
+    if (displaced === v.name) continue;
+    const holes = [];
+    for (let i = Math.max(FREEZE_THROUGH + 1, d - REPEAT_GAP); i <= Math.min(HORIZON, d + REPEAT_GAP); i++) {
+      if (i !== d && sched[i] === v.name && !holidayDays.has(i)) { sched[i] = null; holes.push(i); cleared++; }
+    }
+    if (displaced) {
+      for (const i of holes) {
+        let clash = false;
+        for (let j = Math.max(0, i - REPEAT_GAP); j <= Math.min(HORIZON, i + REPEAT_GAP); j++) if (j !== i && sched[j] === displaced) { clash = true; break; }
+        if (!clash) { sched[i] = displaced; moved++; break; }
+      }
+    }
+  }
+  console.log(`holidays: ${holidayDays.size} future holiday days set, ${cleared} nearby repeats cleared, ${moved} displaced colors moved into them`);
+  for (const x of holidayExceptions) console.log('  exception: ' + x);
+}
+
 // Fill gaps: replaced holes inside the existing range, then fresh bags.
 let bag = [], bagNo = 0;
 function nextFromBag(d) {
@@ -100,4 +153,4 @@ if (typeof window !== 'undefined') window.MIXOLOGY_SCHEDULE = MIXOLOGY_SCHEDULE;
 `;
 fs.writeFileSync(OUT, file);
 console.log(`schedule.js: days 0..${HORIZON}, frozen through ${FREEZE_THROUGH}, ` +
-  `${replaced} future entries replaced (ineligible), ${filled} new days filled; pool ${pool.length}`);
+  `${replaced} future entries refilled (ineligible or cleared for a holiday pick), ${filled} new days filled; pool ${pool.length}`);
