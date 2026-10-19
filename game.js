@@ -1234,6 +1234,12 @@ function closeWelcome() {
   if (!$('welcome-overlay').classList.contains('open')) return;
   closeOverlay('welcome-overlay');
   try { localStorage.setItem(WELCOME_KEY, '1'); } catch (e) { /* private mode */ }
+  // Round 43: first-visit coach mark. Two soft rings pulse out of the pot to show
+  // where to tap. CSS only, so reduced motion turns it off; it clears itself.
+  const pot = $('pot');
+  if (pot && round && !round.finished && !REDUCED_MOTION) {
+    pot.classList.add('coach'); setTimeout(() => pot.classList.remove('coach'), 2600);
+  }
 }
 function maybeWelcome() {
   let seen = false; try { seen = !!localStorage.getItem(WELCOME_KEY); } catch (e) { seen = true; }
@@ -1290,7 +1296,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.10',
+  version: '1.10.11',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

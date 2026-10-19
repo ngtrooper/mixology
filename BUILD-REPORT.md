@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 43 (2026-10-18, Grok Bot): FIRST-VISIT COACH RING
+- When a first-time player closes the welcome card, two soft accent rings pulse out of the pot (about 2.6 s, then the class clears itself). It shows where to tap first.
+  - It is a pointer to the control, not a mix suggestion: no color or amount is implied.
+  - Off under reduced motion, and skipped if the round is already finished.
+- Version 1.10.11. Shot: `r43-after-coach-ring.png`. Test added.
+
 ## Round 42 (2026-10-18, Grok Bot): STATS POLISH
 - Score spread: once today is finished, the bucket holding today's score is highlighted (accent label and count) and the other bars dim, as in other daily games.
   - The highlight comes from the saved daily record only. The aria-label adds ", includes today".

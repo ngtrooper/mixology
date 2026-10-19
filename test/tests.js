@@ -973,5 +973,11 @@ test("stats: today's score bucket is highlighted once today is finished; par lab
   const s = gameSrc.slice(gameSrc.indexOf('function recentFormSVG('), i);
   assert.ok(s.includes('(W - 2 * P - G)') && s.includes('W - P - G + 8'), 'par label can collide with the newest dot');
 });
+console.log('— round 43: first-visit coach ring —');
+test('closing the welcome pulses a coach ring on the pot once (CSS-only, reduced-motion off, self-clearing)', () => {
+  const i = gameSrc.indexOf('function closeWelcome('); const f = gameSrc.slice(i, gameSrc.indexOf('function maybeWelcome', i));
+  assert.ok(f.includes("pot.classList.add('coach')") && f.includes("pot.classList.remove('coach')") && f.includes('!REDUCED_MOTION') && f.includes('!round.finished'));
+  assert.ok(htmlSrc.includes('#pot.coach::after') && /coach-ring[^}]*\b2\b/.test(htmlSrc.slice(htmlSrc.indexOf('#pot.coach::after'))), 'ring CSS missing or not limited to two pulses');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
