@@ -1003,5 +1003,8 @@ test('controls with shortcuts expose aria-keyshortcuts matching the handler', ()
   for (const [id, k] of [['bucket-r','1'],['bucket-y','2'],['bucket-b','3'],['bucket-k','4'],['bucket-base','5'],['tool-dropper','D'],['tool-pour','P'],['btn-undo','Z']])
     assert.ok(htmlSrc.includes(`id="${id}" aria-keyshortcuts="${k}"`), id);
 });
+test('typography: reveal distance line is balanced; paragraphs avoid orphans', () => {
+  assert.ok(/#reveal-de \{[^}]*text-wrap: balance/.test(htmlSrc) && htmlSrc.includes('p, #status { text-wrap: pretty; }'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

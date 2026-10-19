@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 48 (2026-10-18, Grok Bot): TYPOGRAPHY: NO ORPHANS
+- The reveal's "accuracy · perceptual distance … from the official <Name>" line now uses `text-wrap: balance`, so the color name no longer hangs alone on line two.
+- Body paragraphs and the status line use `text-wrap: pretty`. This is progressive enhancement; browsers without support are unchanged.
+- CSS only. Shots: before `r48-before-reveal-de.png` (live site), after `r48-after-reveal-de.png`. Test added.
+
 ## Round 47 (2026-10-18, Grok Bot): A11Y: ARIA-KEYSHORTCUTS
 - The five pigments, Dropper, Pour Bucket and Undo carry `aria-keyshortcuts` (1–5, D, P, Z), so assistive tech can announce the round-40 shortcuts. Markup only. Test added. axe clean.
 
