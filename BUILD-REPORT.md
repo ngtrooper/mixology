@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 24 (2026-10-18, Grok Bot): INSTALL POLISH · TIPS
+- Installed (standalone) on notched phones: `#app` padding now respects `env(safe-area-inset-*)` (we already set `viewport-fit=cover`).
+  - Added apple/mobile web-app-capable and status-bar meta tags.
+  - The manifest gets `id`, portrait orientation and categories.
+- Tips gain an "After the round" section: recipe vs your mix, spoiler-free share with the image card on phones, duel links, and 📅 calendar & stats (device-only). Tool dosages are unchanged.
+- Re-ran axe (12 states clean), a11y and dark-mode checks. Test added.
+
 ## Round 23 (2026-10-18, Grok Bot): VIEWPORT SWEEP · SMALL-PHONE HEADER
 - Swept 320×640, 390×844, 844×390 landscape and 1280×800 desktop: no horizontal overflow and no errors.
 - **Bug:** at 320px the header buttons overlapped the "MIXOLOGY." wordmark (`r23-before-header-320-overlap.png`).

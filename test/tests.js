@@ -858,5 +858,13 @@ test('landmarks + calendar contrast (axe-core clean): <main> wraps the app, futu
   assert.ok(gameSrc.includes("if (cls.includes(' future')) cell.disabled = true;"), 'future days focusable');
   assert.ok(/\.cal-day\.before \{ opacity: \.62; \}/.test(htmlSrc) && htmlSrc.includes('.cal-day.before .cd-n { color: var(--ink); }'), 'pre-history days too faint');
 });
+console.log('— round 24: install polish + tips —');
+test('standalone install: safe-area padding, manifest id/orientation; Tips explain sharing + stats without dosage changes', () => {
+  assert.ok(htmlSrc.includes('env(safe-area-inset-top)') && htmlSrc.includes('viewport-fit=cover'), 'no safe-area handling');
+  const m = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+  assert.strictEqual(m.id, './'); assert.strictEqual(m.display, 'standalone');
+  const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-overlay"'), htmlSrc.indexOf('</div>\n</div>', htmlSrc.indexOf('<div id="tips-overlay"')));
+  assert.ok(tips.includes('without naming the color') && tips.includes('calendar and stats'), 'tips do not cover sharing/stats');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

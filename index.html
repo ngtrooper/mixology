@@ -23,6 +23,9 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-title" content="Mixology">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   :root {
     --paper: #f6f1e7; --ink: #1c1a17; --muted: #6b6356; --card: #fffdf8;
@@ -34,6 +37,11 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   #app { max-width: 460px; margin: 0 auto; padding: 14px 16px 40px; }
+  /* round 24: installed (standalone) on notched phones — keep clear of the status bar / home bar */
+  @supports (padding: max(0px)) {
+    #app { padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: max(40px, calc(env(safe-area-inset-bottom) + 24px));
+           padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  }
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   h1 { font-size: 22px; letter-spacing: 3px; margin: 4px 0; font-weight: 800; }
   h1 .dot { color: var(--accent); }
@@ -580,6 +588,9 @@
     <h3>Scoring</h3>
     <p>Your score is % accuracy: 100% means your mix is indistinguishable from the official color, measured by perceptual distance (CIEDE2000). 85% or better beats par.</p>
     <p>A fresh color arrives every day — same name for everyone. Come back tomorrow.</p>
+    <h3>After the round</h3>
+    <p>The reveal shows the official recipe next to your mix. <b>Share result</b> sends your score without naming the color, so no spoilers. On phones it attaches an image card. <b>Copy duel link</b> lets a friend try to beat you on the same color.</p>
+    <p>📅 opens your calendar and stats: every day you've played, your streaks and how your scores spread. They're saved on this device only.</p>
   </div>
 </div>
 
