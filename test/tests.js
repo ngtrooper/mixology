@@ -1275,14 +1275,39 @@ console.log('— round 69: Collection (Franklin) —');
     assert.ok(col.found[E.discoverColor(E.mixColor(b.recipe), COL, LABS).name]);
     assert.deepStrictEqual(E.backfillCollection(null, {}, COL, LABS).found, {});
   });
-  test('spoiler rule: official recipe only after the color\'s daily date has passed, or today\'s finished color', () => {
-    assert.strictEqual(E.officialRecipeVisible('x', [100, 700], 656, 'y', false), true);   // was a daily (day 100)
-    assert.strictEqual(E.officialRecipeVisible('x', [700], 656, 'y', true), false);        // only upcoming
-    assert.strictEqual(E.officialRecipeVisible('x', undefined, 656, 'y', true), false);    // never a daily
-    assert.strictEqual(E.officialRecipeVisible('x', [656], 656, 'x', false), false);       // today, not finished
-    assert.strictEqual(E.officialRecipeVisible('x', [656], 656, 'x', true), true);         // today, finished
-    assert.ok(gameSrc.includes("E.officialRecipeVisible(name, SCHEDULE_DAYS.get(name), DAY, todayName, !!store.data.days[DAY])"));
-    assert.ok(gameSrc.includes('The official recipe unlocks once this color has been a daily color.'), 'locked copy must not say whether it is upcoming');
+  test('spoiler rule (r73): official recipe only for colors the player finished as a daily', () => {
+    const SCH = SCHEDULE;
+    // evergreen was a pre-launch daily (day 508) and recurs in the future: locked
+    assert.strictEqual(SCH[508], 'evergreen');
+    assert.ok(SCH.some((n, d) => n === 'evergreen' && d > 658), 'evergreen recurs as a future daily');
+    assert.strictEqual(E.officialRecipeVisible('evergreen', {}), false);
+    // every pre-launch color is locked for a fresh player, and for one who only finished #1 and #2
+    const played = { 656: { name: SCH[656], attempts: [{}] }, 657: { name: SCH[657], attempts: [{}] } };
+    for (let d = 1; d < 656; d++) {
+      const n = SCH[d]; if (!n || n === SCH[656] || n === SCH[657]) continue;
+      assert.strictEqual(E.officialRecipeVisible(n, {}), false, n);
+      assert.strictEqual(E.officialRecipeVisible(n, played), false, n);
+    }
+    // a finished day unlocks its color (a reveal the player already saw), even if it recurs
+    assert.strictEqual(E.officialRecipeVisible(SCH[656], played), true);
+    assert.strictEqual(E.officialRecipeVisible(SCH[657], played), true);
+    assert.strictEqual(E.officialRecipeVisible('evergreen', { 508: { name: 'evergreen' } }), true);
+    // today's color, not finished yet (no record): locked; never a daily: locked
+    assert.strictEqual(E.officialRecipeVisible(SCH[658], played), false);
+    assert.strictEqual(E.officialRecipeVisible('x', undefined), false);
+    assert.ok(gameSrc.includes("E.officialRecipeVisible(name, store.data.days)"));
+    assert.ok(!gameSrc.includes('SCHEDULE_DAYS'), 'no schedule lookup in the spoiler rule');
+    assert.ok(gameSrc.includes('The official recipe unlocks once you finish this color as a daily.'), 'locked copy must not say whether it is upcoming');
+  });
+  test('spoiler rule (r73): calendar shows a recipe only for finished days', () => {
+    const fn = gameSrc.slice(gameSrc.indexOf('function showCalDetail'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function showCalDetail')));
+    const i = fn.indexOf('recipesHTML('), played = fn.indexOf('if (rec && rec.attempts && rec.attempts.length)'), other = fn.indexOf('} else if (day === DAY)');
+    assert.ok(played >= 0 && played < i && i < other, 'recipes only in the finished-day branch');
+    assert.strictEqual(fn.split('recipesHTML(').length, 2, 'one recipe render');
+    assert.ok(!/recipe/i.test(fn.slice(other).replace(/\/\/.*$/gm, '')), 'missed / pre-launch / today branches show no recipe');
+    // store.data.days is written only on finish
+    assert.strictEqual((gameSrc.match(/s\.days\[day\] = \{/g) || []).length, 1);
+    assert.ok(gameSrc.slice(gameSrc.indexOf('function finish()'), gameSrc.indexOf('function finish()') + 600).includes('s.days[day] = {'));
   });
   test('game wiring: own versioned key, storage-failure safe, backfill on first load, announced only at the reveal', () => {
     assert.strictEqual(E.COLLECTION_KEY, 'mixology.collection.v1');

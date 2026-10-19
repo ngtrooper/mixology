@@ -639,12 +639,16 @@ function backfillCollection(col, days, collectible, labs) {
   out.backfilled = true;
   return out;
 }
-/** Spoiler rule: the official recipe of a collected color is shown only once
- *  that color's daily date has passed (a scheduled day before today), or when
- *  it is today's color and today is finished. Otherwise only the player's mix. */
-function officialRecipeVisible(name, scheduleDays, today, todayName, todayFinished) {
-  if (name === todayName && todayFinished) return true;
-  return (scheduleDays || []).some(d => d < today);
+/** Spoiler rule (round 73, Franklin): the official recipe of a collected color
+ *  is shown only if the player has FINISHED a daily of that color (any record
+ *  in their own save's `days`, written only by finish()). That is a reveal
+ *  they already saw, so it stays visible even though colors recur later in
+ *  the schedule. A color that was only a pre-launch daily (internal day < 656,
+ *  before Mixology #1) or a missed day, or that is upcoming, stays locked: the
+ *  old "was a daily before today" rule unlocked all 656 pre-launch colors, and
+ *  those recur as future dailies (e.g. evergreen: days 508, 1454, ...). */
+function officialRecipeVisible(name, finishedDays) {
+  return Object.values(finishedDays || {}).some(r => !!r && r.name === name);
 }
 
 /* ---------------- Holidays (round 72, Franklin) ----------------

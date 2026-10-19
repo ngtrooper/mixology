@@ -2,6 +2,22 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 73 (2026-10-19, Grok Bot): SPOILER FIX, OFFICIAL RECIPES ONLY FOR FINISHED DAILIES (Franklin)
+- **Bug:** the Collection showed the official recipe for "evergreen", which is a future daily (internal days 1454, ...).
+  - The r69 rule unlocked any color that had been a daily before today. That counted the 656 pre-launch days (internal < 656, before Mixology #1), and those colors recur later in the schedule.
+- **New rule** (`E.officialRecipeVisible(name, store.data.days)`): the official recipe shows only for a color the player has finished as a daily. That is a reveal they already saw, so it stays visible when the color recurs.
+  - `days` records are written only by `finish()`.
+  - Pre-launch, missed, upcoming and today-unfinished colors show only the player's own mix, with the copy "The official recipe unlocks once you finish this color as a daily." The copy never says whether the color is upcoming.
+  - The schedule lookup (`SCHEDULE_DAYS`) is removed.
+- **Calendar:** unchanged and now tested. Recipe bars render only in the finished-day branch. Missed and pre-launch days show the name and date only.
+- **Tests:**
+  - Every pre-launch color is locked, both for a fresh player and for one who finished #1 and #2. evergreen (day 508, recurs) is locked.
+  - Finished days unlock their color. Today's unfinished color is locked.
+  - The calendar has a single recipe render, in the finished branch.
+- **Live check** (mocked Oct 19, #1 finished): Evergreen and Amber locked, Lipstick shows its official recipe. Calendar Oct 1 (pre-launch) shows the name only, #1 shows recipes. axe is clean.
+- Shot: `r73-evergreen-locked-live.png`.
+- Version 1.16.1. 169 tests.
+
 ## Round 72 (2026-10-19, Grok Bot): HOLIDAY COLORS (Franklin)
 - **Holiday calendar** (`engine.js`): `holidaysForYear` and `holidayOn`. 20 holidays:
   - Fixed dates.

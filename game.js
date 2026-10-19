@@ -1089,6 +1089,8 @@ function showCalDetail(day) {
       window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
     });
   } else if (day < DAY && day >= 1) {
+    // round 73: a missed or pre-launch day shows its name only, never its
+    // official recipe (the color may recur as a future daily)
     el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}missed</div><div class="cdt-sub">${escapeHtml(when)} · the color was “${escapeHtml(titleCase(colorForDay(day).name))}”.</div>`;
   } else {
     el.innerHTML = '';
@@ -1105,11 +1107,6 @@ function showCalDetail(day) {
  * the reveal would tell you how close you are (design lock: no clues). */
 const COLLECTIBLE = E.collectibleColors(BANK);
 const COLLECTIBLE_LABS = COLLECTIBLE.map(c => E.hexToLab(c.hex));
-const SCHEDULE_DAYS = (() => { // name -> scheduled days, for the spoiler rule
-  const m = new Map();
-  SCHEDULE.forEach((n, d) => { if (n) { if (!m.has(n)) m.set(n, []); m.get(n).push(d); } });
-  return m;
-})();
 const collection = {
   data: (() => {
     try {
@@ -1204,15 +1201,14 @@ function showCollectionDetail(name) {
   if (!el || !rec || !c || collectionHidden().has(name)) return;
   document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
   const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
-  const todayName = colorForDay(DAY).name;
-  const showRecipe = E.officialRecipeVisible(name, SCHEDULE_DAYS.get(name), DAY, todayName, !!store.data.days[DAY]);
+  const showRecipe = E.officialRecipeVisible(name, store.data.days); // round 73: only colors you finished as a daily
   const b = rec.best;
   const when = rec.date ? new Date(rec.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'before the Collection existed';
   el.innerHTML = `<div class="cdt-title">“${escapeHtml(titleCase(name))}”</div>` +
     `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${b.pct}%</div>` +
     `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.hex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${b.pct}%</b></span></div>` +
     recipeRowHTML('Your mix', b.pct + '%', b.comp) +
-    (showRecipe ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once this color has been a daily color.</p>`);
+    (showRecipe ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>`);
   try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
   el.scrollIntoView({ block: 'nearest', behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
 }
@@ -1506,7 +1502,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.16.0',
+  version: '1.16.1',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
