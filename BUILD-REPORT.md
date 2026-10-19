@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 61 (2026-10-18, Grok Bot): README LOCKS FOR ROUNDS 40–60
+- README design locks now cover keyboard shortcuts (no seal key), forced colors, contrast and motion preferences, and spoiler-free install screenshots.
+- A stray round-51 note that had landed under "Run it" moved into the locks list. Docs only.
+
 ## Round 60 (2026-10-18, Grok Bot): A11Y: SHORTCUT ANNOUNCEMENTS
 - Keyboard shortcuts change controls without moving focus, so the change was silent for screen readers.
   - They now announce through the existing polite live region: "Blue paint selected", "Dropper selected", "Pour Bucket selected", and "Undone" (only if something was actually undone).

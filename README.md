@@ -59,6 +59,10 @@ Consequences that are **invariants**, not implementation details:
 - **Buttons with icons** (round 25): use `flashLabel(btn, text)` for temporary labels. Setting `textContent` directly would wipe the SVG.
 - **Shipping UI changes** (round 32): bump `version` in game.js and the `?v=` on all four `<script>` tags together (a test enforces the match). Pages caches for about 10 min, so without this a returning visitor can get new game.js with old index.html, or the reverse.
 - **a11y baseline** (rounds 17, 21, 26): axe-core is clean in 12 states (light/dark × home, reveal, calendar, stats, tips, welcome). Keep `<main id="app">`, the `#sr-announce` live region, `aria-pressed` on pigments and tools, and `--muted` at ≥ 4.5:1.
+- **Keyboard shortcuts** (rounds 40, 57, 60): 1–5 pigments, D/P tools, Z undo, PgUp/PgDn months. There is deliberately **no seal key**, so an attempt can never be sealed by accident. Shortcuts are ignored in dialogs and fields, and they announce changes to screen readers by naming the control, never the mix.
+- **Forced colors** (round 51): any new element whose *meaning* is a paint color must join the `@media (forced-colors: active)` `forced-color-adjust: none` list, or it vanishes in High Contrast mode.
+- **Contrast and motion preferences** (rounds 52, 59): `prefers-contrast: more` is palette-only, like dark mode. Entrance animations are transform-only (never text opacity), and the global reduced-motion rule switches them off.
+- **Install screenshots** (round 45): `icons/screenshot-*.png` must show an unmixed board, with no mix and no recipe. Re-shoot them if the layout changes a lot.
 - **Sharing never names the color** (round 12): the share text and PNG card use the hook
   line instead of the name and show no colors or recipes. The card is drawn by `drawShareCard`.
 - **No hints** on attempts (just %), **no live caption** naming the mix,
@@ -118,4 +122,3 @@ Consequences that are **invariants**, not implementation details:
 
 Any static server, e.g. `python3 -m http.server` in this directory, then
 open `index.html`. No build step, no dependencies.
-- Forced colors (round 51): any new element whose *meaning* is a paint color must be added to the `@media (forced-colors: active)` `forced-color-adjust: none` list, or it vanishes in High Contrast mode.
