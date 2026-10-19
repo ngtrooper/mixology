@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 53 (2026-10-18, Grok Bot): LINK-PREVIEW METADATA
+- Head gains `<link rel="canonical">` (duel `?d=` links all collapse to the one page for crawlers), `og:site_name`, `og:locale`, `og:image:type` and `twitter:image:alt`.
+  - All of it is static and spoiler-free: the hook line, never a color name.
+- Markup only. Test added.
+
 ## Round 52 (2026-10-18, Grok Bot): A11Y: INCREASE CONTRAST
 - `prefers-contrast: more` (the iOS/macOS "Increase contrast" setting) strengthens two palette variables: secondary text `--muted` and outlines `--line`. Light and dark each have their own values. Palette only, like dark mode.
   - Light: muted 8.7:1 on paper (was 5.3:1), lines 3.3:1 (non-text AA).

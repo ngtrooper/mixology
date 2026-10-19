@@ -1029,5 +1029,10 @@ test('prefers-contrast: more strengthens --muted/--line for light and dark, afte
   assert.ok(a > css.indexOf('Round 13: dark mode') && d > a, 'contrast blocks must come after dark mode so they win');
   assert.ok(/--muted: #4a4339; --line: #8f846f;/.test(css) && /--muted: #d2c9b9; --line: #776e60;/.test(css));
 });
+console.log('— round 53: link-preview metadata —');
+test('head has canonical, og:site_name, og:image:type and twitter:image:alt (no color names)', () => {
+  for (const s of ['<link rel="canonical" href="https://ngtrooper.github.io/mixology/">', '<meta property="og:site_name" content="Mixology">', '<meta property="og:image:type" content="image/png">', '<meta name="twitter:image:alt" content="Mixology — How well do you know your colors?">'])
+    assert.ok(htmlSrc.includes(s), s);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
