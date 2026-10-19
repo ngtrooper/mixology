@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 37 (2026-10-18, Grok Bot): ERROR GUARD
+- A tiny inline guard runs before our scripts. If `colors/schedule/engine/game.js` from our own origin throws, a bottom banner says "Something went wrong loading Mixology. [Reload]" instead of leaving a dead page. It shows once; errors from extensions or other origins are ignored.
+- Verified by serving old HTML (no `#btn-card`) with new JS: a dead page before, the banner now (`r37-after-error-banner.png`). A normal load and a third-party error show no banner.
+- This complements the r32 cache-busting. Version 1.10.5. Test added.
+
 ## Round 36 (2026-10-18, Grok Bot): DUEL SHARE LINE · WEB SHARE PATH VERIFIED
 - On phones, Copy duel link opens the share sheet with `{ text: "Beat my 93% on Mixology #1?", url }`. It never names the color. The clipboard fallback still copies just the link.
 - Verified with a mocked `navigator.share`/`canShare`:

@@ -933,5 +933,12 @@ test('duel share line is a name-free challenge; clipboard copies only the link',
   const s = gameSrc.slice(gameSrc.indexOf('async function doShare'), gameSrc.indexOf('/* Round 12: a 1080'));
   assert.ok(s.includes('navigator.share({ text: nativeText, url: text })') && s.includes('navigator.clipboard.writeText(text)'));
 });
+test('error guard: own-script errors offer a reload (once); other origins/extensions ignored; installed before our scripts', () => {
+  const i = htmlSrc.indexOf("window.addEventListener('error'");
+  assert.ok(i > 0 && i < htmlSrc.indexOf('<script src="colors.js'), 'guard missing or after the scripts');
+  const g = htmlSrc.slice(i, i + 600);
+  assert.ok(g.includes('f.indexOf(location.origin) !== 0') && g.includes('(colors|schedule|engine|game)'), 'guard not limited to our scripts');
+  assert.ok(g.includes('if (shown ||'), 'banner can repeat');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
