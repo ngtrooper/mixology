@@ -535,7 +535,7 @@ test('Pour Bucket is the default tool — on load and on entering practice', () 
   assert.ok(/function startPractice\(\) \{\s*selectedTool = 'pour'/.test(gameSrc), 'startPractice does not reset to the Pour Bucket');
   // round 20: the label carries an SVG icon before the text
   assert.ok(/id="toolbar-current"><svg class="ti"[^]*?<\/svg>Pour Bucket</.test(htmlSrc), 'static collapsed-toolbar label is not the Pour Bucket');
-  assert.ok(htmlSrc.includes('<button class="tool sel" type="button" data-tool="pour" id="tool-pour">'), 'pour tool is not pre-selected in the static HTML');
+  assert.ok(/<button class="tool sel" type="button" data-tool="pour" id="tool-pour"[^>]*>/.test(htmlSrc), 'pour tool is not pre-selected in the static HTML');
 });
 test('finished pot is visibly locked and a press gives feedback (never a silent dead pot)', () => {
   assert.ok(gameSrc.includes('lockedFeedback'), 'no lockedFeedback for finished-round pot presses');
@@ -998,6 +998,10 @@ test('manifest lists narrow + wide install screenshots that exist with the decla
 });
 test('keyboard tip is hidden on touch-only devices', () => {
   assert.ok(/@media \(hover: none\) and \(pointer: coarse\) \{ \.kbd-tip \{ display: none; \} \}/.test(htmlSrc));
+});
+test('controls with shortcuts expose aria-keyshortcuts matching the handler', () => {
+  for (const [id, k] of [['bucket-r','1'],['bucket-y','2'],['bucket-b','3'],['bucket-k','4'],['bucket-base','5'],['tool-dropper','D'],['tool-pour','P'],['btn-undo','Z']])
+    assert.ok(htmlSrc.includes(`id="${id}" aria-keyshortcuts="${k}"`), id);
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -2,6 +2,9 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 47 (2026-10-18, Grok Bot): A11Y: ARIA-KEYSHORTCUTS
+- The five pigments, Dropper, Pour Bucket and Undo carry `aria-keyshortcuts` (1–5, D, P, Z), so assistive tech can announce the round-40 shortcuts. Markup only. Test added. axe clean.
+
 ## Round 46 (2026-10-18, Grok Bot): TOUCH-AWARE TIPS + DARK CHECK
 - The Tips keyboard-shortcut line is hidden on touch-only devices (`hover: none` and `pointer: coarse`). Phones and tablets with a keyboard or trackpad still see it.
 - Dark-mode check of the new `<kbd>` chips: legible. Shot: `r46-check-tips-dark.png`, taken with a fine pointer. Test added.
