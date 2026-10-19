@@ -155,6 +155,13 @@
   /* Round 8: surface sheen. Round 67: the rotating swirl overlay is gone
    * (testers found it distracting). The surface is one steady color that eases
    * to the new mix. Franklin: no bloom, ripple or splash on the pot either. */
+  /* Round 83 (Franklin): the pot starts EMPTY. An empty bowl: a pale grey,
+     clearly unpainted interior with a deeper inner shadow, not white paint.
+     The first drop gives the surface that paint's color. */
+  #pot.empty #pot-surface {
+    background: radial-gradient(circle at 50% 42%, #f0ede6 0%, #e2ddd2 70%, #d6d0c3 100%);
+    box-shadow: inset 0 10px 20px rgba(28,26,23,.26), inset 0 -3px 8px rgba(255,255,255,.5);
+  }
   #pot-surface::after {
     content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
     background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.38), rgba(255,255,255,0) 42%);
@@ -293,6 +300,8 @@
   #btn-seal { background: var(--accent); color: #fff; border: none; }
   .attempt-slot.best { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   #btn-seal:disabled { opacity: .45; }
+  #seal-hint { margin: 6px 0 0; text-align: center; font-size: 13px; color: var(--muted); } /* round 83 */
+  #seal-hint[hidden] { display: none; }
   #btn-seal.done, #btn-seal.done:disabled { opacity: 1; background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
   #reveal { display: none; margin: 20px 0 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
   #reveal h2 { margin: 0 0 10px; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); text-align: center; }
@@ -626,6 +635,9 @@
       --line: #3d3830; --accent: #d9743a; --good: #6fbf73;
     }
     #pot { background: radial-gradient(circle at 35% 30%, #4a443b, #2a2621); box-shadow: 0 4px 18px rgba(0,0,0,.5); }
+    #pot.empty #pot-surface { background: radial-gradient(circle at 50% 42%, #3a362f 0%, #2c2924 72%, #24211d 100%); box-shadow: inset 0 10px 22px rgba(0,0,0,.6), inset 0 -2px 6px rgba(255,255,255,.06); } /* round 83: empty bowl */
+    #pot.empty #pot-hint { color: #f1ebdf; }
+    #pot.empty #pot-hint svg path:first-child { fill: #3a362f; }
     #bucket-k { border-color: rgba(241,235,223,.45); }
     #bucket-base { border-color: #8a7d60; }
     #stream-outline { stroke: rgba(0,0,0,.35); }
@@ -687,12 +699,12 @@
   </div>
 
   <div id="stage">
-    <button id="pot" type="button" aria-label="Add paint to the pot"><span id="pot-surface"></span><span id="pot-hint" hidden aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 11.5V5.2a1.6 1.6 0 0 1 3.2 0v5.3l.1-1a1.6 1.6 0 0 1 3.1.4v1.1a1.5 1.5 0 0 1 3 .3v.6a1.4 1.4 0 0 1 2.7.5v3.2c0 3.3-2.3 6.4-6.2 6.4h-1.3c-2 0-3.4-.9-4.6-2.4l-3.3-4.3a1.6 1.6 0 0 1 2.4-2.1z" fill="#fff" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5.2 4.6a5 5 0 0 1 8.8-1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".55"/></svg><span>Hold to pour</span></span></button>
+    <button id="pot" class="empty" type="button" aria-label="Add paint to the pot"><span id="pot-surface"></span><span id="pot-hint" hidden aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 11.5V5.2a1.6 1.6 0 0 1 3.2 0v5.3l.1-1a1.6 1.6 0 0 1 3.1.4v1.1a1.5 1.5 0 0 1 3 .3v.6a1.4 1.4 0 0 1 2.7.5v3.2c0 3.3-2.3 6.4-6.2 6.4h-1.3c-2 0-3.4-.9-4.6-2.4l-3.3-4.3a1.6 1.6 0 0 1 2.4-2.1z" fill="#fff" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5.2 4.6a5 5 0 0 1 8.8-1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".55"/></svg><span>Hold to pour</span></span></button>
     <button class="bucket pigment sel" type="button" data-bucket="r" id="bucket-r" aria-keyshortcuts="1" style="left:50%;top:10.5%;background:#D6282E" aria-label="Select red pigment"><span class="ppct" aria-hidden="true">0%</span></button>
     <button class="bucket pigment" type="button" data-bucket="y" id="bucket-y" aria-keyshortcuts="2" style="left:88.5%;top:36%;background:#FFCD00" aria-label="Select yellow pigment"><span class="ppct" aria-hidden="true">0%</span></button>
     <button class="bucket pigment" type="button" data-bucket="b" id="bucket-b" aria-keyshortcuts="3" style="left:74.5%;top:82.5%;background:#1C4096" aria-label="Select blue pigment"><span class="ppct" aria-hidden="true">0%</span></button>
     <button class="bucket pigment" type="button" data-bucket="k" id="bucket-k" aria-keyshortcuts="4" style="left:25.5%;top:82.5%;background:#141416" aria-label="Select black pigment"><span class="ppct" aria-hidden="true">0%</span></button>
-    <button class="bucket pigment" type="button" data-bucket="w" id="bucket-base" aria-keyshortcuts="5" style="left:11.5%;top:36%;background:#FFFFFF" aria-label="Select white pigment"><span class="ppct" aria-hidden="true">100%</span></button>
+    <button class="bucket pigment" type="button" data-bucket="w" id="bucket-base" aria-keyshortcuts="5" style="left:11.5%;top:36%;background:#FFFFFF" aria-label="Select white pigment"><span class="ppct" aria-hidden="true">0%</span></button>
     <button class="premove" type="button" id="rm-r" data-rm="r" hidden aria-keyshortcuts="Shift+1" style="left:calc(50% - 30px);top:calc(10.5% - 27px)" aria-label="Remove red paint">−</button>
     <button class="premove" type="button" id="rm-y" data-rm="y" hidden aria-keyshortcuts="Shift+2" style="left:calc(88.5% - 30px);top:calc(36% - 27px)" aria-label="Remove yellow paint">−</button>
     <button class="premove" type="button" id="rm-b" data-rm="b" hidden aria-keyshortcuts="Shift+3" style="left:calc(74.5% + 30px);top:calc(82.5% - 27px)" aria-label="Remove blue paint">−</button>
@@ -751,8 +763,9 @@
   <p id="last-result"></p>
 
   <div id="actions">
-    <button id="btn-seal" type="button">Submit attempt 1</button>
+    <button id="btn-seal" type="button" disabled>Submit attempt 1</button>
   </div>
+  <p id="seal-hint">Pour some paint into the pot to submit.</p>
 
   <section id="reveal">
     <h2>The reveal</h2>
@@ -845,10 +858,10 @@
     <p>Every day has one color, given only as a name. Nobody shows you the color — mix what you think the name looks like.</p>
     <p>Pick a pigment from the ring, pick a tool, then dose the pot in the middle. Submit two attempts — the round ends after the second, and your best attempt is your score.</p>
     <h3>The pot</h3>
-    <p>The pot is always 100% full — it starts as pure white paint. Every drop you add pushes the other paints down to make room, so the total never goes above 100%. One drop is 1% of the pot. And a messed-up pot can always be rescued: just keep adding the color you want and it will take over.</p>
+    <p>The pot starts <b>empty</b>. Your first drop fills it with that paint (100%). After that every drop you add pushes the other paints down to make room, so the total is always 100%. One drop is about 1% of the pot. White is just a paint like the others: add it only if you want it. And a messed-up pot can always be rescued: just keep adding the color you want and it will take over.</p>
     <p>Each paint disc shows that paint's live share of the pot in whole percent, and the five numbers always add up to 100%. A paint that drops below half a percent is gone completely (it goes to 0%), so you never carry a trace you can't see.</p>
     <p><b>Taking paint out:</b> every paint in the pot has a small <b>−</b> button by its disc. Tap it to remove about 1% of that paint; hold it to keep removing (it speeds up like the bucket) until you let go or it reaches 0%. The other paints grow back to fill the pot. Undo takes back a whole hold in one step.</p>
-    <p>A fresh pot reads white 100%, everything else 0%. The pot itself never shows a number: judge the color by eye.</p>
+    <p>An empty pot reads 0% everywhere, and you can submit once there is paint in it. Taking out the last paint empties it again. The pot itself never shows a number: judge the color by eye.</p>
     <h3>The tools</h3>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11z" fill="currentColor"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="var(--tool-hi, #fff)" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/></svg><b>Dropper</b> — 1 drop per click on the pot.</p>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.6 11.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8z" fill="currentColor"/><path d="M6 8a6 4.5 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.6 12h12.8" stroke="var(--tool-hi, #fff)" stroke-width="1.6" opacity=".55"/></svg><b>Pour Bucket</b> — press and hold the pot to pour. It starts at about 30 drops per second for fine control and speeds up to about 90 if you keep holding (a full pot of one paint in about 3 seconds). Let go to stop.</p>
@@ -884,10 +897,10 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.22.1"></script>
-<script src="schedule.js?v=1.22.1"></script>
-<script src="engine.js?v=1.22.1"></script>
-<script src="analytics.js?v=1.22.1"></script>
-<script src="game.js?v=1.22.1"></script>
+<script src="colors.js?v=1.23.0"></script>
+<script src="schedule.js?v=1.23.0"></script>
+<script src="engine.js?v=1.23.0"></script>
+<script src="analytics.js?v=1.23.0"></script>
+<script src="game.js?v=1.23.0"></script>
 </body>
 </html>

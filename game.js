@@ -190,7 +190,7 @@ function initPotHint() {
   const hasHistory = Object.keys(store.data.days || {}).length > 0 || !!store.data.wip;
   potHint.on = !poured && !hasHistory;
 }
-function potIsEmpty() { return !!round && BUCKET_KEYS.every(b => (b === 'w' ? 100 : 0) === Math.round(Number(round.pot[b]) || 0)); }
+function potIsEmpty() { return !!round && E.isEmptyComp(round.pot); } // round 83: the fresh pot is empty
 function potHintShown() { return potHint.on && !!round && !round.finished && potIsEmpty(); }
 function markPoured() {
   if (!potHint.on) return;
@@ -425,12 +425,14 @@ function removePaint(key) {
 function seal() {
   stopPour(); stopRemove();
   if (!round || round.finished || round.attempts.length >= MAX_ATTEMPTS) return null;
+  if (E.isEmptyComp(round.pot)) return null; // round 83: an empty pot can't be submitted
   // round 77: scored against the official recipe; an exact recipe match
   // (disc numbers equal to the recipe's) is 100%
   const sc = E.scoreMix(round.pot, round.color.recipe);
   const att = { comp: { ...round.pot }, hex: sc.hex, pct: sc.pct, de: sc.de };
   if (sc.exact) att.exact = true;
   round.attempts.push(att);
+  if (round.mode === 'daily' && round.attempts.length === 1) trackScore('a1', round.day, sc.pct); // round 83
   justSealed = round.attempts.length - 1;
   sfx.seal();
   announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.` + (round.attempts.length === 1 && round.attempts.length < MAX_ATTEMPTS ? ` Hint: ${hintText(att)}.` : ''));
@@ -457,6 +459,21 @@ function trackReturn() {
   if (!MA) return;
   const f = firstPlayedDay(); if (f == null) return;
   const b = MA.returnBucket(DAY - f); if (b) track('return-day-' + b);
+}
+/* Round 83: difficulty numbers (attempt-1 score, final score, how far the
+ * final mix's disc numbers are from the recipe's, how many paints it uses).
+ * Built from numbers by analytics.js helpers; no name ever goes in. */
+function trackScore(stage, day, score) {
+  if (!MA) return;
+  const n = E.publicNumber(day), lbl = MA.scoreLabel(score);
+  if (n && lbl) track(`pct-#${n}-${stage}-${lbl}`);
+}
+function trackMix(day, mix, target) {
+  if (!MA || !mix || !target) return;
+  const n = E.publicNumber(day); if (!n) return;
+  const mine = E.displayPercents(mix), off = MA.offBucket(MA.recipeOff(mine, E.displayPercents(target))), pc = MA.paintCount(mine);
+  if (off) track(`off-#${n}-${off}`);
+  if (pc) track(`paints-#${n}-${pc}`);
 }
 function trackFinish(day, pct) {
   if (!MA) return;
@@ -509,6 +526,7 @@ function finish() {
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
   queueDiscoveryToasts(collectRound(round.attempts, round.color.name)); // round 69: announced only now, at the reveal
   if (round.mode === 'daily') trackFinish(round.day, final.pct); // round 78
+  if (round.mode === 'daily') { trackScore('final', round.day, final.pct); trackMix(round.day, final.comp, round.color.recipe); } // round 83
 }
 
 /* Round 17: screen-reader announcements (polite live region). It only
@@ -794,7 +812,7 @@ function renderDiscPercents() {
     btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot`);
     // round 68: the remove badge shows only when taking this paint out would change the pot
     const rm = $('rm-' + b); if (!rm) continue;
-    const show = !round.finished && round.pot[b] > 0 && pct[b] !== '100%';
+    const show = !round.finished && round.pot[b] > 0; // round 83: also at 100%, taking out the last paint empties the pot
     if (rm.hidden === show) rm.hidden = !show;
     rm.setAttribute('aria-label', `Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. Hold to keep removing`);
   }
@@ -830,8 +848,10 @@ function renderAll() {
   const stale = daily && round.day !== DAY;
   if (stale && !round.finished) $('prompt-sub').textContent = "A new day's color is out — finish this one, then play today's.";
 
-  const hex = mixHex();
-  $('pot-surface').style.background = hex;
+  // Round 83: an empty pot shows an empty bowl (CSS #pot.empty), not white paint
+  const empty = E.isEmptyComp(round.pot);
+  $('pot').classList.toggle('empty', empty);
+  $('pot-surface').style.background = empty ? '' : mixHex();
 
   for (const b of BUCKET_KEYS) {
     $(BUCKET_EL[b]).classList.toggle('sel', selectedBucket === b);
@@ -844,7 +864,7 @@ function renderAll() {
   }
   { // round 26: the pot says what a press will do (the selected pigment and tool, which are already visible)
     const pn = { r: 'red', y: 'yellow', b: 'blue', k: 'black', w: 'white' }[selectedBucket] || 'paint';
-    $('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (round.finished ? 'Pot (round complete)'
+    $('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (empty && !round.finished ? 'The pot is empty. ' : '') + (round.finished ? 'Pot (round complete)'
       : selectedTool === 'pour' ? `Pour ${pn} into the pot (hold to keep pouring)` : `Add one drop of ${pn} to the pot`));
     renderPotHint(); // round 81
   }
@@ -884,7 +904,8 @@ function renderAll() {
       : 'Dose the pot, then submit an attempt. Two per round — your best one counts.';
 
   const sealBtn = $('btn-seal');
-  sealBtn.disabled = round.finished || round.attempts.length >= MAX_ATTEMPTS;
+  sealBtn.disabled = round.finished || round.attempts.length >= MAX_ATTEMPTS || empty; // round 83: nothing to submit yet
+  $('seal-hint').hidden = round.finished || !empty;
   sealBtn.classList.toggle('done', !!round.finished); // round 31: calm finished state
   sealBtn.textContent = round.finished ? 'Round complete ✓'
     : round.attempts.length === MAX_ATTEMPTS - 1 ? `Submit final attempt` : `Submit attempt ${round.attempts.length + 1}`;
@@ -1380,7 +1401,10 @@ function initDaily() {
     // because the frozen schedule preserved every pre-existing day).
     if (wip && wip.day === DAY && (!wip.name || wip.name === todayColor.name)) {
       round.attempts = (wip.attempts || []).slice(0, 3);
-      round.pot = wip.pot || freshPot();
+      // round 83: a WIP pot that is exactly the OLD untouched start (100% white)
+      // becomes the new empty pot; any other saved pot loads as it is
+      // (white in it is real paint the player kept).
+      round.pot = !wip.pot || E.recipeMatch(wip.pot, E.OLD_WHITE_START) && Math.abs((wip.pot.w || 0) - 100) < 1e-9 ? freshPot() : wip.pot;
       // Round 9 migration: a WIP saved under the 3-attempt rules may
       // already hold 2 sealed attempts — that is a complete round now,
       // so finish it (best of the attempts made counts; nothing lost).
@@ -1650,7 +1674,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.22.1',
+  version: '1.23.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

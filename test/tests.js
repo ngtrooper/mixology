@@ -168,9 +168,12 @@ test('displacing with white lightens a warm mix and keeps its hue warm', () => {
 });
 
 console.log('— round 6: the percentage pot (composition invariants) —');
-test('fresh pot is 100% white and renders #FFFFFF', () => {
-  assert.deepStrictEqual({ ...E.FRESH_COMP }, { r: 0, y: 0, b: 0, k: 0, w: 100 });
-  assert.strictEqual(E.mixColor(E.FRESH_COMP), '#FFFFFF');
+test('fresh pot is EMPTY (round 83): no paint at all, every disc 0%, the first drop is 100% that paint', () => {
+  assert.deepStrictEqual({ ...E.FRESH_COMP }, { r: 0, y: 0, b: 0, k: 0, w: 0 });
+  assert.ok(E.isEmptyComp(E.FRESH_COMP) && !E.isEmptyComp({ w: 100 }));
+  assert.deepStrictEqual(E.displayPercents(E.FRESH_COMP), { r: '0%', y: '0%', b: '0%', k: '0%', w: '0%' });
+  for (const k of ['r', 'y', 'b', 'k', 'w']) { const c = E.addUnits(E.FRESH_COMP, k, 1); assert.strictEqual(c[k], 100); assert.strictEqual(E.displayPercents(c)[k], '100%'); }
+  assert.deepStrictEqual({ ...E.OLD_WHITE_START }, { r: 0, y: 0, b: 0, k: 0, w: 100 }); // the old start, for save migration only
 });
 test('composition always sums to exactly 100, whatever you dose', () => {
   let seed = 99; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
@@ -337,7 +340,7 @@ test('tips overlay explains the percentage pot and states the dosages (only ther
   assert.ok(htmlSrc.includes('id="tips-overlay"'), 'no tips overlay');
   assert.ok(htmlSrc.includes('1 drop per click'), 'dropper dosage missing from tips');
   assert.ok(htmlSrc.includes('about 30 drops per second') && htmlSrc.includes('speeds up to about 90'), 'pour dosage/ramp missing from tips');
-  assert.ok(htmlSrc.includes('always 100% full'), 'tips does not explain the percentage pot');
+  assert.ok(htmlSrc.includes('The pot starts <b>empty</b>. Your first drop fills it with that paint (100%).') && htmlSrc.includes('the total is always 100%'), 'tips does not explain the (round 83: empty-start) percentage pot');
   assert.ok(htmlSrc.includes('pushes the other paints down'), 'tips does not explain displacement');
   assert.ok(!htmlSrc.includes('Pour out') && !htmlSrc.includes('Pour Out'), 'tips mentions the cancelled Pour Out');
 });
@@ -628,7 +631,7 @@ test('single pigment into white is a monotonic walk: never lighter, never less s
 });
 test('a 1 s Pour Bucket hold from a fresh pot is clearly visible: ΔE >= 18 for every pigment', () => {
   for (const key of ['r', 'y', 'b', 'k']) {
-    const d = E.deltaE2000(labOfComp(E.FRESH_COMP), labOfComp(pour(E.FRESH_COMP, key, ONE_SEC)));
+    const d = E.deltaE2000(labOfComp(E.OLD_WHITE_START), labOfComp(pour(E.OLD_WHITE_START, key, ONE_SEC))); // into a 100% white pot
     assert.ok(d >= 18, `${key}: 1 s pour moved only ΔE ${d.toFixed(1)} (round 62 ramp: r 26.8, y 19.2, b 26.6, k 36.5; flat 30/s bar was 15)`);
   }
 });
@@ -778,7 +781,8 @@ test('dark mode follows the system: palette vars overridden at the end of the st
   assert.ok(i > css.indexOf('--paper: #f6f1e7'), 'no dark block after the base palette');
   const blk = css.slice(i);
   assert.ok(/--paper: #1a1815/.test(blk) && /--ink: #f1ebdf/.test(blk), 'dark palette missing');
-  assert.ok(!/#pot-surface|\.pigment\b|\.cd-sw\b/.test(blk), 'dark mode recolours paint');
+  // round 83: the EMPTY bowl may go dark (it holds no paint); real paint never does
+  assert.ok(!/#pot-surface|\.pigment\b|\.cd-sw\b/.test(blk.replace(/#pot\.empty #pot-surface/g, '')), 'dark mode recolours paint');
   assert.ok(htmlSrc.includes('content="#1a1815" media="(prefers-color-scheme: dark)"') && htmlSrc.includes('name="color-scheme" content="light dark"'));
 });
 console.log('— round 14: welcome + modal focus —');
@@ -1085,7 +1089,7 @@ test('pour ramp: fresh white -> 90% one pigment in 3-4 s (was 7.7 s), short taps
   assert.ok(t90 >= 2.6 && t90 <= 4, `90% at ${t90.toFixed(2)} s`);
   assert.ok(t95 <= 4.5, `95% at ${t95.toFixed(2)} s`);
   // the simulation matches the real model (addUnits), not just the closed form
-  let c = { ...E.FRESH_COMP }; const n = 1 + Math.floor(E.pourUnitsAt(t90));
+  let c = { ...E.OLD_WHITE_START }; const n = 1 + Math.floor(E.pourUnitsAt(t90)); // into a 100% white pot
   for (let i = 0; i < n; i++) c = E.addUnits(c, 'r', 1);
   assert.ok(c.r >= 90 && c.r < 91, `r share ${c.r.toFixed(2)} after ${n} units`);
   assert.ok(1 + Math.floor(E.pourUnitsAt(0.15)) <= 6, 'a quick tap pours too much');
@@ -1111,7 +1115,8 @@ test('pour sound follows the ramp (higher, quicker glugs at speed)', () => {
 });
 console.log('— round 65: live pot % on the paint discs (Franklin) —');
 test('displayPercents (r68): whole numbers that ALWAYS sum to 100, a present paint never reads 0%, no "<1%"', () => {
-  assert.deepStrictEqual(E.displayPercents(E.FRESH_COMP), { r: '0%', y: '0%', b: '0%', k: '0%', w: '100%' });
+  assert.deepStrictEqual(E.displayPercents(E.FRESH_COMP), { r: '0%', y: '0%', b: '0%', k: '0%', w: '0%' }); // round 83: empty pot
+  assert.deepStrictEqual(E.displayPercents(E.OLD_WHITE_START), { r: '0%', y: '0%', b: '0%', k: '0%', w: '100%' });
   assert.deepStrictEqual(E.displayPercents({ r: 33.4, y: 33.3, b: 33.3, k: 0, w: 0 }), { r: '34%', y: '33%', b: '33%', k: '0%', w: '0%' });
   assert.deepStrictEqual(E.displayPercents({ r: 0.6, w: 99.4 }), { r: '1%', y: '0%', b: '0%', k: '0%', w: '99%' });
   const rng = E.mulberry32(65);
@@ -1146,7 +1151,8 @@ test('snapTraces: any paint under TRACE_PCT (0.5%) after a dose is set to 0; the
     const k = ['r', 'y', 'b', 'k', 'w'][Math.floor(rng() * 5)];
     q = rng() < 0.3 ? E.removeUnits(q, k, 1) : E.addUnits(q, k, 1 + Math.floor(rng() * 8));
     for (const x of Object.values(q)) assert.ok(x === 0 || x >= E.TRACE_PCT, JSON.stringify(q));
-    assert.ok(Math.abs(Object.values(q).reduce((a, x) => a + x, 0) - 100) < 1e-6);
+    const sum = Object.values(q).reduce((a, x) => a + x, 0);
+    assert.ok(Math.abs(sum - 100) < 1e-6 || (sum === 0 && E.isEmptyComp(q)), 'sums to 100, or the pot is empty (round 83)');
   }
 });
 test('every bank recipe is reachable under the snap rule: each paint 0 or >= 0.5%, and its stored de reproduces', () => {
@@ -1178,7 +1184,7 @@ test('remove badge markup: five separate buttons outside the discs (not nested),
   assert.ok(/\.premove \{[^}]*width: 30px; height: 30px/.test(htmlSrc) && /\.premove::before \{[^}]*inset: -6px/.test(htmlSrc), 'badge size / hit area');
   assert.ok(/\.premove \{[^}]*touch-action: none/.test(htmlSrc), 'a hold would scroll the page');
   assert.ok(/#stage\.locked \.premove \{ display: none; \}/.test(htmlSrc), 'badges on a finished round');
-  assert.ok(gameSrc.includes("const show = !round.finished && round.pot[b] > 0 && pct[b] !== '100%';"));
+  assert.ok(gameSrc.includes("const show = !round.finished && round.pot[b] > 0; // round 83"));
   assert.ok(gameSrc.includes('`Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. Hold to keep removing`'));
   assert.ok(gameSrc.includes("e.preventDefault(); e.stopPropagation();"), 'a badge press could reach the disc or pot');
   assert.ok(gameSrc.includes("btn.addEventListener('click', e => { if (e.detail === 0) removePaint(key); });"), 'keyboard activation');
@@ -1687,25 +1693,25 @@ console.log('— round 81: "Hold to pour" on the empty pot for first-time player
   function boot({ days = {}, wip = null, ls = {}, finished = false } = {}) {
     const el = { hidden: true, cls: new Set(), classList: { add(c) { el.cls.add(c); }, remove(c) { el.cls.delete(c); } } };
     const mem = Object.assign({}, ls), localStorage = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
-    const env = { round: { finished, pot: { r: 0, y: 0, b: 0, k: 0, w: 100 } } };
-    const api = new Function('$', 'store', 'env', 'localStorage', 'BUCKET_KEYS', 'REDUCED_MOTION', 'setTimeout', 'clearTimeout',
+    const env = { round: { finished, pot: { r: 0, y: 0, b: 0, k: 0, w: 0 } } }; // round 83: empty start
+    const api = new Function('E', '$', 'store', 'env', 'localStorage', 'BUCKET_KEYS', 'REDUCED_MOTION', 'setTimeout', 'clearTimeout',
       'let round; Object.defineProperty(env, "r", { get: () => round, set: v => { round = v; } }); round = env.round;\n' + block +
       '\nreturn { initPotHint, potHintShown, markPoured, renderPotHint, setRound: v => { round = v; } };')(
-      id => (id === 'pot-hint' ? el : null), { data: { days, wip } }, env, localStorage, ['r', 'y', 'b', 'k', 'w'], true, f => f(), () => {});
+      E, id => (id === 'pot-hint' ? el : null), { data: { days, wip } }, env, localStorage, ['r', 'y', 'b', 'k', 'w'], true, f => f(), () => {});
     api.initPotHint(); api.renderPotHint();
     return { api, el, mem, env };
   }
-  const drop = t => { t.env.round.pot = { r: 0, y: 1, b: 0, k: 0, w: 99 }; t.api.markPoured(); t.api.renderPotHint(); };
+  const drop = t => { t.env.round.pot = { r: 0, y: 100, b: 0, k: 0, w: 0 }; t.api.markPoured(); t.api.renderPotHint(); };
   test('fresh save: the label shows on the empty pot (and the pot\'s accessible name starts with it)', () => {
     const t = boot();
     assert.ok(t.api.potHintShown() && !t.el.hidden && t.el.cls.has('show'));
-    assert.ok(gameSrc.includes("$('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (round.finished"));
+    assert.ok(gameSrc.includes("$('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (empty && !round.finished ? 'The pot is empty. ' : '') + (round.finished"));
   });
   test('the first drop hides it for good: flag saved, still hidden after undo to an empty pot, and after a reload', () => {
     const t = boot(); drop(t);
     assert.ok(!t.api.potHintShown() && t.el.hidden && !t.el.cls.has('show'));
     assert.strictEqual(t.mem['mixology.poured.v1'], '1');
-    t.env.round.pot = { r: 0, y: 0, b: 0, k: 0, w: 100 }; t.api.renderPotHint(); // undo / reset back to white
+    t.env.round.pot = { r: 0, y: 0, b: 0, k: 0, w: 0 }; t.api.renderPotHint(); // undo / reset back to empty
     assert.ok(!t.api.potHintShown() && t.el.hidden);
     const again = boot({ ls: t.mem }); // reload with the same localStorage, still no saved day
     assert.ok(!again.api.potHintShown() && again.el.hidden);
@@ -1784,5 +1790,92 @@ test('placement: countdown right after the result; returning finished players ge
   const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('function shareText') + 1500);
   assert.ok(!/Next color|come back|formatCountdown/.test(share), 'share text changed');
 });
+
+console.log('— round 83: the pot starts EMPTY; difficulty analytics —');
+{
+  const POOL83 = bank.filter(c => !c.retired && E.isDailyEligible(c.de));
+  const S83 = require('../schedule.js'), SCHED83 = Array.isArray(S83) ? S83 : String(S83).split('|');
+  const byN83 = new Map(bank.map(c => [c.name, c]));
+  const A83 = require('../analytics.js');
+  const sum = c => ['r', 'y', 'b', 'k', 'w'].reduce((a, k) => a + parseInt(E.displayPercents(c)[k], 10), 0);
+  test('empty pot: no paint; percentages are shares that sum to 100 from the first drop; taking out the last paint empties it', () => {
+    let c = { ...E.FRESH_COMP };
+    assert.ok(E.isEmptyComp(c) && sum(c) === 0);
+    c = E.addUnits(c, 'b', 1); assert.strictEqual(c.b, 100); assert.strictEqual(sum(c), 100);
+    c = E.addUnits(c, 'y', 1); assert.deepStrictEqual(E.displayPercents(c), { r: '0%', y: '1%', b: '99%', k: '0%', w: '0%' });
+    for (let i = 0; i < 40; i++) { c = E.addUnits(c, ['r', 'y', 'k', 'w'][i % 4], 1); assert.strictEqual(sum(c), 100); }
+    // remove down to nothing: one paint left -> one more tap empties the pot
+    let d = E.addUnits(E.addUnits(E.FRESH_COMP, 'r', 1), 'w', 1), taps = 0;
+    while (!E.isEmptyComp(d) && taps < 50) { d = E.removeUnits(d, d.w > 0 ? 'w' : 'r', 1); taps++; }
+    assert.ok(E.isEmptyComp(d) && taps <= 3, `emptied in ${taps} taps`);
+    assert.deepStrictEqual(E.removeUnits(E.FRESH_COMP, 'w', 1), E.FRESH_COMP);
+    assert.deepStrictEqual(E.removeUnits({ r: 0, y: 0, b: 0, k: 0, w: 100 }, 'w', 1), E.FRESH_COMP, 'a pure-white pot is just paint: removing it empties');
+  });
+  test('no implicit white anywhere in scoring or recipes: every pool recipe whole %, sums 100; recipes without white exist', () => {
+    let noWhite = 0;
+    for (const c of POOL83) {
+      const vals = ['r', 'y', 'b', 'k', 'w'].map(k => c.recipe[k] || 0);
+      assert.ok(vals.every(Number.isInteger) && vals.reduce((a, x) => a + x, 0) === 100, c.name);
+      if (!c.recipe.w) noWhite++;
+    }
+    assert.ok(noWhite > 200, `only ${noWhite} recipes without white`);
+    assert.ok(!/OLD_WHITE_START/.test(gameSrc.slice(gameSrc.indexOf('function seal('), gameSrc.indexOf('function seal(') + 900)), 'white leaks into scoring');
+  });
+  test('every one of the 853 pool colors is exactly reachable (100%) from the EMPTY pot with whole drops and − taps', () => {
+    assert.strictEqual(POOL83.length, 853);
+    for (const c of POOL83) {
+      const ops = E.wholeDropPath(c.recipe, 400, 4);
+      assert.ok(ops && ops.length <= 400, `${c.name}: no whole-drop route`);
+      assert.ok(!ops.includes('-w') || (c.recipe.w || 0) > 0 || ops.includes('+w'), `${c.name}: route removes white it never added`);
+      let pot = { ...E.FRESH_COMP };
+      for (const op of ops) pot = op[0] === '+' ? E.addUnits(pot, op[1], 1) : E.removeUnits(pot, op[1], 1);
+      assert.strictEqual(E.scoreMix(pot, c.recipe).pct, 100, c.name);
+    }
+  });
+  test("today's official recipe (#2 dark forest green, Y30 B29 K41) poured from an empty pot scores 100%", () => {
+    const c = byN83.get(SCHED83[657]); assert.strictEqual(c.name, 'dark forest green');
+    const ops = E.wholeDropPath(c.recipe, 400, 4);
+    let pot = { ...E.FRESH_COMP }; for (const op of ops) pot = op[0] === '+' ? E.addUnits(pot, op[1], 1) : E.removeUnits(pot, op[1], 1);
+    assert.deepStrictEqual(E.displayPercents(pot), { r: '0%', y: '30%', b: '29%', k: '41%', w: '0%' });
+    const sc = E.scoreMix(pot, c.recipe); assert.ok(sc.pct === 100 && sc.exact);
+  });
+  test('game: empty bowl look, Submit disabled with a hint until there is paint, seal() refuses an empty pot, badge shows at 100%', () => {
+    assert.ok(htmlSrc.includes('<button id="pot" class="empty" type="button"') && /#pot\.empty #pot-surface \{\s*background: radial-gradient/.test(htmlSrc));
+    assert.ok(htmlSrc.includes('<button id="btn-seal" type="button" disabled>Submit attempt 1</button>') && htmlSrc.includes('<p id="seal-hint">Pour some paint into the pot to submit.</p>'));
+    assert.ok(gameSrc.includes("sealBtn.disabled = round.finished || round.attempts.length >= MAX_ATTEMPTS || empty;") && gameSrc.includes("$('seal-hint').hidden = round.finished || !empty;"));
+    assert.ok(gameSrc.includes("if (E.isEmptyComp(round.pot)) return null; // round 83"));
+    assert.ok(gameSrc.includes("$('pot').classList.toggle('empty', empty);") && gameSrc.includes("$('pot-surface').style.background = empty ? '' : mixHex();"));
+    assert.ok(htmlSrc.includes('aria-label="Select white pigment"><span class="ppct" aria-hidden="true">0%</span>'));
+    // dark mode: the empty bowl and its label stay readable
+    assert.ok(/#pot\.empty #pot-hint \{ color: #f1ebdf; \}/.test(htmlSrc));
+  });
+  test('saves: an untouched old white pot in a WIP becomes empty; any other saved pot (with white) loads as is; past days untouched', () => {
+    const m = gameSrc.slice(gameSrc.indexOf('// round 83: a WIP pot that is exactly'), gameSrc.indexOf('// round 83: a WIP pot that is exactly') + 420);
+    const migrate = new Function('E', 'freshPot', 'wip', m.slice(m.indexOf('round.pot =')).replace('round.pot =', 'return').split('\n')[0]);
+    const fresh = () => ({ ...E.FRESH_COMP });
+    assert.deepStrictEqual(migrate(E, fresh, { pot: { r: 0, y: 0, b: 0, k: 0, w: 100 } }), E.FRESH_COMP);
+    assert.deepStrictEqual(migrate(E, fresh, {}), E.FRESH_COMP);
+    const mixed = { r: 20, y: 0, b: 0, k: 0, w: 80 }; assert.deepStrictEqual(migrate(E, fresh, { pot: mixed }), mixed);
+    assert.ok(gameSrc.includes('pot: lastAtt.comp ? { ...lastAtt.comp } : freshPot(),'), 'finished days still show their saved mix');
+  });
+  test('difficulty events: score labels, recipe-distance buckets, paint counts; allowlist; never a color name', () => {
+    assert.deepStrictEqual([0, 59, 59.4, 60, 85, 97, 100, 101, NaN].map(A83.scoreLabel), ['<60', '<60', '<60', '60', '85', '97', '100', null, null]);
+    assert.deepStrictEqual([0, 1, 2, 5, 6, 10, 11, 20, 21, 90, -1].map(A83.offBucket), ['0', '1', '2', '5', '6-10', '6-10', '11-20', '11-20', '21+', '21+', null]);
+    assert.strictEqual(A83.recipeOff({ r: '0%', y: '31%', b: '28%', k: '41%', w: '0%' }, { r: 0, y: 30, b: 29, k: 41, w: 0 }), 2);
+    assert.strictEqual(A83.recipeOff(E.displayPercents({ w: 100 }), { y: 30, b: 29, k: 41 }), 200);
+    assert.deepStrictEqual([{ y: '100%' }, { r: '1%', y: '99%' }, { r: '20%', y: '20%', b: '20%', k: '20%', w: '20%' }, {}].map(A83.paintCount), [1, 2, 5, null]);
+    for (const ok of ['pct-#2-a1-<60', 'pct-#2-a1-60', 'pct-#2-final-97', 'pct-#120-final-100', 'off-#2-0', 'off-#2-6-10', 'off-#2-11-20', 'off-#2-21+', 'paints-#2-1', 'paints-#2-5']) assert.ok(A83.validEvent(ok), ok);
+    for (const bad of ['pct-#2-final-59', 'pct-#2-final-101', 'pct-#2-a2-90', 'off-#2-7', 'off-#2-6', 'paints-#2-0', 'paints-#2-6', 'pct-#2-final-97 x']) assert.ok(!A83.validEvent(bad), bad);
+    for (const n of bank.map(c => c.name)) for (const ev of ['pct-' + n, 'off-' + n, 'paints-' + n, `pct-#2-final-${n}`, `off-#2-${n}`]) assert.ok(!A83.validEvent(ev), ev);
+    // the game only sends them for daily rounds, from numbers
+    assert.ok(gameSrc.includes("if (round.mode === 'daily' && round.attempts.length === 1) trackScore('a1', round.day, sc.pct); // round 83"));
+    assert.ok(gameSrc.includes("if (round.mode === 'daily') { trackScore('final', round.day, final.pct); trackMix(round.day, final.comp, round.color.recipe); } // round 83"));
+    const tm = gameSrc.slice(gameSrc.indexOf('function trackScore'), gameSrc.indexOf('function trackFinish'));
+    assert.ok(tm.includes('track(`pct-#${n}-${stage}-${lbl}`)') && tm.includes('track(`off-#${n}-${off}`)') && tm.includes('track(`paints-#${n}-${pc}`)') && !/\.name\b/.test(tm));
+  });
+  test('schedule.js is not reshuffled by this round (dark forest green is still #2, day 657)', () => {
+    assert.strictEqual(SCHED83[657], 'dark forest green');
+  });
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -10,7 +10,11 @@ your mix, and your %.
 ## The pot model (the heart of the game — read before touching engine.js)
 
 The pot is a **composition vector `{r, y, b, k, w}` that always sums to
-exactly 100**. It starts at 100% white. Dosing is *displacement*: adding n
+exactly 100** once it holds paint. Round 83 (Franklin): it **starts EMPTY**
+(all zeros, `E.FRESH_COMP`, shown as an empty bowl). The first drop makes it
+100% that paint, and taking out the last paint empties it again (`addUnits`).
+Before round 83 it started as 100% white, and that white was real paint in the
+mix, the disc numbers and the score. Dosing is *displacement*: adding n
 units of a pigment raises it by n, then the whole vector renormalizes back to
 100 — so every addition lowers everything else proportionally and the total
 never exceeds 100.
@@ -111,12 +115,17 @@ Consequences that are **invariants**, not implementation details:
   - The welcome card's first step reads "One new color every day."
   - Share text is unchanged.
 - **"Hold to pour" first-time label** (round 81, Franklin): the one exception to "nothing on the pot".
-  - A static, dark "Hold to pour" label with a small hand icon sits centered on the empty white pot.
+  - A static, dark "Hold to pour" label with a small hand icon sits centered on the empty pot (light text on the dark empty bowl in dark mode).
   - It shows only to a browser with no saved day, no day in progress, and no `mixology.poured.v1` flag.
   - The first drop (any dose path, via `applyUnit`) sets the flag and fades the label out once. It never shows again, not after undo, reset or reload.
   - It uses `pointer-events: none` and allows no selection or long-press callout.
   - While shown, the pot's aria-label starts with "Hold to pour."
   - Keep it static: no pot animation.
+- **The pot starts empty** (round 83, Franklin). White is a paint you add on purpose, never a base.
+  - Submit stays disabled, with "Pour some paint into the pot to submit.", until the pot holds paint. `seal()` refuses an empty pot too.
+  - The "−" badge also shows at 100%, because taking out the last paint empties the pot.
+  - Recipes, schedule and past scores are unchanged. Every pool recipe is exactly reachable from the empty pot (tested for all 853).
+  - An in-progress save whose pot is exactly the old untouched 100% white loads as empty. Any other saved pot loads as it is.
 - **Family-friendly names** (round 66): gross or bodily names are BANNED (dropped) or RETIRED in `tools/build-bank.js`. Retired names stay in colors.js (`retired: true`) only so frozen past days and old saves resolve. Never schedule them or offer them in practice.
 - **The daily schedule is frozen data** (`schedule.js`, round 8). Never
   derive a day's color from the pool size again; past days, duel links
@@ -131,7 +140,11 @@ Optional, internal-only play counts use [GoatCounter](https://www.goatcounter.co
 - **Loading:** when on, `count.js` loads async from `gc.zgo.at`. Failures (offline, ad blockers, errors) are swallowed and never affect the game. The page view is sent as the path only, never the query string, because duel links carry a mix code.
 - **Never counted:** localhost, private IPs, `file://`, and automated or headless browsers (`navigator.webdriver`).
 - **Excluding yourself:** open the game once with `?noanalytics` (e.g. `https://ngtrooper.github.io/mixology/?noanalytics`). That sets `localStorage['mixology.noanalytics.v1'] = '1'` for that browser permanently, so do it on each device and browser you use. `?analytics=on` undoes it. GoatCounter's own `localStorage.skipgc = 't'` is honored too.
-- **Events:** at most once per day per browser, and only puzzle numbers and coarse buckets. Never a color name, recipe, hex or exact score. The whitelist is `validEvent` in `analytics.js`.
+- **Events:** at most once per day per browser, and only puzzle numbers, scores and buckets. Never a color name, recipe or hex. The whitelist is `validEvent` in `analytics.js`.
+  - Round 83 difficulty events (daily rounds only):
+    - `pct-#N-a1-<score>` and `pct-#N-final-<score>`: the score 60–100, or `<60`.
+    - `off-#N-<k>`: the final scored mix's distance from the recipe, as the sum of |yours − official| over the five disc numbers, bucketed 0–5, 6-10, 11-20, 21+. It is always even: 2 = one paint 1% high and another 1% low.
+    - `paints-#N-1..5`: how many paints the final mix uses.
   - `open`
   - `start-#N` (first dose of the day's daily)
   - `finish-#N`

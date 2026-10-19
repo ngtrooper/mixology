@@ -2,6 +2,34 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 83 (2026-10-19, Grok Bot): THE POT STARTS EMPTY + DIFFICULTY ANALYTICS (Franklin)
+
+- **Finding (how the pot used to start):** `FRESH_COMP` was `{w: 100}`. That was real white paint, not just the canvas color.
+  - The white disc read 100%.
+  - `mixColor` tinted every mix with the white left in it.
+  - Scoring compared the disc numbers, white included, with the recipe.
+  - In the displacement model white only fades geometrically: after ~100 drops of Y/B/K in proportion (a 3–4 s pour each), 37% white was still in the pot and today's color scored 67%. A player had to pour a lot more, or tap "−" on white.
+  - Recipes never had an implicit white base. 255 of the 853 pool recipes have no white. Scoring had no hidden white either, only the pot.
+- **Change (engine):**
+  - `FRESH_COMP` is now all zeros (empty), with a new `isEmptyComp`. `normalizeComp` of an empty pot stays empty.
+  - The first drop is 100% that paint. Removing the only paint left empties the pot.
+  - Everything else is the same displacement model, so the mapping, recipes, solver and schedule are untouched (schedule.js and colors.js unchanged).
+  - `OLD_WHITE_START` is kept for save migration and for tests that model pouring into white.
+- **Change (game):**
+  - The empty pot is a `#pot.empty` bowl: pale grey with a deep inner shadow; dark grey with a light "Hold to pour" in dark mode.
+  - The surface takes the paint color on the first drop and returns to the bowl when emptied.
+  - Submit is disabled with "Pour some paint into the pot to submit." while the pot is empty, and `seal()` refuses an empty pot.
+  - The white disc starts at 0%.
+  - The "−" badge also shows at 100% (taking out the last paint empties the pot).
+  - The pot's aria-label says "The pot is empty."
+  - A WIP pot that is exactly the old untouched 100% white loads as empty. Other saved pots load unchanged, and past days are untouched.
+  - The Tips pot text is rewritten.
+- **Reachability:** all 853 pool colors reach an exact 100% from the empty pot with whole drops and "−" taps (median 46 ops, p90 80, max 105). Today's #2 dark forest green (Y30 B29 K41) was poured in the browser with 88 taps and scored 100% (exact).
+- **The 97% question:** see the r83 analysis in PROGRESS/report. Moving 1% from one paint to another (L1 = 2) costs a median of 1 point (99%; 98–100). 97% typically means about 4–8 points moved (L1 8–16), not 1%.
+- **Analytics:** `pct-#N-a1-<score>`, `pct-#N-final-<score>` (60–100, else `<60`), `off-#N-<0..5|6-10|11-20|21+>` and `paints-#N-<1..5>`, all once per day per browser, numbers only. The allowlist and tests are updated.
+- **Tests:** 8 new (empty start/first drop/remove-to-empty; no implicit white, whole % recipes; all-853 reachability from empty; today's recipe 100%; game gating/look; WIP migration; difficulty events + allowlist + no color names; schedule unchanged). 6 tests updated for the empty start. 214 pass.
+- Version 1.23.0.
+
 ## Round 82 (2026-10-19, Grok Bot): MAKE "DAILY" OBVIOUS, COUNTDOWN TO MIDNIGHT (Franklin)
 
 - **Found:** a countdown already existed (round 19: `untilNextColor()` / `#reveal-next`). It was a small grey line at the very bottom of the reveal, showing minutes only and updating every 20s. It is now the prominent block below, not a duplicate.

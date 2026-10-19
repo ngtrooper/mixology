@@ -196,7 +196,16 @@ function computeStats(days) {
 }
 
 const COMP_KEYS = ['r', 'y', 'b', 'k', 'w'];
-const FRESH_COMP = { r: 0, y: 0, b: 0, k: 0, w: 100 };
+/* Round 83 (Franklin): the pot STARTS EMPTY. It used to start as 100% white
+ * paint, and that white was real paint: it showed on the white disc, tinted
+ * the mix and counted in the score, so a player who never meant to use
+ * white had to pour it out. Now a fresh pot holds nothing (all zeros); the
+ * first drop makes it 100% that paint, and from there dosing is the same
+ * displacement model as always (renormalize to 100). Taking out the only
+ * paint left empties the pot again. White is just a paint you add on purpose. */
+const FRESH_COMP = { r: 0, y: 0, b: 0, k: 0, w: 0 };
+const OLD_WHITE_START = { r: 0, y: 0, b: 0, k: 0, w: 100 }; // the pre-round-83 fresh pot (save migration only)
+function isEmptyComp(comp) { return !comp || COMP_KEYS.every(k => !((Number(comp[k]) || 0) > 0)); }
 
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
@@ -237,6 +246,8 @@ function snapTraces(comp) {
  */
 function addUnits(comp, key, n) {
   const out = normalizeComp(comp);
+  // round 83: removing from a pot whose only paint is `key` empties it
+  if (n < 0 && COMP_KEYS.every(q => q === key || !(out[q] > 0))) return { ...FRESH_COMP };
   out[key] = Math.max(0, out[key] + n);
   return snapTraces(out);
 }
@@ -874,7 +885,7 @@ function decodeDuelComp(x, day) {
 }
 
 const MisnomerEngine = {
-  CUBE, COMP_KEYS, FRESH_COMP,
+  CUBE, COMP_KEYS, FRESH_COMP, OLD_WHITE_START, isEmptyComp,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
   TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,

@@ -16,8 +16,9 @@ const ANALYTICS_CODE = 'ngtrooper';
  * clears it); the opt-out flag `localStorage['mixology.noanalytics.v1'] = '1'`;
  * and GoatCounter's own `localStorage['skipgc'] = 't'`.
  *
- * Events are anonymous strings: puzzle numbers and coarse buckets only, never
- * a color name, recipe, hex or exact score. Each event is sent at most once
+ * Events are anonymous strings: puzzle numbers, scores and coarse buckets
+ * only, never a color name, recipe or hex (round 83 added the score and
+ * recipe-distance numbers, see below). Each event is sent at most once
  * per day per browser (sent-flags in localStorage, reset each local day).
  * Everything is wrapped in try/catch: offline, ad blockers, a blocked or
  * broken count.js, or full storage can never break or delay the game. */
@@ -47,8 +48,32 @@ const ANALYTICS_CODE = 'ngtrooper';
     if (!Number.isFinite(n)) return 'none';
     return n >= 100 ? 'diamond' : n >= 97 ? 'gold' : n >= 90 ? 'silver' : n >= 85 ? 'bronze' : 'none';
   }
+  /* Round 83 (Franklin): anonymous difficulty data, to see whether it is too
+   * hard and whether near-misses are 1-2% off. Numbers only, never a name:
+   *   pct-#N-a1-<score> / pct-#N-final-<score>  score 60..100 exactly, '<60' below
+   *   off-#N-<k>      L1 distance of the final (scored) mix from the official
+   *                   recipe in whole disc percents: 0..5, 6-10, 11-20, 21+.
+   *                   Both sum to 100, so k is always even: 2 = one paint 1%
+   *                   too high and another 1% too low.
+   *   paints-#N-<c>   how many paints (1-5) the final mix uses */
+  function scoreLabel(pct) {
+    const n = Math.round(Number(pct));
+    if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+    return n < 60 ? '<60' : String(n);
+  }
+  function offBucket(k) {
+    k = Math.round(Number(k));
+    if (!Number.isFinite(k) || k < 0) return null;
+    return k <= 5 ? String(k) : k <= 10 ? '6-10' : k <= 20 ? '11-20' : '21+';
+  }
+  const PAINTS = ['r', 'y', 'b', 'k', 'w'];
+  const whole = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; }; // '30%' or 30 -> 30
+  /** sum over the five paints of |mine - official| (whole percents, e.g. the disc numbers) */
+  function recipeOff(mine, official) { return PAINTS.reduce((s, k) => s + Math.abs(whole(mine && mine[k]) - whole(official && official[k])), 0); }
+  function paintCount(mine) { const c = PAINTS.filter(k => whole(mine && mine[k]) > 0).length; return c >= 1 ? c : null; }
+
   /** Only these shapes may ever leave the browser (no names, no free text). */
-  const EVENT_RE = /^(open|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+))$/;
+  const EVENT_RE = /^(open|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+)|pct-#\d{1,5}-(a1|final)-(<60|[6-9]\d|100)|off-#\d{1,5}-([0-5]|6-10|11-20|21\+)|paints-#\d{1,5}-[1-5])$/;
   function validEvent(name) { return typeof name === 'string' && EVENT_RE.test(name); }
 
   function localHost(h) {
@@ -121,7 +146,7 @@ const ANALYTICS_CODE = 'ngtrooper';
     } catch (e) { return false; }
   }
 
-  const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, returnBucket, scoreBand, validEvent, disabledReason, claimOncePerDay, localHost, track,
+  const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, returnBucket, scoreBand, scoreLabel, offBucket, recipeOff, paintCount, validEvent, disabledReason, claimOncePerDay, localHost, track,
     get enabled() { return enabled; }, get reason() { return reason; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') { window.MixAnalytics = api; start(); }
