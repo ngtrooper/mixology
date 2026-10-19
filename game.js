@@ -729,8 +729,17 @@ function renderAll() {
 
   for (const b of BUCKET_KEYS) {
     $(BUCKET_EL[b]).classList.toggle('sel', selectedBucket === b);
+    $(BUCKET_EL[b]).setAttribute('aria-pressed', String(selectedBucket === b)); // round 26
   }
-  for (const t of Object.keys(TOOLS)) $('tool-' + t).classList.toggle('sel', selectedTool === t);
+  for (const t of Object.keys(TOOLS)) {
+    $('tool-' + t).classList.toggle('sel', selectedTool === t);
+    $('tool-' + t).setAttribute('aria-pressed', String(selectedTool === t));
+  }
+  { // round 26: the pot says what a press will do (the selected pigment and tool, which are already visible)
+    const pn = { r: 'red', y: 'yellow', b: 'blue', k: 'black', w: 'white' }[selectedBucket] || 'paint';
+    $('pot').setAttribute('aria-label', round.finished ? 'Pot (round complete)'
+      : selectedTool === 'pour' ? `Pour ${pn} into the pot (hold to keep pouring)` : `Add one drop of ${pn} to the pot`);
+  }
   { // round 20: same SVG icon as the selected tool button
     const src = $('tool-' + selectedTool).querySelector('svg');
     $('toolbar-current').innerHTML = (src ? src.outerHTML : '') + (selectedTool === 'dropper' ? 'Dropper' : 'Pour Bucket');

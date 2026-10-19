@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 26 (2026-10-18, Grok Bot): CONTROL STATES FOR SCREEN READERS
+- Pigment discs and tool buttons expose `aria-pressed`, so the selected pigment and tool are announced, not just drawn.
+- The pot's accessible name follows the selection: "Pour blue into the pot (hold to keep pouring)" / "Add one drop of blue to the pot" / "Pot (round complete)".
+  - It never describes the mix or the target (no-caption lock). A test enforces this.
+- Keyboard dosing (Enter on the focused pot) verified. axe is still clean in all 12 states.
+
 ## Round 25 (2026-10-18, Grok Bot): REVEAL ACTION ICONS · STORAGE ROBUSTNESS CHECK
 - Share result, Copy duel link and Save image card now have SVG icons (share-arrow, link, picture). The 🖼 emoji is gone.
 - `flashLabel()` shows "Copied ✓" / "Link copied ✓" / "Saved ✓" and then restores the button's full markup, so icons survive. Double taps no longer get stuck on the ✓ label (the old code could save "Copied ✓" as the label to restore).

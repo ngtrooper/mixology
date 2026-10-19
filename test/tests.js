@@ -873,5 +873,12 @@ test('temporary button labels restore the original markup (icons survive "Copied
   assert.ok(!/const old = btn\.textContent/.test(gameSrc), 'a textContent-only restore remains');
   for (const id of ['btn-share', 'btn-duel', 'btn-card']) assert.ok(new RegExp(`id="${id}" type="button"><svg class="ti"`).test(htmlSrc), id + ' has no icon');
 });
+console.log('— round 26: control states for assistive tech —');
+test('pigments/tools expose aria-pressed; the pot label names the selected pigment + tool only', () => {
+  assert.ok(gameSrc.includes("$(BUCKET_EL[b]).setAttribute('aria-pressed', String(selectedBucket === b));"));
+  assert.ok(gameSrc.includes("$('tool-' + t).setAttribute('aria-pressed', String(selectedTool === t));"));
+  const blk = gameSrc.slice(gameSrc.indexOf('// round 26: the pot says'), gameSrc.indexOf('// round 26: the pot says') + 500);
+  assert.ok(!/round\.color|mixHex|hex|pct/.test(blk), 'pot label could leak the mix or target');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
