@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 59 (2026-10-18, Grok Bot): TIPS/CALENDAR ENTRANCE
+- Tips and Calendar now ease in like the welcome card: the backdrop darkens over 0.2 s and the panel rises 14 px with a slight spring over 0.24 s.
+  - The animation is transform-only, so text is never semi-transparent and contrast stays valid mid-animation (axe re-run: 12/12 clean).
+  - Off under reduced motion.
+- CSS only. Test added.
+
 ## Round 58 (2026-10-18, Grok Bot): HOT FLAME (7+ DAY STREAK)
 - With a streak of 7 or more, the header 🔥 gets a warm glow and a slow 2.4 s flicker. The bump on a streak increase still overrides it.
   - Reduced motion keeps the glow but drops the flicker, through the global kill switch.

@@ -1059,5 +1059,11 @@ test('a 7+ day streak gives the header flame a glow/flicker (bump still wins; re
   const a = htmlSrc.indexOf('#streak-display .flame.hot'), b = htmlSrc.indexOf('#streak-display .flame.bump {');
   assert.ok(a > 0 && b > a, 'bump rule must come after hot so the bump animation overrides the flicker');
 });
+console.log('— round 59: overlay entrance —');
+test('Tips/Calendar entrance animates transform + backdrop only (never text opacity)', () => {
+  const i = htmlSrc.indexOf('/* Round 59: Tips and Calendar ease in'); const s = htmlSrc.slice(i, htmlSrc.indexOf('/* Round 55', i));
+  assert.ok(s.includes('@keyframes ov-rise') && s.includes('@keyframes ov-dim'));
+  assert.ok(!/opacity/.test(s.replace(/^.*\*\/\n/s, '')), 'entrance must not fade panel opacity');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

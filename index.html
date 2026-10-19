@@ -438,6 +438,13 @@
   #cal-detail .cdt-sw i { display: inline-block; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); }
   #cal-detail .cdt-sw.best b { text-decoration: underline; }
   #cal-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
+  /* Round 59: Tips and Calendar ease in like the welcome card. The panel rises
+   * (transform only, so text contrast is never mid-fade) and the backdrop
+   * darkens. Reduced motion turns both off. */
+  #tips-overlay.open, #cal-overlay.open { animation: ov-dim .2s ease-out; }
+  #tips-overlay.open #tips-panel, #cal-overlay.open #cal-panel { animation: ov-rise .24s cubic-bezier(.2,.9,.3,1.15); }
+  @keyframes ov-dim { from { background-color: rgba(0,0,0,0); } }
+  @keyframes ov-rise { from { transform: translateY(14px) scale(.98); } to { transform: none; } }
   /* Round 55: while a dialog is open the page behind stays put. No scroll
    * chaining out of the Tips or Calendar panels, and no wheel/touch scroll on
    * the backdrop. Pure CSS (:has); older browsers just keep the old behavior. */
