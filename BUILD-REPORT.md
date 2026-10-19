@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 49 (2026-10-18, Grok Bot): REPLAY THE INTRO
+- Tips ends with a quiet "Replay the intro" link. It closes Tips and opens the welcome card. Esc or "Let's mix" closes it, and focus returns to the Tips button.
+  - The welcome still auto-shows only on a true first visit (`mixology.welcomed.v1`).
+- Version 1.10.13. Shot: `r49-after-replay-intro-link.png`. Playwright-verified (focus flow, no errors). Test added.
+
 ## Round 48 (2026-10-18, Grok Bot): TYPOGRAPHY: NO ORPHANS
 - The reveal's "accuracy · perceptual distance … from the official <Name>" line now uses `text-wrap: balance`, so the color name no longer hangs alone on line two.
 - Body paragraphs and the status line use `text-wrap: pretty`. This is progressive enhancement; browsers without support are unchanged.

@@ -1006,5 +1006,10 @@ test('controls with shortcuts expose aria-keyshortcuts matching the handler', ()
 test('typography: reveal distance line is balanced; paragraphs avoid orphans', () => {
   assert.ok(/#reveal-de \{[^}]*text-wrap: balance/.test(htmlSrc) && htmlSrc.includes('p, #status { text-wrap: pretty; }'));
 });
+console.log('— round 49: replay intro —');
+test('Tips offers "Replay the intro", which swaps Tips for the welcome card', () => {
+  assert.ok(htmlSrc.includes('<button id="btn-replay-intro" type="button">Replay the intro</button>'));
+  assert.ok(gameSrc.includes("$('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });"));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

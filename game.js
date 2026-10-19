@@ -1211,6 +1211,8 @@ function slideCal(dir) {
 $('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); slideCal(-1); });
 $('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); slideCal(1); });
 $('btn-tips-close').addEventListener('click', closeTips);
+// Round 49: the welcome card can be reopened from Tips (it no longer auto-shows after the first visit)
+$('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });
 $('tips-overlay').addEventListener('click', e => { if (e.target === $('tips-overlay')) closeTips(); });
 /* Round 40: desktop keyboard shortcuts. 1–5 pick red/yellow/blue/black/white
  * (ring order), D = Dropper, P = Pour Bucket, Z or Ctrl/Cmd+Z = Undo. There is
@@ -1298,7 +1300,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.12',
+  version: '1.10.13',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
