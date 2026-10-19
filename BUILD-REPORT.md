@@ -2,6 +2,17 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 16 (2026-10-18, Grok Bot): STATS PANEL
+- The 📅 overlay now has **Calendar | Stats** tabs. It always reopens on Calendar.
+- Stats come from `E.computeStats(store.data.days)`, which is pure and read-only (it never writes the save):
+  - Played, average, % at par, best.
+  - Current streak, longest streak (consecutive internal days), par streak.
+  - A score-spread bar chart (95+, 85–94, 70–84, 50–69, <50).
+  - An empty state before the first finished day.
+- Design lock kept: no counts on the main screen. Stats live only inside the overlay.
+- Header streak line: "(85%+)" moved into a tooltip, so the line no longer wraps at 390px.
+- Test: computeStats math on a fixture, the empty and garbage cases, no mutation, and stats placed inside the overlay.
+
 ## Round 15 (2026-10-18, Grok Bot): FEEL (TIERED FINISH · CONFETTI · STREAK FLAME)
 - The finish sound is tiered: below par plays the old 3-note chime, par (85%+) adds a fourth note, and 95%+ plays a 6-note sparkle run. All respect mute.
 - Haptics scale with the result (phones with `navigator.vibrate`): 12 ms tick, a par double-pulse, and a triple at 95%+.

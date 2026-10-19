@@ -286,6 +286,20 @@
     background: var(--card); border-radius: 16px; padding: 14px 14px 12px; width: 100%;
     max-width: 400px; max-height: 92vh; overflow-y: auto; position: relative;
   }
+  #cal-tabs { display: inline-flex; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin: 0 0 10px; }
+  #cal-tabs button { border: none; background: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  #cal-tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  #cal-stats h4 { margin: 14px 0 6px; font-size: 11.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .st-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .st-grid.trio { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
+  .st-tile { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 4px; text-align: center; min-width: 0; }
+  .st-tile b { display: block; font-size: 20px; line-height: 1.15; }
+  .st-tile span { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .st-row { display: grid; grid-template-columns: 46px 1fr 26px; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0; }
+  .st-row span { color: var(--muted); text-align: right; }
+  .st-row i { display: block; height: 14px; border-radius: 7px; background: var(--accent); }
+  .st-row em { font-style: normal; font-weight: 700; }
+  .st-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 6px; }
   #cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 34px 8px 0; }
   #cal-title { font-weight: 800; font-size: 16px; letter-spacing: .5px; }
   .cal-nav {
@@ -366,7 +380,7 @@
       <div id="streak-display"></div>
     </div>
     <div class="hbtns">
-      <button class="hbtn" id="btn-calendar" type="button" aria-label="Calendar of your days">📅</button>
+      <button class="hbtn" id="btn-calendar" type="button" aria-label="Calendar and stats">📅</button>
       <button class="hbtn" id="btn-tips" type="button">Tips</button>
       <button class="hbtn" id="btn-practice" type="button">Practice</button>
       <button class="hbtn" id="btn-mute" type="button" aria-label="Toggle sound">🔊</button>
@@ -476,6 +490,11 @@
 <div id="cal-overlay" class="modal-ov" role="dialog" aria-modal="true" aria-label="Your calendar">
   <div id="cal-panel">
     <button id="btn-cal-close" type="button" aria-label="Close calendar">✕</button>
+    <div id="cal-tabs" role="tablist" aria-label="Calendar or stats">
+      <button id="tab-cal" role="tab" type="button" aria-selected="true">Calendar</button>
+      <button id="tab-stats" role="tab" type="button" aria-selected="false">Stats</button>
+    </div>
+    <div id="cal-stats" style="display:none"></div>
     <div id="cal-head">
       <button class="cal-nav" id="btn-cal-prev" type="button" aria-label="Previous month">‹</button>
       <div id="cal-title">—</div>

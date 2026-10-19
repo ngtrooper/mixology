@@ -795,5 +795,20 @@ test('celebration tiers: confetti only at 95%+ and never under reduced motion; t
   assert.ok(gameSrc.includes('<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}'), 'streak flame not wrapped');
   assert.ok(/\.confetti \{ position: fixed; inset: 0; pointer-events: none;/.test(htmlSrc), 'confetti can block taps');
 });
+console.log('— round 16: stats —');
+test('computeStats: played / average / par rate / best / longest streak / spread, read-only', () => {
+  const mk = o => Object.fromEntries(Object.entries(o).map(([d, p]) => [d, { name: 'x', pct: p, attempts: [] }]));
+  const days = mk({ 645: 62, 646: 71, 647: 88, 649: 45, 650: 91, 651: 79, 652: 96, 653: 85, 654: 73, 655: 90 });
+  const snap = JSON.stringify(days);
+  const s = E.computeStats(days);
+  assert.strictEqual(s.played, 10); assert.strictEqual(s.avg, 78); assert.strictEqual(s.parRate, 50);
+  assert.deepStrictEqual(s.best, { day: 652, pct: 96 }); assert.strictEqual(s.longestStreak, 7);
+  assert.deepStrictEqual(s.dist.map(d => d.n), [1, 4, 3, 1, 1]);
+  assert.strictEqual(JSON.stringify(days), snap, 'stats mutated the save');
+  const z = E.computeStats({}); assert.strictEqual(z.played, 0); assert.strictEqual(z.avg, null); assert.strictEqual(z.longestStreak, 0);
+  assert.strictEqual(E.computeStats({ 3: { pct: 'bad' }, 4: { pct: 50 } }).played, 1, 'garbage record counted');
+  // stats live in the calendar overlay, not on the main screen (design lock)
+  assert.ok(htmlSrc.indexOf('id="cal-stats"') > htmlSrc.indexOf('id="cal-overlay"'), 'stats outside the overlay');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -126,6 +126,33 @@ function publicNumber(day) {
   return Number.isFinite(n) && n >= 1 ? n : null;
 }
 
+/* Round 16: stats from the saved day records ({ [internalDay]: {pct,...} }).
+ * Pure and read-only, so it never changes the save. */
+const STAT_BUCKETS = [
+  { label: '95+', min: 95 }, { label: '85–94', min: 85 }, { label: '70–84', min: 70 },
+  { label: '50–69', min: 50 }, { label: '<50', min: -Infinity }
+];
+function computeStats(days) {
+  const recs = Object.keys(days || {}).map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+    .map(d => ({ day: d, pct: Number(days[d] && days[d].pct) })).filter(r => Number.isFinite(r.pct));
+  const played = recs.length;
+  const dist = STAT_BUCKETS.map(b => ({ label: b.label, n: 0 }));
+  let sum = 0, par = 0, best = null, longest = 0, run = 0, prev = null;
+  for (const r of recs) {
+    sum += r.pct; if (r.pct >= PAR_PCT) par++;
+    if (!best || r.pct > best.pct) best = r;
+    dist[STAT_BUCKETS.findIndex(b => r.pct >= b.min)].n++;
+    run = prev !== null && r.day === prev + 1 ? run + 1 : 1; prev = r.day;
+    if (run > longest) longest = run;
+  }
+  return {
+    played, avg: played ? Math.round(sum / played) : null,
+    parRate: played ? Math.round(100 * par / played) : null,
+    best: best ? { day: best.day, pct: best.pct } : null,
+    longestStreak: longest, dist
+  };
+}
+
 const COMP_KEYS = ['r', 'y', 'b', 'k', 'w'];
 const FRESH_COMP = { r: 0, y: 0, b: 0, k: 0, w: 100 };
 
@@ -492,7 +519,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, LAUNCH_DAY, publicNumber,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName

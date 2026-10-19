@@ -684,7 +684,7 @@ function renderAll() {
     : 'Practice mode';
   const st = liveStreaks();
   $('streak-display').innerHTML = st.streak > 0
-    ? `<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}` + (st.parStreak > 0 ? ` · Par streak ${Number(st.parStreak)} (${E.PAR_PCT}%+)` : '')
+    ? `<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}` + (st.parStreak > 0 ? ` · <span title="Days in a row at ${E.PAR_PCT}%+">Par streak ${Number(st.parStreak)}</span>` : '')
     : '';
   const stale = daily && round.day !== DAY;
   if (stale && !round.finished) $('prompt-sub').textContent = "A new day's color is out — finish this one, then play today's.";
@@ -828,9 +828,35 @@ function openCalendar() {
   calMonth = new Date(t.getFullYear(), t.getMonth(), 1);
   renderCalendar();
   showCalDetail(DAY);
+  setCalTab('cal');
   openOverlay('cal-overlay');
 }
 function closeCalendar() { closeOverlay('cal-overlay'); }
+
+/* Round 16: Stats tab inside the calendar overlay (no counts on the main
+ * screen; design lock). Everything is computed from local day records. */
+let calTab = 'cal';
+function setCalTab(t) {
+  calTab = t;
+  for (const id of ['cal-head', 'cal-week', 'cal-grid', 'cal-detail']) $(id).style.display = t === 'cal' ? '' : 'none';
+  $('cal-stats').style.display = t === 'stats' ? 'block' : 'none';
+  $('tab-cal').setAttribute('aria-selected', String(t === 'cal'));
+  $('tab-stats').setAttribute('aria-selected', String(t === 'stats'));
+  if (t === 'stats') renderStats();
+}
+function renderStats() {
+  const s = E.computeStats(store.data.days), live = liveStreaks();
+  const tile = (v, l) => `<div class="st-tile"><b>${v}</b><span>${l}</span></div>`;
+  const max = Math.max(1, ...s.dist.map(d => d.n));
+  const bestLabel = s.best ? `${s.best.pct}%` : '—';
+  $('cal-stats').innerHTML = s.played === 0
+    ? `<p class="st-empty">No finished days yet. Your stats appear after your first daily round.</p>`
+    : `<div class="st-grid">${tile(s.played, 'played')}${tile(s.avg + '%', 'average')}${tile(s.parRate + '%', `at par (${E.PAR_PCT}%+)`)}${tile(bestLabel, 'best')}</div>` +
+      `<div class="st-grid trio">${tile('🔥 ' + live.streak, 'current streak')}${tile(Math.max(s.longestStreak, live.streak), 'longest streak')}${tile(live.parStreak, `par streak (${E.PAR_PCT}%+)`)}</div>` +
+      `<h4>Score spread</h4><div class="st-dist" role="list">` +
+      s.dist.map(d => `<div class="st-row" role="listitem" aria-label="${d.label}%: ${d.n}"><span>${d.label}</span><i style="width:${Math.max(d.n ? 8 : 0, 100 * d.n / max)}%"></i><em>${d.n}</em></div>`).join('') +
+      `</div>`;
+}
 
 /* Round 14 a11y: a shared modal helper. On open it remembers the focused
  * element and moves focus into the panel (the close button); Tab and
@@ -1031,6 +1057,8 @@ $('btn-toolbar-toggle').addEventListener('click', () => {
 function closeTips() { closeOverlay('tips-overlay'); }
 $('btn-tips').addEventListener('click', () => { stopPour(); openOverlay('tips-overlay'); });
 $('btn-calendar').addEventListener('click', openCalendar);
+$('tab-cal').addEventListener('click', () => setCalTab('cal'));
+$('tab-stats').addEventListener('click', () => setCalTab('stats'));
 $('btn-cal-close').addEventListener('click', closeCalendar);
 $('cal-overlay').addEventListener('click', e => { if (e.target === $('cal-overlay')) closeCalendar(); });
 $('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
