@@ -979,5 +979,11 @@ test('closing the welcome pulses a coach ring on the pot once (CSS-only, reduced
   assert.ok(f.includes("pot.classList.add('coach')") && f.includes("pot.classList.remove('coach')") && f.includes('!REDUCED_MOTION') && f.includes('!round.finished'));
   assert.ok(htmlSrc.includes('#pot.coach::after') && /coach-ring[^}]*\b2\b/.test(htmlSrc.slice(htmlSrc.indexOf('#pot.coach::after'))), 'ring CSS missing or not limited to two pulses');
 });
+console.log('— round 44: undo feedback —');
+test('a successful undo plays a soft sound and a short tick; an empty undo stays silent', () => {
+  const i = gameSrc.indexOf('function undo()'); const f = gameSrc.slice(i, gameSrc.indexOf('function resetPot', i));
+  assert.ok(f.indexOf('!round.undo.length) return') < f.indexOf('sfx.undo()') && f.includes('buzz(8)'));
+  assert.ok(/undo\(\) \{ beep\(/.test(gameSrc), 'sfx.undo missing');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

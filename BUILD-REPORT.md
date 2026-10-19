@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 44 (2026-10-18, Grok Bot): UNDO FEEDBACK
+- Undo now has feel, like the other actions: a small falling two-note sound (respects mute) and an 8 ms haptic tick.
+  - Only fires when something was actually undone. Version 1.10.12. Test added.
+
 ## Round 43 (2026-10-18, Grok Bot): FIRST-VISIT COACH RING
 - When a first-time player closes the welcome card, two soft accent rings pulse out of the pot (about 2.6 s, then the class clears itself). It shows where to tap first.
   - It is a pointer to the control, not a mix suggestion: no color or amount is implied.

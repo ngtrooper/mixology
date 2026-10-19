@@ -138,6 +138,7 @@ const sfx = {
   pour() { beep(110 + Math.random() * 40, 0.12, 'sine', 0.03); }, // soft glug while pouring
   seal() { beep(150, 0.09, 'triangle', 0.06); },
   pick() { beep(660, 0.035, 'sine', 0.025); }, // round 27: soft tick on pigment/tool change
+  undo() { beep(440, 0.05, 'sine', 0.03); beep(330, 0.06, 'sine', 0.025, 0.045); }, // round 44: a small falling two-note
   reveal() { [523, 659, 784].forEach((f, i) => beep(f, 0.16, 'sine', 0.05, i * 0.09)); },
   // round 15: tiered finish. Par adds a fourth note, 95%+ a sparkle run.
   par() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'sine', 0.05, i * 0.09)); },
@@ -198,6 +199,7 @@ function undo() {
   const last = round.undo.pop();
   if (last.snapshot) round.pot = last.snapshot;
   else if (last.key) round.pot = E.addUnits(round.pot, last.key, -last.n); // legacy entry
+  sfx.undo(); buzz(8);
   renderAll(); persistWip();
 }
 function resetPot() {
@@ -1296,7 +1298,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.11',
+  version: '1.10.12',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
