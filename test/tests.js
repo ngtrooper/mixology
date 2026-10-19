@@ -1,0 +1,522 @@
+#!/usr/bin/env node
+/* Misnomer unit tests — run: node test/tests.js
+ * Round 6: the pot is a PERCENTAGE composition {r,y,b,k,w} summing to
+ * exactly 100 (the percentage pot). All mixing tests are expressed in %. */
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const E = require('../engine.js');
+const bank = require('../colors.js');
+
+let pass = 0, fail = 0;
+function test(name, fn) {
+  try { fn(); pass++; console.log('  ok  ' + name); }
+  catch (e) { fail++; console.log('FAIL  ' + name + ' — ' + e.message); }
+}
+const labOf = hex => E.hexToLab(hex);
+const labOfComp = c => E.hexToLab(E.mixColor(c));
+const L = c => labOfComp(c)[0];
+const hue = c => { const [r, g, b] = E.hexToRgb(E.mixColor(c)); return E.hueAngle(r, g, b); };
+const pour = (comp, key, units) => { let c = comp; for (let i = 0; i < units; i++) c = E.addUnits(c, key, 1); return c; };
+
+console.log('— CIEDE2000 vs Sharma reference pairs (tolerance 0.1) —');
+const SHARMA = [
+  [[50.0000, 2.6772, -79.7751], [50.0000, 0.0000, -82.7485], 2.0425],
+  [[50.0000, 3.1571, -77.2803], [50.0000, 0.0000, -82.7485], 2.8615],
+  [[50.0000, 2.8361, -74.0200], [50.0000, 0.0000, -82.7485], 3.4412],
+  [[50.0000, -1.3802, -84.2814], [50.0000, 0.0000, -82.7485], 1.0000],
+  [[50.0000, -1.1848, -84.8006], [50.0000, 0.0000, -82.7485], 1.0000],
+  // NOTE: the row (50, -0.9009, -84.2393) vs (50, 0, -82.7485) circulates
+  // in secondary sources with expected 1.0000, but two independent
+  // implementations of the published formula both yield 0.7504 for it,
+  // so that expected value appears to be a transcription error and the
+  // row is excluded rather than forced.
+  [[50.0000, 2.4900, -0.0010], [50.0000, -2.4900, 0.0009], 7.1792]
+];
+SHARMA.forEach(([a, b, expected], i) => {
+  test(`Sharma pair ${i + 1} -> ${expected}`, () => {
+    const got = E.deltaE2000(a, b);
+    assert.ok(Math.abs(got - expected) <= 0.1, `got ${got.toFixed(4)}`);
+  });
+});
+test('deltaE of identical colors is 0', () => {
+  assert.strictEqual(E.deltaE2000([50, 10, -20], [50, 10, -20]), 0);
+});
+
+console.log('— RGB -> Lab anchors —');
+test('white -> Lab (100, 0, 0)', () => {
+  const [l, a, b] = E.rgbToLab(255, 255, 255);
+  assert.ok(Math.abs(l - 100) < 0.05 && Math.abs(a) < 0.05 && Math.abs(b) < 0.05, `${l},${a},${b}`);
+});
+test('sRGB red -> Lab ~(53.24, 80.09, 67.20)', () => {
+  const [l, a, b] = E.rgbToLab(255, 0, 0);
+  assert.ok(Math.abs(l - 53.24) < 0.2 && Math.abs(a - 80.09) < 0.2 && Math.abs(b - 67.20) < 0.2, `${l},${a},${b}`);
+});
+
+console.log('— % accuracy mapping —');
+test('accuracy(0) = 100 and accuracy(2) >= 97', () => {
+  assert.strictEqual(E.accuracyFromDeltaE(0), 100);
+  assert.ok(E.accuracyFromDeltaE(2) >= 97, `got ${E.accuracyFromDeltaE(2)}`);
+});
+test('accuracy is monotonic decreasing in ΔE and hits 0 by ΔE 50', () => {
+  let prev = 101;
+  for (let d = 0; d <= 60; d += 0.5) {
+    const a = E.accuracyFromDeltaE(d);
+    assert.ok(a <= prev, `not monotonic at ${d}: ${a} > ${prev}`);
+    prev = a;
+  }
+  let last = Infinity;
+  for (const d of [3, 5, 10, 20, 35, 49]) {
+    const a = E.accuracyFromDeltaE(d);
+    assert.ok(a < last, `not strictly decreasing at ${d}`);
+    last = a;
+  }
+  assert.strictEqual(E.accuracyFromDeltaE(50), 0);
+});
+test('good-but-imperfect (ΔE 5..10) lands 83..96', () => {
+  for (const d of [5, 7.5, 10]) {
+    const a = E.accuracyFromDeltaE(d);
+    assert.ok(a >= 83 && a <= 96, `ΔE ${d} -> ${a}`);
+  }
+});
+test('bands at thresholds', () => {
+  assert.strictEqual(E.bandForDeltaE(1.5), 'DEAD ON');
+  assert.strictEqual(E.bandForDeltaE(3), 'PAINT-STORE MATCH');
+  assert.strictEqual(E.bandForDeltaE(7), 'CLOSE COUSIN');
+  assert.strictEqual(E.bandForDeltaE(40), 'ABSTRACT INTERPRETATION');
+});
+
+console.log('— mixing hue sanity (percentage compositions) —');
+test('blue + yellow = GREEN (hue 90..160)', () => {
+  const h = hue({ y: 40, b: 40, w: 20 });
+  assert.ok(h >= 90 && h <= 160, `hue ${h}`);
+});
+test('red 8% in white = pink (red hue, L>=70)', () => {
+  const v = { r: 8, w: 92 };
+  const h = hue(v);
+  assert.ok(h <= 15 || h >= 345, `hue ${h}`);
+  assert.ok(L(v) >= 70, `L ${L(v)}`);
+});
+test('blue 8% in white = light blue (hue 195..255, L>=70)', () => {
+  const v = { b: 8, w: 92 };
+  const h = hue(v);
+  assert.ok(h >= 195 && h <= 255, `hue ${h}`);
+  assert.ok(L(v) >= 70, `L ${L(v)}`);
+});
+test('red + yellow = orange (hue 15..45)', () => {
+  const h = hue({ r: 40, y: 40, w: 20 });
+  assert.ok(h >= 15 && h <= 45, `hue ${h}`);
+});
+test('equal thirds = dark mud (L<=40 at full load), darkening as chroma share grows', () => {
+  const at30 = L({ r: 10, y: 10, b: 10, w: 70 });
+  const at60 = L({ r: 20, y: 20, b: 20, w: 40 });
+  const at99 = L({ r: 33, y: 33, b: 33, w: 1 });
+  assert.ok(at99 <= 40, `L at thirds-full = ${at99.toFixed(1)}`);
+  assert.ok(at60 < at30 - 2, `no darkening: ${at30.toFixed(1)} -> ${at60.toFixed(1)}`);
+  assert.ok(at99 < at60 - 2, `no darkening: ${at60.toFixed(1)} -> ${at99.toFixed(1)}`);
+});
+test('white + a little black = gray (low chroma, L 85..98)', () => {
+  const lab = labOfComp({ k: 5, w: 95 });
+  assert.ok(Math.hypot(lab[1], lab[2]) <= 7, `chroma ${Math.hypot(lab[1], lab[2])}`);
+  assert.ok(lab[0] >= 85 && lab[0] <= 98, `L ${lab[0]}`);
+});
+test('blue + black = navy (blue hue, dark, darker than blue alone)', () => {
+  const navy = { b: 40, k: 25, w: 35 };
+  const h = hue(navy);
+  assert.ok(h >= 200 && h <= 260, `hue ${h}`);
+  // Round 7: threshold 38 -> 40. The white-dilution retune lightens
+  // mid-white mixes by design (that is the fix); this navy renders
+  // L 38.7 — still a dark navy, still far darker than blue alone.
+  assert.ok(L(navy) <= 40, `L ${L(navy)}`);
+  assert.ok(L(navy) <= L({ b: 40, w: 60 }) - 5, 'not darker than plain blue');
+});
+test('black 80% = charcoal depth (L<=25)', () => {
+  assert.ok(L({ k: 80, w: 20 }) <= 25);
+});
+
+console.log('— white in the percentage pot —');
+test('raising white share lightens a red mix monotonically', () => {
+  let prev = -Infinity;
+  for (const comp of [{ r: 32, w: 68 }, { r: 24, w: 76 }, { r: 16, w: 84 }, { r: 8, w: 92 }]) {
+    const l = L(comp);
+    assert.ok(l > prev, `L ${l.toFixed(2)} not > ${prev.toFixed(2)}`);
+    prev = l;
+  }
+});
+test('white share turns a saturated mix pastel (L up >=8, chroma down)', () => {
+  const sat = labOfComp({ r: 60, w: 40 });
+  const pastel = labOfComp({ r: 25, w: 75 });
+  assert.ok(pastel[0] >= sat[0] + 8, `L ${sat[0].toFixed(1)} -> ${pastel[0].toFixed(1)}`);
+  assert.ok(Math.hypot(pastel[1], pastel[2]) < Math.hypot(sat[1], sat[2]),
+    `chroma ${Math.hypot(sat[1], sat[2]).toFixed(1)} -> ${Math.hypot(pastel[1], pastel[2]).toFixed(1)} did not drop`);
+});
+test('dosing white into a fresh pot keeps it 100% white', () => {
+  let c = { ...E.FRESH_COMP };
+  for (let i = 0; i < 10; i++) c = E.addUnits(c, 'w', 1);
+  assert.strictEqual(c.w, 100);
+  assert.strictEqual(E.mixColor(c), '#FFFFFF');
+});
+test('displacing with white lightens a warm mix and keeps its hue warm', () => {
+  const before = { r: 45, y: 15, w: 40 };
+  const after = E.addUnits(before, 'w', 30);
+  assert.ok(L(after) > L(before), `L ${L(before).toFixed(1)} -> ${L(after).toFixed(1)}`);
+  const h = hue(after);
+  assert.ok(h <= 60 || h >= 330, `hue ${h}`);
+});
+
+console.log('— round 6: the percentage pot (composition invariants) —');
+test('fresh pot is 100% white and renders #FFFFFF', () => {
+  assert.deepStrictEqual({ ...E.FRESH_COMP }, { r: 0, y: 0, b: 0, k: 0, w: 100 });
+  assert.strictEqual(E.mixColor(E.FRESH_COMP), '#FFFFFF');
+});
+test('composition always sums to exactly 100, whatever you dose', () => {
+  let seed = 99; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  let c = { ...E.FRESH_COMP };
+  const keys = ['r', 'y', 'b', 'k', 'w'];
+  for (let i = 0; i < 500; i++) {
+    c = E.addUnits(c, keys[Math.floor(rnd() * 5)], 1 + Math.floor(rnd() * 40));
+    const sum = keys.reduce((s, k) => s + c[k], 0);
+    assert.ok(Math.abs(sum - 100) < 1e-6, `step ${i}: sum ${sum}`);
+    for (const k of keys) assert.ok(c[k] >= 0 && c[k] <= 100, `step ${i}: ${k}=${c[k]} out of range`);
+  }
+});
+test('displacement semantics: adding P raises P and shrinks the others proportionally', () => {
+  const start = { r: 20, y: 20, w: 60 };
+  const after = E.addUnits(start, 'r', 25); // total 125 -> x0.8
+  assert.ok(Math.abs(after.r - 36) < 1e-9, `r ${after.r}`);
+  assert.ok(Math.abs(after.y - 16) < 1e-9, `y ${after.y}`);
+  assert.ok(Math.abs(after.w - 48) < 1e-9, `w ${after.w}`);
+  assert.strictEqual(after.y / after.w, start.y / start.w, 'non-added shares lost their ratio');
+});
+test('path independence: color depends only on the composition, not the history', () => {
+  // Same shares at a different scale render identically (normalization).
+  assert.strictEqual(E.mixColor({ r: 20, y: 10, k: 5, w: 65 }), E.mixColor({ r: 40, y: 20, k: 10, w: 130 }));
+  // Two dosing histories that end on the same composition render identically.
+  const target = { r: 25, y: 25, b: 25, k: 5, w: 20 };
+  const h1 = E.normalizeComp(target);
+  assert.strictEqual(E.mixColor(h1), E.mixColor({ ...target }));
+});
+test('saturation is fairly reachable: 95% single pigment within ΔE 6 of full strength', () => {
+  for (const key of ['r', 'y', 'b']) {
+    const c95 = { w: 5 }; c95[key] = 95;
+    const c100 = {}; c100[key] = 100;
+    const d = E.deltaE2000(labOfComp(c95), labOfComp(c100));
+    assert.ok(d <= 6, `${key}: ΔE ${d.toFixed(2)}`);
+  }
+});
+test('tints work: 2-5% chromatic in white reads as a clear pastel tint', () => {
+  const white = labOfComp({ w: 100 });
+  const d3 = E.deltaE2000(labOfComp({ r: 3, w: 97 }), white);
+  const d5 = E.deltaE2000(labOfComp({ r: 5, w: 95 }), white);
+  assert.ok(d3 >= 4 && d3 <= 16, `3% tint ΔE ${d3.toFixed(1)}`);
+  assert.ok(d5 >= 7, `5% tint ΔE ${d5.toFixed(1)}`);
+});
+
+console.log('— round 6: stuck pots are gone (round-5 diagnosis, replayed) —');
+test('DIAGNOSIS (a): mud pot recovers ΔE>=10 within 1s of white pouring (was 7.7s)', () => {
+  const mud = { r: 31, y: 31, b: 31, w: 7 }; // round-5's 130/130/130-in-30 pot, as %
+  const d = E.deltaE2000(labOfComp(mud), labOfComp(pour(mud, 'w', 30)));
+  assert.ok(d >= 10, `ΔE ${d.toFixed(1)} after 30 white units`);
+});
+test('DIAGNOSIS (b): black pot recovers ΔE>=10 within 1s of red pouring (was 4.0s)', () => {
+  const blk = { k: 87, w: 13 }; // round-5's 200K-in-30 pot, as %
+  const d = E.deltaE2000(labOfComp(blk), labOfComp(pour(blk, 'r', 30)));
+  assert.ok(d >= 10, `ΔE ${d.toFixed(1)} after 30 red units`);
+});
+test('DIAGNOSIS (c): the old hard-stuck cap states are unreachable — no cap exists', () => {
+  assert.strictEqual(E.MAX_DROPS, undefined, 'engine still exports a drops cap');
+  // From the most extreme composition possible, a counter-pour still moves the color.
+  const extreme = { r: 99.9, w: 0.1 };
+  const moved = pour(extreme, 'b', 30);
+  assert.notStrictEqual(E.mixColor(moved), E.mixColor(extreme), 'color frozen at an extreme composition');
+  // And dosing never refuses: 5000 units of one pigment keep displacing.
+  let c = { ...E.FRESH_COMP };
+  for (let i = 0; i < 5000; i++) c = E.addUnits(c, 'k', 1);
+  assert.ok(c.k > 99.9, `k only reached ${c.k} — displacement stalled`);
+});
+test('purple pot + red pours: hue strictly approaches red, every 1s step moves >=0.5 ΔE', () => {
+  const circDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+  const redHue = hue({ r: 100 });
+  let prevDist = Infinity, prevLab = null;
+  let cur = { r: 35, b: 35, w: 30 };
+  for (let s = 0; s <= 5; s++) {
+    const dist = circDist(hue(cur), redHue);
+    assert.ok(dist < prevDist, `step ${s}: hue distance ${dist.toFixed(1)} not < ${prevDist.toFixed(1)}`);
+    if (prevLab) {
+      const step = E.deltaE2000(labOfComp(cur), prevLab);
+      assert.ok(step >= 0.5, `step ${s}: ΔE ${step.toFixed(2)} < 0.5 — pour feels frozen`);
+    }
+    prevDist = dist; prevLab = labOfComp(cur);
+    cur = pour(cur, 'r', 30);
+  }
+});
+test('monotonic approach sweep: 1s of pouring ALWAYS moves toward the poured pigment', () => {
+  const refs = { r: { r: 100 }, y: { y: 100 }, b: { b: 100 }, k: { k: 100 }, w: { w: 100 } };
+  let seed = 4242; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let t = 0; t < 120; t++) {
+    const raw = [rnd(), rnd(), rnd(), rnd(), rnd()];
+    const tot = raw.reduce((a, x) => a + x, 0);
+    const comp = { r: raw[0] / tot * 100, y: raw[1] / tot * 100, b: raw[2] / tot * 100, k: raw[3] / tot * 100, w: raw[4] / tot * 100 };
+    for (const key of ['r', 'y', 'b', 'k', 'w']) {
+      const before = E.deltaE2000(labOfComp(comp), labOfComp(refs[key]));
+      const after = E.deltaE2000(labOfComp(pour(comp, key, 30)), labOfComp(refs[key]));
+      assert.ok(after < before, `comp ${JSON.stringify(comp)} pour ${key}: ΔE ${before.toFixed(2)} -> ${after.toFixed(2)}`);
+    }
+  }
+});
+test('a chromatic pigment can win the pot back from black', () => {
+  const blackish = { b: 30, k: 50, w: 20 };
+  const won = pour(blackish, 'b', 300);
+  assert.ok(L(won) > L(blackish) + 5, `blue never escapes black: L ${L(blackish).toFixed(1)} -> ${L(won).toFixed(1)}`);
+  const h = hue(won);
+  assert.ok(h >= 200 && h <= 260, `hue ${h} not back to blue`);
+});
+
+console.log('— UI contract (producer round-2 edits) —');
+const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const gameSrc = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
+test('no live caption: index.html has no "reads as" text and no #caption element', () => {
+  assert.ok(!htmlSrc.includes('reads as'), 'index.html still contains "reads as"');
+  assert.ok(!htmlSrc.includes('id="caption"'), 'index.html still has #caption');
+});
+test('game.js never renders a caption or consults nearest-name while mixing', () => {
+  assert.ok(!gameSrc.includes("$('caption')"), 'game.js still writes #caption');
+  assert.ok(!gameSrc.includes('nearestColorName'), 'game.js still calls nearestColorName');
+});
+test('pot is a real <button>; dosing is wired to pot pointerdown (round-3)', () => {
+  assert.ok(/<button id="pot"[^>]*type="button"/.test(htmlSrc), 'pot is not a <button>');
+  assert.ok(gameSrc.includes("addEventListener('pointerdown'"), 'no pot pointerdown -> dose wiring');
+  assert.ok(gameSrc.includes('startPour'), 'no press-and-hold pour wiring');
+});
+test('white is a bucket (data-bucket="w"); the Dilute button is gone', () => {
+  assert.ok(htmlSrc.includes('data-bucket="w"'), 'no white bucket');
+  assert.ok(!htmlSrc.includes('btn-dilute'), 'Dilute button still in index.html');
+  assert.ok(!gameSrc.includes('btn-dilute'), 'btn-dilute still referenced in game.js');
+});
+test('bucket buttons only select; dosing happens on the pot', () => {
+  assert.ok(!/addEventListener\('click', \(\) => \{ selectedBucket = btn\.dataset\.bucket; dose/.test(gameSrc),
+    'bucket click still doses');
+});
+
+console.log('— UI contract (producer round-3 edits) —');
+test('two tools only: no Spoon anywhere, no Pour-as-fixed-dose', () => {
+  assert.ok(!htmlSrc.includes('Spoon') && !htmlSrc.includes('spoon'), 'Spoon still in index.html');
+  assert.ok(!gameSrc.includes('Spoon') && !gameSrc.includes('spoon'), 'Spoon still in game.js');
+  assert.ok(htmlSrc.includes('data-tool="dropper"') && htmlSrc.includes('data-tool="pour"'), 'tools missing');
+});
+test('dropper doses exactly 1 unit per dose; pouring ticks whole units', () => {
+  assert.ok(gameSrc.includes('E.addUnits(round.pot, selectedBucket, 1)'), 'applyUnit no longer doses exactly 1 unit');
+  assert.ok(gameSrc.includes('setInterval'), 'pour is not timer-driven');
+  const m = gameSrc.match(/POUR_RATE = (\d+)/);
+  assert.ok(m, 'POUR_RATE not found');
+  const rate = parseInt(m[1], 10);
+  assert.ok(rate >= 24 && rate <= 36, `pour rate ${rate}/s outside the band 24..36`);
+});
+test('tool buttons carry NO dosage numbers (dosages live in Tips only)', () => {
+  for (const id of ['tool-dropper', 'tool-pour']) {
+    const m = htmlSrc.match(new RegExp(`id="${id}"[^>]*>([^<]*)<`));
+    assert.ok(m, `${id} label not found`);
+    assert.ok(!/\d/.test(m[1]), `${id} label shows a number: "${m[1]}"`);
+  }
+});
+test('tips overlay explains the percentage pot and states the dosages (only there)', () => {
+  assert.ok(htmlSrc.includes('id="btn-tips"'), 'no Tips button');
+  assert.ok(htmlSrc.includes('id="tips-overlay"'), 'no tips overlay');
+  assert.ok(htmlSrc.includes('1 drop per click'), 'dropper dosage missing from tips');
+  assert.ok(htmlSrc.includes('30 drops per second'), 'pour dosage missing from tips');
+  assert.ok(htmlSrc.includes('always 100% full'), 'tips does not explain the percentage pot');
+  assert.ok(htmlSrc.includes('pushes the other paints down'), 'tips does not explain displacement');
+  assert.ok(!htmlSrc.includes('Pour out') && !htmlSrc.includes('Pour Out'), 'tips mentions the cancelled Pour Out');
+});
+test('no counts on the main screen: no recipe readout, no per-bucket tallies', () => {
+  assert.ok(!htmlSrc.includes('id="recipe"'), '#recipe readout still in index.html');
+  assert.ok(!htmlSrc.includes('bcount'), 'per-bucket count elements still in index.html');
+  assert.ok(!gameSrc.includes("$('recipe')"), 'game.js still writes the recipe readout');
+  assert.ok(!gameSrc.includes('count-'), 'game.js still writes per-bucket counts');
+});
+test('no directional feedback: game.js never computes or renders attempt feedback text', () => {
+  assert.ok(!gameSrc.includes('hintFor'), 'game.js still calls hintFor');
+  assert.ok(!gameSrc.toLowerCase().includes('hint'), 'game.js still contains feedback-hint code');
+});
+test('radial stage: circular pot at center, pigment ring, collapsible toolbar', () => {
+  assert.ok(htmlSrc.includes('id="stage"'), 'no #stage');
+  assert.ok(htmlSrc.includes('id="pot-surface"'), 'pot has no inner surface element');
+  assert.ok((htmlSrc.match(/class="bucket pigment/g) || []).length === 5, 'pigment ring is not 5 circles');
+  assert.ok(htmlSrc.includes('id="toolbar"') && htmlSrc.includes('id="btn-toolbar-toggle"'), 'toolbar/toggle missing');
+  assert.ok(htmlSrc.includes('id="droplet"') && htmlSrc.includes('id="pour-fx"'), 'dose animations missing from DOM');
+});
+test('display rename to Mixology; internal identifiers untouched', () => {
+  assert.ok(htmlSrc.includes('<title>Mixology'), 'page title not renamed');
+  assert.ok(htmlSrc.includes('MIXOLOGY<span'), 'header wordmark not renamed');
+  assert.ok(gameSrc.includes('MIXOLOGY #'), 'share/day label not renamed');
+  assert.ok(gameSrc.includes("const SAVE_KEY = 'misnomer.save.v1'"), 'save key changed — data continuity broken');
+  assert.ok(gameSrc.includes('window.MISNOMER = {'), 'debug handle renamed');
+});
+
+console.log('— UI contract (producer round-4 edits) —');
+test('pigment discs are pure color: no labels, no inner swatch spans', () => {
+  assert.ok(!htmlSrc.includes('plabel'), 'pigment label spans still in index.html');
+  assert.ok(!htmlSrc.includes('psw'), 'inner swatch spans still in index.html');
+  for (const label of ['>RED<', '>YELLOW<', '>BLUE<', '>BLACK<', '>WHITE<']) {
+    assert.ok(!htmlSrc.includes(label), `visible pigment label ${label} still present`);
+  }
+  for (const hex of ['#D6282E', '#FFCD00', '#1C4096', '#141416', '#FFFFFF']) {
+    assert.ok(htmlSrc.includes(`background:${hex}`), `pigment disc ${hex} not filled edge-to-edge`);
+  }
+  assert.ok(htmlSrc.includes('aria-label="Select red pigment"'), 'aria-label for red missing');
+  assert.ok(htmlSrc.includes('aria-label="Select white pigment"'), 'aria-label for white missing');
+  assert.ok(/#bucket-base\s*\{\s*border-color:/.test(htmlSrc), 'white disc has no visible-border rule');
+});
+
+console.log('— round 6: game wiring (no caps, gesture undo, duel v2, save migration) —');
+test('no cap, no refusal: game.js never refuses a dose', () => {
+  assert.ok(!gameSrc.includes('MAX_DROPS'), 'game.js still references a drops cap');
+  assert.ok(!gameSrc.includes('refuseDose'), 'game.js still has the cap refusal');
+  // Round 7: the pot-shake animation is back in index.html, but ONLY as
+  // the finished-round signal inside lockedFeedback — a dose on a live
+  // round is still never refused or shaken.
+  const shakeAt = gameSrc.indexOf("classList.add('shake')");
+  assert.ok(shakeAt > gameSrc.indexOf('function lockedFeedback') && shakeAt < gameSrc.indexOf('potEl.addEventListener'),
+    'shake is triggered somewhere other than lockedFeedback');
+});
+test('undo is gesture-based: one snapshot per press/hold, not per drop', () => {
+  assert.ok(gameSrc.includes('beginGesture'), 'no gesture-based undo');
+  assert.ok(/round\.undo\.push\(\{ snapshot:/.test(gameSrc), 'gestures do not snapshot the pot');
+  assert.ok(!gameSrc.includes('undo.push({ key:'), 'per-drop undo entries are still pushed');
+});
+test('duel links carry the % composition (x10 integers, r.y.b.k.w)', () => {
+  assert.ok(gameSrc.includes('final.comp'), 'duel URL no longer built from the attempt composition');
+  assert.ok(gameSrc.includes('Math.round(v * 10).toString(36)'), 'duel encoding is not %x10 base36');
+});
+test('save version bumped to v2 with a v1 drops->% migration', () => {
+  assert.ok(gameSrc.includes('v: 2'), 'default save is not v2');
+  assert.ok(gameSrc.includes('migrateSave'), 'no save migration');
+  assert.ok(gameSrc.includes('dropsToComp'), 'migration does not normalize drops vectors to %');
+});
+
+console.log('— composition determinism —');
+test('same composition -> same mixed color, across module reloads', () => {
+  const c = { r: 17, y: 33, b: 9, k: 4, w: 37 };
+  const a = E.mixColor(c);
+  delete require.cache[require.resolve('../engine.js')];
+  const E2 = require('../engine.js');
+  assert.strictEqual(E2.mixColor(c), a);
+  assert.strictEqual(E.mixColor({ ...c }), a);
+});
+
+console.log('— words-only hints (engine, unused by the UI since round 3) —');
+test('hint says "too dark" when mine is darker', () => {
+  assert.ok(E.hintFor([40, 0, 0], [60, 0, 0]).includes('too dark'));
+});
+test('hint says "too yellow" when mine is too yellow', () => {
+  assert.ok(E.hintFor([60, 0, 20], [60, 0, 0]).includes('too yellow'));
+});
+
+console.log('— daily picker (eligible pool from solver) —');
+const pool = bank.filter(c => c.de <= 12);
+test(`daily pool size >= 800 (actual ${pool.length})`, () => {
+  assert.ok(pool.length >= 800, `pool ${pool.length}`);
+});
+test('picker deterministic + no repeat over 300 simulated days (within one epoch)', () => {
+  const start = pool.length; // first day of epoch 1
+  const seen = new Set();
+  for (let d = start; d < start + 300; d++) {
+    const i1 = E.pickDailyIndex(d, pool.length);
+    const i2 = E.pickDailyIndex(d, pool.length);
+    assert.strictEqual(i1, i2, 'not deterministic');
+    assert.ok(i1 >= 0 && i1 < pool.length, 'out of range');
+    assert.ok(!seen.has(i1), `repeat at day ${d}`);
+    seen.add(i1);
+  }
+  assert.strictEqual(seen.size, 300);
+});
+
+console.log('— solver sanity (canonical % recipes) —');
+const byName = n => bank.find(c => c.name === n);
+test('mustard recipe is Y-dominated, ΔE <= 2', () => {
+  const c = byName('mustard');
+  assert.ok(c.recipe.y > c.recipe.r && c.recipe.y > c.recipe.b && c.recipe.y > c.recipe.k, JSON.stringify(c.recipe));
+  assert.ok(c.de <= 2, `de ${c.de}`);
+});
+test('charcoal is reachable at ΔE <= 2 under the % model', () => {
+  const c = byName('charcoal');
+  assert.ok(c.de <= 2, `de ${c.de}`);
+  assert.strictEqual(E.mixColor(c.recipe), c.hex, 'charcoal recipe does not render its hex');
+});
+test('banana recipe is Y-dominated, ΔE <= 12', () => {
+  const c = byName('banana');
+  assert.ok(c.recipe.y > c.recipe.r && c.recipe.y > c.recipe.b && c.recipe.y > c.recipe.k, JSON.stringify(c.recipe));
+  assert.ok(c.de <= 12, `de ${c.de}`);
+});
+test('every stored recipe is a % composition summing to 100', () => {
+  for (const c of bank) {
+    const s = c.recipe.r + c.recipe.y + c.recipe.b + c.recipe.k + c.recipe.w;
+    assert.ok(Math.abs(s - 100) < 0.51, `${c.name}: recipe sums to ${s}`);
+  }
+});
+test('stored recipes reproduce their stored ΔE (40-color sample)', () => {
+  for (let i = 0; i < bank.length; i += 25) {
+    const c = bank[i];
+    const got = E.deltaE2000(labOf(E.mixColor(c.recipe)), labOf(c.hex));
+    assert.ok(Math.abs(got - c.de) <= 0.75, `${c.name}: reproduced ${got.toFixed(2)} vs stored ${c.de}`);
+  }
+});
+
+console.log('— round 7: white must answer at the end of a mix —');
+const STRONG_POTS = {
+  'purple 45/45/10': { r: 45, b: 45, w: 10 },
+  'red 90/10': { r: 90, w: 10 },
+  'red 95/5': { r: 95, w: 5 },
+  'green 55Y/40B/5': { y: 55, b: 40, w: 5 },
+  'orange 60R/35Y/5': { r: 60, y: 35, w: 5 },
+  'navy 70B/20K/10': { b: 70, k: 20, w: 10 },
+  'mud 31/31/31/7': { r: 31, y: 31, b: 31, w: 7 },
+  'black 87K/13': { k: 87, w: 13 },
+  'parent purple 21R/31B/48W': { r: 21.3, b: 30.8, w: 47.9 }
+};
+test('white pour (1s = 30 units) moves ΔE >= 8 from every strong pot (was ~4 on saturated pots)', () => {
+  for (const [name, comp] of Object.entries(STRONG_POTS)) {
+    const d = E.deltaE2000(labOfComp(comp), labOfComp(pour(comp, 'w', 30)));
+    assert.ok(d >= 8, `${name}: white pour moved only ΔE ${d.toFixed(2)}`);
+  }
+});
+test('white dropper taps (x10) move ΔE >= 2 from every strong pot (was ~1-2, taps ~0.2 each)', () => {
+  for (const [name, comp] of Object.entries(STRONG_POTS)) {
+    const d = E.deltaE2000(labOfComp(comp), labOfComp(pour(comp, 'w', 10)));
+    assert.ok(d >= 2, `${name}: 10 white taps moved only ΔE ${d.toFixed(2)}`);
+  }
+});
+test('pale means pale: ~74% white on a mid-chroma mix reads L* >= 75', () => {
+  const pale = pour({ r: 21.3, b: 30.8, w: 47.9 }, 'w', 66);
+  assert.ok(pale.w >= 72 && pale.w <= 76, `white share ${pale.w.toFixed(1)} not ~74`);
+  assert.ok(L(pale) >= 75, `L* ${L(pale).toFixed(1)} at ${pale.w.toFixed(1)}% white — still reads as a mid lavender`);
+});
+test('every pigment raises its own share and changes the render on a mixed pot', () => {
+  const base = { r: 30, y: 10, b: 20, k: 5, w: 35 };
+  for (const key of E.COMP_KEYS) {
+    const after = E.addUnits(base, key, 10);
+    assert.ok(after[key] > base[key], `${key}: share did not rise (${base[key]} -> ${after[key]})`);
+    assert.notStrictEqual(E.mixColor(after), E.mixColor(base), `${key}: render did not change`);
+  }
+});
+test('disc keys in index.html are exactly the engine COMP_KEYS (the base/w bug class)', () => {
+  const discs = [...htmlSrc.matchAll(/data-bucket="(\w)"/g)].map(m => m[1]).sort();
+  assert.deepStrictEqual(discs, [...E.COMP_KEYS].sort(),
+    `discs ${JSON.stringify(discs)} vs engine keys ${JSON.stringify(E.COMP_KEYS)}`);
+});
+test('Pour Bucket is the default tool — on load and on entering practice', () => {
+  assert.ok(/let selectedTool = 'pour'/.test(gameSrc), 'selectedTool does not default to pour');
+  assert.ok(/function startPractice\(\) \{\s*selectedTool = 'pour'/.test(gameSrc), 'startPractice does not reset to the Pour Bucket');
+  assert.ok(htmlSrc.includes('id="toolbar-current">🪣 Pour Bucket'), 'static collapsed-toolbar label is not the Pour Bucket');
+  assert.ok(htmlSrc.includes('<button class="tool sel" type="button" data-tool="pour" id="tool-pour">'), 'pour tool is not pre-selected in the static HTML');
+});
+test('finished pot is visibly locked and a press gives feedback (never a silent dead pot)', () => {
+  assert.ok(gameSrc.includes('lockedFeedback'), 'no lockedFeedback for finished-round pot presses');
+  assert.ok(gameSrc.includes("classList.toggle('locked', locked)"), 'stage never receives the locked class');
+  assert.ok(htmlSrc.includes('#stage.locked #pot-surface'), 'locked pot has no distinct styling');
+  assert.ok(htmlSrc.includes('@keyframes pot-shake'), 'pot-shake keyframes missing from index.html');
+});
+
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

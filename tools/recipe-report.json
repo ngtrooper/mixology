@@ -1,0 +1,194 @@
+{
+  "total": 981,
+  "eligible": 810,
+  "buckets": {
+    "<=2": 393,
+    "2-5": 214,
+    "5-8": 102,
+    "8-12": 101,
+    ">12": 171
+  },
+  "isccGrounded": 866,
+  "worst": [
+    {
+      "name": "cyan",
+      "hex": "#00FFFF",
+      "de": 22.54,
+      "recipe": {
+        "r": 0,
+        "y": 7,
+        "b": 42.5,
+        "k": 0,
+        "w": 50.5
+      }
+    },
+    {
+      "name": "bright turquoise",
+      "hex": "#0FFEF9",
+      "de": 22.48,
+      "recipe": {
+        "r": 0,
+        "y": 7.5,
+        "b": 42,
+        "k": 0,
+        "w": 50.5
+      }
+    },
+    {
+      "name": "bright aqua",
+      "hex": "#0BF9EA",
+      "de": 22.01,
+      "recipe": {
+        "r": 0,
+        "y": 9,
+        "b": 43,
+        "k": 0,
+        "w": 48
+      }
+    },
+    {
+      "name": "bright cyan",
+      "hex": "#41FDFE",
+      "de": 21.87,
+      "recipe": {
+        "r": 0,
+        "y": 7,
+        "b": 42.5,
+        "k": 0,
+        "w": 50.5
+      }
+    },
+    {
+      "name": "bright light blue",
+      "hex": "#26F7FD",
+      "de": 21.77,
+      "recipe": {
+        "r": 0,
+        "y": 7.8,
+        "b": 47.3,
+        "k": 0,
+        "w": 44.9
+      }
+    },
+    {
+      "name": "bright teal",
+      "hex": "#01F9C6",
+      "de": 21.24,
+      "recipe": {
+        "r": 0,
+        "y": 25,
+        "b": 38,
+        "k": 0,
+        "w": 37
+      }
+    },
+    {
+      "name": "greenish cyan",
+      "hex": "#2AFEB7",
+      "de": 20.93,
+      "recipe": {
+        "r": 0,
+        "y": 29,
+        "b": 32,
+        "k": 0,
+        "w": 39
+      }
+    },
+    {
+      "name": "bright sea green",
+      "hex": "#05FFA6",
+      "de": 20.83,
+      "recipe": {
+        "r": 0,
+        "y": 42,
+        "b": 30,
+        "k": 0,
+        "w": 28
+      }
+    },
+    {
+      "name": "greenish turquoise",
+      "hex": "#00FBB0",
+      "de": 20.8,
+      "recipe": {
+        "r": 0,
+        "y": 40,
+        "b": 26,
+        "k": 0,
+        "w": 34
+      }
+    },
+    {
+      "name": "aqua",
+      "hex": "#13EAC9",
+      "de": 19.95,
+      "recipe": {
+        "r": 0,
+        "y": 15.8,
+        "b": 47.3,
+        "k": 0,
+        "w": 36.9
+      }
+    },
+    {
+      "name": "medium spring green",
+      "hex": "#00FA9A",
+      "de": 19.85,
+      "recipe": {
+        "r": 0,
+        "y": 47,
+        "b": 27,
+        "k": 0,
+        "w": 26
+      }
+    },
+    {
+      "name": "sea green",
+      "hex": "#53FCA1",
+      "de": 19.22,
+      "recipe": {
+        "r": 0,
+        "y": 46,
+        "b": 26,
+        "k": 0,
+        "w": 28
+      }
+    },
+    {
+      "name": "light green blue",
+      "hex": "#56FCA2",
+      "de": 19.17,
+      "recipe": {
+        "r": 0,
+        "y": 42,
+        "b": 25,
+        "k": 0,
+        "w": 33
+      }
+    },
+    {
+      "name": "wintergreen",
+      "hex": "#20F986",
+      "de": 18.93,
+      "recipe": {
+        "r": 0,
+        "y": 51,
+        "b": 28,
+        "k": 0,
+        "w": 21
+      }
+    },
+    {
+      "name": "light aqua",
+      "hex": "#8CFFDB",
+      "de": 18.84,
+      "recipe": {
+        "r": 0,
+        "y": 24,
+        "b": 28,
+        "k": 0,
+        "w": 48
+      }
+    }
+  ]
+}
