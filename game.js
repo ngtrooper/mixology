@@ -411,6 +411,7 @@ function seal() {
     pct: E.accuracyFromDeltaE(de), de: Math.round(de * 10) / 10
   };
   round.attempts.push(att);
+  justSealed = round.attempts.length - 1;
   sfx.seal();
   announce(`Attempt ${round.attempts.length} sealed: ${att.pct}% accuracy.`);
   if (round.attempts.length >= MAX_ATTEMPTS) finish();
@@ -456,6 +457,7 @@ function finish() {
   renderAll();
   maybeShowDuel();
   scrollRevealIntoView();
+  revealEntrance(final.pct);
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
 }
 
@@ -468,6 +470,22 @@ function announce(msg) {
 /* Round 15: feel. Confetti at 95%+ (skipped under reduced motion), haptics
  * scaled to the result, and a flame bump when the daily streak grows. */
 let streakAtStart = 0;
+let justSealed = -1;
+/* Round 18: the reveal arrives instead of just appearing. The card fades
+ * up, the two swatches slide in from their sides, and the % counts up.
+ * Only on a fresh finish (a reload shows it settled); none under reduced motion. */
+function revealEntrance(pct) {
+  const el = $('reveal'); if (!el || REDUCED_MOTION) return;
+  el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter');
+  setTimeout(() => el.classList.remove('enter'), 1200);
+  const out = $('reveal-pct'), t0 = performance.now(), D = 750;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+    out.textContent = Math.round(pct * e) + '%';
+    if (k < 1) requestAnimationFrame(step); else out.textContent = pct + '%';
+  };
+  requestAnimationFrame(step);
+}
 function celebrate(pct, streakGrew) {
   if (pct >= 95) { buzz([14, 50, 14, 50, 28]); confetti(); }
   else if (pct >= E.PAR_PCT) buzz([14, 50, 22]);
@@ -721,13 +739,14 @@ function renderAll() {
   for (let i = 0; i < nSlots; i++) {
     const slot = $('slot-' + i), att = round.attempts[i];
     if (att) {
-      slot.className = 'attempt-slot filled' + (scored === att ? ' best' : '');
+      slot.className = 'attempt-slot filled' + (scored === att ? ' best' : '') + (justSealed === i ? ' pop' : '');
       slot.innerHTML = `<div class="asw" style="background:${att.hex}"></div><div class="apct">${att.pct}%</div><div>attempt ${i + 1}</div>`;
     } else {
       slot.className = 'attempt-slot';
       slot.textContent = `Attempt ${i + 1}`;
     }
   }
+  justSealed = -1;
 
   const last = round.attempts[round.attempts.length - 1];
   $('last-result').innerHTML = round.finished
@@ -785,7 +804,7 @@ function recipeRowHTML(label, sub, comp) {
   const c = E.normalizeComp(comp);
   const keys = BUCKET_KEYS.filter(k => c[k] >= 0.5);
   const bar = keys.map(k => `<span class="${k}" style="width:${c[k].toFixed(2)}%;background:${PIGMENT_HEX[k]}" title="${PIG_NAMES[k]} ${Math.round(c[k])}%"></span>`).join('');
-  const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${PIG_NAMES[k][0]} ${c[k] >= 9.95 ? Math.round(c[k]) : c[k].toFixed(1)}%</span>`).join('');
+  const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${k.toUpperCase()} ${c[k] >= 9.95 ? Math.round(c[k]) : c[k].toFixed(1)}%</span>`).join('');
   return `<div class="rrow"><div class="rl">${label}${sub ? `<b>${sub}</b>` : ''}</div><div class="rbar" role="img" aria-label="${label}: ${keys.map(k => PIG_NAMES[k] + ' ' + Math.round(c[k]) + '%').join(', ')}">${bar}</div><div class="rleg">${leg}</div></div>`;
 }
 function recipesHTML(color, att) {

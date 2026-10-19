@@ -212,6 +212,17 @@
   .vs .side { flex: 1; text-align: center; }
   .vs .sw { height: 92px; border-radius: 12px; border: 1px solid var(--line); }
   .vs .slabel { font-size: 12px; color: var(--muted); margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
+  /* round 18: reveal entrance + attempt pop (reduced-motion users get none) */
+  #reveal.enter { animation: rv-up .45s cubic-bezier(.2,.8,.3,1) both; }
+  #reveal.enter .vs > :first-child { animation: rv-left .55s .08s cubic-bezier(.2,.8,.3,1) both; }
+  #reveal.enter .vs > :last-child { animation: rv-right .55s .08s cubic-bezier(.2,.8,.3,1) both; }
+  #reveal.enter #reveal-band, #reveal.enter #reveal-recipes, #reveal.enter #reveal-actions { animation: rv-up .5s .45s both; }
+  @keyframes rv-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes rv-left { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+  @keyframes rv-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+  .attempt-slot.pop { animation: slot-pop .42s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes slot-pop { 0% { transform: scale(.85); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  #reveal-pct { font-variant-numeric: tabular-nums; }
   #reveal-pct { text-align: center; font-size: 52px; font-weight: 800; margin: 12px 0 0; line-height: 1; }
   #reveal-band { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; margin-top: 4px; }
   #reveal-de { text-align: center; color: var(--muted); font-size: 13px; margin-top: 4px; }

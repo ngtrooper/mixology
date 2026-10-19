@@ -826,5 +826,20 @@ test('a11y: live announcements, focus ring, mute toggle state, SVG header icons,
   const an = gameSrc.slice(gameSrc.indexOf('function announce'), gameSrc.indexOf('function announce') + 200);
   assert.ok(!/recipe|hex|name/.test(an));
 });
+console.log('— round 18: micro-animations —');
+test('reveal entrance + count-up only on a fresh finish, never under reduced motion; final % always lands exactly', () => {
+  const r = gameSrc.slice(gameSrc.indexOf('function revealEntrance'), gameSrc.indexOf('function celebrate'));
+  assert.ok(r.includes("if (!el || REDUCED_MOTION) return;"), 'entrance ignores reduced motion');
+  assert.ok(r.includes("else out.textContent = pct + '%';"), 'count-up may not land on the exact %');
+  const fin = gameSrc.slice(gameSrc.indexOf('function finish()'), gameSrc.indexOf('function scrollRevealIntoView'));
+  assert.ok(fin.includes('revealEntrance(final.pct);'), 'entrance not triggered by finish');
+  assert.ok(!gameSrc.slice(gameSrc.indexOf('function renderAll'), gameSrc.indexOf('function renderAll') + 6000).includes('revealEntrance('), 'entrance replays on every render');
+  assert.ok(htmlSrc.includes('.attempt-slot.pop {') && gameSrc.includes("(justSealed === i ? ' pop' : '')"), 'no attempt pop');
+});
+test('recipe legend letters are R/Y/B/K/W (black is K, not a second B)', () => {
+  const fn = gameSrc.slice(gameSrc.indexOf('function recipeRowHTML'), gameSrc.indexOf('function recipesHTML'));
+  assert.ok(fn.includes('${k.toUpperCase()} ') && !fn.includes('PIG_NAMES[k][0]'), 'legend derives letters from names');
+  assert.deepStrictEqual(['r', 'y', 'b', 'k', 'w'].map(k => k.toUpperCase()), ['R', 'Y', 'B', 'K', 'W']);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

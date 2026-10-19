@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 18 (2026-10-18, Grok Bot): MICRO-ANIMATIONS · LEGEND FIX
+- **Reveal entrance**, only on a fresh finish: the card fades up, the Official and Your-mix swatches slide in from their sides, and band, bars and actions follow.
+  - The % counts up with an ease-out over 0.75 s and always lands on the exact value.
+  - A reload shows the reveal already settled. Nothing animates under reduced motion.
+- **Attempt pop:** the slot just sealed springs in.
+- **Bug fix (r10 legend):** black showed as "B" like blue. Legend letters are now R/Y/B/K/W from the pigment keys. Test added.
+
 ## Round 17 (2026-10-18, Grok Bot): ACCESSIBILITY · SVG HEADER ICONS
 - The header 📅 and 🔊/🔇 emoji are now inline SVG icons (calendar with an accent dot; speaker on/off).
   - Mute is a real toggle: `aria-pressed` plus a stateful label ("Sound is on. Turn sound off").
