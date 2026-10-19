@@ -5,11 +5,23 @@
 
 const E = window.MisnomerEngine;
 const BANK = window.MISNOMER_COLORS;
-const POOL = BANK.filter(c => c.de <= 12); // daily-eligible (solver ΔE <= 12)
+// Round 8: daily-eligible = the solver's best recipe scores >= par
+// (engine.isDailyEligible / PAR_PCT) — no hard-coded ΔE threshold.
+const POOL = BANK.filter(c => E.isDailyEligible(c.de));
+const BANK_BY_NAME = new Map(BANK.map(c => [c.name, c]));
+const SCHEDULE = window.MIXOLOGY_SCHEDULE || [];
 
-const DAY = E.dayNumber(new Date()) + 1; // display/share day number (#1 = 2025-01-01)
-const todayIdx = E.pickDailyIndex(DAY, POOL.length);
-const todayColor = POOL[todayIdx];
+/* Round 8: the daily color comes from the FROZEN schedule (schedule.js,
+ * tools/build-schedule.js), so pool changes never move past days, duel
+ * links, or today's color. Past the schedule's horizon it falls back to
+ * the seeded picker over the pool. */
+function colorForDay(day) {
+  const c = BANK_BY_NAME.get(SCHEDULE[day]);
+  return c || POOL[E.pickDailyIndex(day, POOL.length)];
+}
+const currentDay = () => E.dayNumber(new Date()) + 1; // display/share day number (#1 = 2025-01-01)
+let DAY = currentDay();             // mutable: rolls over in an open tab (see checkDayRollover)
+let todayColor = colorForDay(DAY);
 
 /* Two tools only: Dropper (one drop per click) and Pour Bucket (press and
  * hold to pour). Their dosages appear ONLY in the Tips overlay.
@@ -108,6 +120,7 @@ function beep(freq, dur, type, vol, when) {
 }
 const sfx = {
   dose() { beep(220 + Math.random() * 60, 0.05, 'square', 0.025); },
+  pour() { beep(110 + Math.random() * 40, 0.12, 'sine', 0.03); }, // soft glug while pouring
   seal() { beep(150, 0.09, 'triangle', 0.06); },
   reveal() { [523, 659, 784].forEach((f, i) => beep(f, 0.16, 'sine', 0.05, i * 0.09)); }
 };
@@ -120,7 +133,7 @@ let round = null; // {mode, color, pot, undo:[], attempts:[], finished}
 
 function newRound(mode, color) {
   gestureOpen = false;
-  round = { mode, color, pot: freshPot(), undo: [], attempts: [], finished: false };
+  round = { mode, color, day: DAY, pot: freshPot(), undo: [], attempts: [], finished: false };
   renderAll();
 }
 function mixHex() { return E.mixColor(round.pot); }
@@ -177,53 +190,159 @@ function resetPot() {
 }
 
 /* ---------------- dosing animation + pour ------------------------------- */
+/* Round 8 visuals: the paint is visible going IN. Dropper — a pigment
+ * droplet falls to the pot centre, lands with a tinted ripple, a small
+ * splash and a pigment "bloom" that dissolves into the mix. Pour Bucket —
+ * a flowing stream in the pigment colour runs from the bucket lip to an
+ * impact point on the surface, which keeps blooming / rippling /
+ * splashing while held; the surface swirls and its colour eases (CSS
+ * transition) instead of snapping. Transform/opacity only; all of it is
+ * skipped under prefers-reduced-motion. Light haptics on phones. */
 let pourTimer = null;
-function spawnRipple() {
+const FX_PIGMENT = k => PIGMENT_HEX[k] || '#FFFFFF';
+function rgba(hex, a) { const [r, g, b] = E.hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* optional */ } }
+/* Geometry: points in #stage px. The surface circle comes from layout. */
+function surfaceGeom() {
+  const stage = $('stage'), surf = $('pot-surface');
+  if (!stage || !surf) return null;
+  const sr = stage.getBoundingClientRect(), pr = surf.getBoundingClientRect();
+  return { cx: pr.left - sr.left + pr.width / 2, cy: pr.top - sr.top + pr.height / 2, r: pr.width / 2, left: pr.left - sr.left, top: pr.top - sr.top, stageH: sr.height };
+}
+function pourImpact() {
+  const g = surfaceGeom(), fx = $('pour-stream');
+  if (!g || !fx) return null;
+  const stage = $('stage').getBoundingClientRect();
+  const sx = fx.getBoundingClientRect().left - stage.left + fx.offsetWidth / 2;
+  const dx = Math.min(Math.abs(sx - g.cx), g.r * 0.9);
+  const y = g.cy - Math.sqrt(g.r * g.r - dx * dx) * 0.45; // a little way into the surface
+  return { x: sx, y, g };
+}
+function spawnRipple(color, x, y) { // x, y in surface % (default: centre)
   if (REDUCED_MOTION) return;
   const surface = $('pot-surface');
   if (!surface) return;
   const r = document.createElement('div');
   r.className = 'ripple';
+  r.style.left = (x == null ? 50 : x) + '%';
+  r.style.top = (y == null ? 50 : y) + '%';
+  if (x != null) r.style.width = '40%';
+  if (color) r.style.borderColor = rgba(color, color === PIGMENT_HEX.w ? 0.95 : 0.7);
   surface.appendChild(r);
   try {
     const a = r.animate([
-      { transform: 'translate(-50%,-50%) scale(.2)', opacity: .8 },
+      { transform: 'translate(-50%,-50%) scale(.15)', opacity: .9 },
       { transform: 'translate(-50%,-50%) scale(1.05)', opacity: 0 }
-    ], { duration: 480, easing: 'ease-out' });
+    ], { duration: 560, easing: 'ease-out' });
     a.onfinish = () => r.remove();
   } catch (e) { /* animation is decorative */ }
-  setTimeout(() => r.remove(), 750);
+  setTimeout(() => r.remove(), 800);
+}
+function bloom(color, x, y, size) { // pigment dissolving into the mix
+  if (REDUCED_MOTION) return;
+  const surface = $('pot-surface');
+  if (!surface) return;
+  const d = document.createElement('div');
+  d.className = 'bloom';
+  d.style.left = x + '%'; d.style.top = y + '%';
+  d.style.width = (size || 42) + '%';
+  d.style.background = `radial-gradient(circle, ${rgba(color, .95)} 0 35%, ${rgba(color, .55)} 55%, ${rgba(color, 0)} 72%)`;
+  surface.appendChild(d);
+  try {
+    const a = d.animate([
+      { transform: 'translate(-50%,-50%) scale(.2)', opacity: .95 },
+      { transform: 'translate(-50%,-50%) scale(1)', opacity: .55, offset: .35 },
+      { transform: 'translate(-50%,-50%) scale(1.5)', opacity: 0 }
+    ], { duration: 900, easing: 'ease-out' });
+    a.onfinish = () => d.remove();
+  } catch (e) { /* decorative */ }
+  setTimeout(() => d.remove(), 1100);
+}
+function splash(color, x, y, n) { // x, y in #stage px
+  if (REDUCED_MOTION) return;
+  const fx = $('fx');
+  if (!fx) return;
+  for (let i = 0; i < (n || 4); i++) {
+    const p = document.createElement('div');
+    p.className = 'splash';
+    p.style.left = x + 'px'; p.style.top = y + 'px';
+    p.style.background = color;
+    fx.appendChild(p);
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, dist = 10 + Math.random() * 16;
+    const tx = Math.cos(ang) * dist, ty = Math.sin(ang) * dist;
+    try {
+      const a = p.animate([
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(.9)`, opacity: 1, offset: .55 },
+        { transform: `translate(calc(-50% + ${tx * 1.3}px), calc(-50% + ${ty * 0.2 + 8}px)) scale(.4)`, opacity: 0 }
+      ], { duration: 420, easing: 'ease-out' });
+      a.onfinish = () => p.remove();
+    } catch (e) { /* decorative */ }
+    setTimeout(() => p.remove(), 600);
+  }
 }
 function dropAnim() {
   if (REDUCED_MOTION) return;
-  const d = $('droplet'), stage = $('stage');
-  if (!d || !stage) return;
-  d.style.background = PIGMENT_HEX[selectedBucket];
+  const d = $('droplet'), stage = $('stage'), g = surfaceGeom();
+  if (!d || !stage || !g) return;
+  const color = FX_PIGMENT(selectedBucket);
+  d.style.background = color;
   d.style.display = 'block';
-  const fall = Math.max(40, stage.clientHeight * 0.26);
+  const startY = d.offsetTop;
+  const fall = Math.max(40, g.cy - startY - 6); // land at the pot centre
   try {
     if (d._anim) d._anim.cancel();
     const a = d.animate([
-      { transform: `translate(-50%,-12px) rotate(45deg)`, opacity: 0 },
-      { transform: `translate(-50%,${fall * 0.35}px) rotate(45deg)`, opacity: 1, offset: .25 },
-      { transform: `translate(-50%,${fall}px) rotate(45deg)`, opacity: 1 }
-    ], { duration: 330, easing: 'cubic-bezier(.5,0,.9,.6)' });
+      { transform: `translate(-50%,-12px) rotate(45deg) scale(.8)`, opacity: 0 },
+      { transform: `translate(-50%,${fall * 0.3}px) rotate(45deg) scale(1)`, opacity: 1, offset: .25 },
+      { transform: `translate(-50%,${fall}px) rotate(45deg) scale(1,1.15)`, opacity: 1 }
+    ], { duration: 340, easing: 'cubic-bezier(.5,0,.9,.6)' });
     d._anim = a;
-    a.onfinish = () => { d.style.display = 'none'; spawnRipple(); };
+    a.onfinish = () => {
+      d.style.display = 'none';
+      spawnRipple(color);
+      bloom(color, 50, 50, 34);
+      splash(color, g.cx, g.cy, 4);
+      buzz(8);
+    };
   } catch (e) { d.style.display = 'none'; }
+}
+function pourFx(tick) {
+  if (REDUCED_MOTION) return;
+  const hit = pourImpact();
+  if (!hit) return;
+  const color = FX_PIGMENT(selectedBucket);
+  const xp = (hit.x - hit.g.left) / (hit.g.r * 2) * 100, yp = (hit.y - hit.g.top) / (hit.g.r * 2) * 100;
+  if (tick % 2 === 0) bloom(color, xp, yp, 46);
+  if (tick % 3 === 0) spawnRipple(color, xp, yp);
+  if (tick % 4 === 0) splash(color, hit.x, hit.y, 3);
+  if (tick % 6 === 0) buzz(5);
+}
+function layoutStream() {
+  const st = $('pour-stream'), hit = pourImpact();
+  if (!st || !hit) return;
+  st.style.height = Math.max(12, hit.y - st.offsetTop) + 'px';
 }
 function startPour() {
   if (!round || round.finished || pourTimer) return;
   beginGesture(); // the whole hold is ONE undo step
   applyUnit();
-  dropAnim();
+  const color = FX_PIGMENT(selectedBucket);
+  const stream = $('pour-stream');
+  stream.style.setProperty('--pig', color);
+  stream.style.backgroundColor = color;
+  layoutStream();
   $('stage').classList.add('pouring');
-  $('pour-stream').style.background = PIGMENT_HEX[selectedBucket];
+  $('stage').style.setProperty('--pig', color);
   let ticks = 0;
+  pourFx(0);
+  sfx.pour();
   pourTimer = setInterval(() => {
     if (!round || round.finished) { stopPour(); return; }
     applyUnit(true); // no cap exists — a pour can only be stopped by release
-    if (++ticks % 3 === 0) spawnRipple();
+    ticks++;
+    pourFx(ticks);
+    if (ticks % 5 === 0) sfx.pour();
   }, 1000 / POUR_RATE);
 }
 function stopPour() {
@@ -256,21 +375,23 @@ function finish() {
   const final = round.attempts[round.attempts.length - 1];
   if (round.mode === 'daily') {
     const s = store.data;
-    const already = !!s.days[DAY];
-    s.days[DAY] = {
+    const day = round.day; // the round's own day — it may have started before midnight
+    const already = !!s.days[day];
+    s.days[day] = {
       date: E.dateKey(new Date()), name: round.color.name,
       attempts: round.attempts, pct: final.pct, de: final.de,
       band: E.bandForDeltaE(final.de), hex: final.hex
     };
     if (!already) {
-      if (s.lastDay === DAY - 1) {
+      const par = final.pct >= E.PAR_PCT;
+      if (s.lastDay === day - 1) {
         s.streak += 1;
-        s.parStreak = final.pct >= 85 ? s.parStreak + 1 : 0;
-      } else if (s.lastDay !== DAY) {
+        s.parStreak = par ? s.parStreak + 1 : 0;
+      } else if (s.lastDay == null || s.lastDay < day) {
         s.streak = 1;
-        s.parStreak = final.pct >= 85 ? 1 : 0;
+        s.parStreak = par ? 1 : 0;
       }
-      s.lastDay = DAY;
+      if (s.lastDay == null || day > s.lastDay) s.lastDay = day;
     }
     s.wip = null;
     store.persistSoon();
@@ -281,40 +402,56 @@ function finish() {
   sfx.reveal();
   renderAll();
   maybeShowDuel();
+  scrollRevealIntoView();
+}
+/* Round 8: on phones the reveal sits below the fold — bring it up. */
+function scrollRevealIntoView() {
+  const el = $('reveal');
+  if (!el || el.style.display === 'none') return;
+  setTimeout(() => el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'start' }), 80);
 }
 
 function persistWip() {
   if (round && round.mode === 'daily' && !round.finished) {
-    store.data.wip = { day: DAY, attempts: round.attempts, pot: { ...round.pot } };
+    // Round 8: the WIP carries its color's name, so a WIP can never be
+    // scored against a different color (schedule or pool changes).
+    store.data.wip = { day: round.day, name: round.color.name, attempts: round.attempts, pot: { ...round.pot } };
     store.persistSoon();
   }
 }
 
 /* ---------------- duel links ------------------------------------------- */
-function duelUrlFor(final) {
-  // Round 6: q carries the % composition as integers of %x10, base36,
-  // in r.y.b.k.w order (e.g. 40% red -> 400 -> 'b4').
-  const q = [final.comp.r, final.comp.y, final.comp.b, final.comp.k, final.comp.w]
-    .map(v => Math.round(v * 10).toString(36)).join('.');
+/* Round 8: links carry NO hex. `x` is the player's % composition (r.y.b.k.w
+ * as %x10 integers) masked with a day-seeded keystream, 2 base36 chars
+ * per share — not cryptography (the engine can always render a recipe),
+ * but nothing in a posted link reads as a color any more, and the page
+ * renders the friend's mix only after the visitor finishes that day.
+ * Legacy links (?m=<hex>&q=a.b.c.d.e) still parse. */
+function duelUrlFor(final, day) {
   const base = location.href.split(/[?#]/)[0];
-  return `${base}?d=${DAY}&m=${final.hex.slice(1)}&p=${final.pct}&q=${q}`;
+  return `${base}?d=${day}&p=${final.pct}&x=${E.encodeDuelComp(final.comp, day)}`;
 }
 function parseDuel() {
   const p = new URLSearchParams(location.search);
-  if (!p.has('d') || !p.has('m') || !p.has('p')) return null;
-  const parts = (p.get('q') || '').split('.').map(s => parseInt(s, 36) || 0);
-  const pct10 = i => (parts[i] || 0) / 10;
-  return {
-    day: parseInt(p.get('d'), 10),
-    hex: '#' + (p.get('m') || 'FFFFFF').toUpperCase(),
-    pct: parseInt(p.get('p'), 10),
-    comp: { r: pct10(0), y: pct10(1), b: pct10(2), k: pct10(3), w: parts.length > 4 ? pct10(4) : 100 }
-  };
+  if (!p.has('d') || !p.has('p')) return null;
+  const day = parseInt(p.get('d'), 10);
+  let comp = null, hex = null;
+  if (p.has('x')) comp = E.decodeDuelComp(p.get('x'), day);
+  else if (p.has('q')) { // legacy round-6 link: dotted base36 %x10
+    const parts = p.get('q').split('.').map(s => parseInt(s, 36) || 0);
+    const pct10 = i => (parts[i] || 0) / 10;
+    comp = E.normalizeComp({ r: pct10(0), y: pct10(1), b: pct10(2), k: pct10(3), w: parts.length > 4 ? pct10(4) : 100 });
+  }
+  const legacyHex = /^[0-9a-f]{6}$/i.test(p.get('m') || '') ? '#' + p.get('m').toUpperCase() : null;
+  // Legacy links keep showing the hex the friend actually saw (the
+  // mixing model has changed since); new links render from the recipe.
+  hex = legacyHex || (comp ? E.mixColor(comp) : null);
+  const pct = parseInt(p.get('p'), 10);
+  if (!hex || !isFinite(day) || !isFinite(pct)) return null;
+  return { day, hex, pct: clamp01(pct), comp };
 }
+function clamp01(v) { return Math.max(0, Math.min(100, v)); }
 const incomingDuel = parseDuel();
-function colorForDay(day) {
-  return POOL[E.pickDailyIndex(day, POOL.length)];
-}
 function maybeShowDuel() {
   const card = document.getElementById('duel-card');
   if (!incomingDuel || !isFinite(incomingDuel.day)) { card.style.display = 'none'; return; }
@@ -330,7 +467,7 @@ function maybeShowDuel() {
       `<div style="margin-top:6px">${mine.pct > incomingDuel.pct ? 'You take this one. 🏆'
         : mine.pct < incomingDuel.pct ? 'They take this one — rematch tomorrow.'
         : 'Dead heat. 🤝'}</div>`;
-  } else if (incomingDuel.day === DAY) {
+  } else if (incomingDuel.day >= DAY) { // today (or a friend a timezone ahead) — never spoil
     card.innerHTML = `<b>A friend has already mixed today's color.</b>` +
       `<div>Finish your round to see how you stack up — no spoilers until then.</div>`;
   } else {
@@ -345,17 +482,18 @@ function escapeHtml(s) {
 }
 
 /* ---------------- share ------------------------------------------------- */
-function shareText() {
-  const rec = store.data.days[DAY];
+function shareText(day) {
+  day = day || (round && round.mode === 'daily' ? round.day : DAY);
+  const rec = store.data.days[day];
   if (!rec) return '';
   const final = rec.attempts[rec.attempts.length - 1];
   const s = store.data;
   const lines = [
-    `🎨 MIXOLOGY #${DAY} — "${rec.name.toUpperCase()}"`,
+    `🎨 MIXOLOGY #${day} — "${rec.name.toUpperCase()}"`,
     'My mix: ██████',
     `${rec.pct}% accuracy — ${rec.band} · Attempts: ${rec.attempts.map(a => a.pct + '%').join(' → ')}`,
     `🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? ` · Par streak ${s.parStreak}` : ''),
-    duelUrlFor(final)
+    duelUrlFor(final, day)
   ];
   return lines.join('\n');
 }
@@ -382,12 +520,15 @@ function renderAll() {
   $('practice-bar').style.display = daily ? 'none' : 'block';
   $('btn-practice').textContent = daily ? 'Practice' : '← Daily';
   $('day-label').textContent = daily
-    ? `MIXOLOGY #${DAY} · ${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`
+    ? `MIXOLOGY #${round.day} · ${dateForDay(round.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`
     : 'Practice mode';
-  const s = store.data;
-  $('streak-display').textContent = s.streak > 0
-    ? `🔥 Streak ${s.streak}` + (s.parStreak > 0 ? ` · Par streak ${s.parStreak} (85%+)` : '')
+  const st = liveStreaks();
+  $('streak-display').textContent = st.streak > 0
+    ? `🔥 Streak ${st.streak}` + (st.parStreak > 0 ? ` · Par streak ${st.parStreak} (${E.PAR_PCT}%+)` : '')
     : '';
+  const stale = daily && round.day !== DAY;
+  if (stale && !round.finished) $('prompt-sub').textContent = "A new day's color is out — finish this one, then play today's.";
+  $('btn-today').style.display = stale && round.finished ? 'block' : 'none';
 
   const hex = mixHex();
   $('pot-surface').style.background = hex;
@@ -441,6 +582,34 @@ function renderAll() {
   }
 }
 
+/* Round 8: a streak only counts while it is alive — after a missed day
+ * the header shows nothing (the stored number resets on the next finish). */
+function liveStreaks() {
+  const s = store.data;
+  const alive = s.lastDay != null && s.lastDay >= DAY - 1;
+  return { streak: alive ? s.streak : 0, parStreak: alive ? s.parStreak : 0 };
+}
+function dateForDay(day) { const d = new Date(2025, 0, 1); d.setDate(d.getDate() + day - 1); return d; }
+
+/* Round 8: the day rolls over in an open tab. An untouched or finished
+ * daily round switches to the new color; a round in progress keeps its
+ * own day (it still scores and streaks as that day) and offers today's
+ * color once it is finished. */
+function checkDayRollover() {
+  const d = currentDay();
+  if (d === DAY) return;
+  DAY = d;
+  todayColor = colorForDay(DAY);
+  if (round && round.mode === 'daily') {
+    const untouched = !round.attempts.length && !round.undo.length;
+    if (round.finished || untouched) { stopPour(); initDaily(); return; }
+  }
+  renderAll();
+}
+setInterval(checkDayRollover, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
+window.addEventListener('focus', checkDayRollover);
+
 /* ---------------- practice ---------------------------------------------- */
 function startPractice() {
   selectedTool = 'pour'; // round 7: entering practice also lands on the Pour Bucket
@@ -458,7 +627,7 @@ function initDaily() {
   if (rec) {
     const lastAtt = rec.attempts[rec.attempts.length - 1];
     round = {
-      mode: 'daily', color: todayColor, finished: true,
+      mode: 'daily', color: todayColor, day: DAY, finished: true,
       pot: lastAtt.comp ? { ...lastAtt.comp } : freshPot(),
       undo: [], attempts: rec.attempts
     };
@@ -466,10 +635,16 @@ function initDaily() {
   } else {
     newRound('daily', todayColor);
     const wip = store.data.wip;
-    if (wip && wip.day === DAY) {
+    // Round 8: restore only a WIP for today's day AND today's color
+    // (pre-round-8 WIPs carry no name; their day still pins the color,
+    // because the frozen schedule preserved every pre-existing day).
+    if (wip && wip.day === DAY && (!wip.name || wip.name === todayColor.name)) {
       round.attempts = wip.attempts || [];
       round.pot = wip.pot || freshPot();
       renderAll();
+    } else if (wip) {
+      store.data.wip = null; // stale WIP (old day or a different color): discard safely
+      store.persistSoon();
     }
   }
   maybeShowDuel();
@@ -538,9 +713,11 @@ $('btn-seal').addEventListener('click', () => seal());
 $('btn-finish').addEventListener('click', () => finish());
 $('btn-share').addEventListener('click', ev => doShare(ev.currentTarget, shareText(), 'Copied ✓'));
 $('btn-duel').addEventListener('click', ev => {
-  const rec = store.data.days[DAY];
-  if (rec) doShare(ev.currentTarget, duelUrlFor(rec.attempts[rec.attempts.length - 1]), 'Link copied ✓');
+  const day = round && round.mode === 'daily' ? round.day : DAY;
+  const rec = store.data.days[day];
+  if (rec) doShare(ev.currentTarget, duelUrlFor(rec.attempts[rec.attempts.length - 1], day), 'Link copied ✓');
 });
+$('btn-today').addEventListener('click', () => { initDaily(); window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' }); });
 $('btn-next-practice').addEventListener('click', startPractice);
 $('btn-practice').addEventListener('click', () => {
   if (round && round.mode === 'practice') exitPractice(); else startPractice();
@@ -556,15 +733,17 @@ initDaily();
 
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
-  version: '1.5.0',
-  today: { day: DAY, name: todayColor.name },
+  version: '1.6.0',
+  get today() { return { day: DAY, name: todayColor.name }; },
+  colorForDay: day => colorForDay(day).name,
+  checkDayRollover, parseDuel,
   state() {
     return JSON.parse(JSON.stringify({
       mode: round.mode, finished: round.finished, colorName: round.color.name,
       targetHex: round.color.hex, // debug only — never rendered pre-reveal in the UI
       pot: round.pot, attempts: round.attempts,
       selectedBucket, selectedTool,
-      streak: store.data.streak, parStreak: store.data.parStreak
+      day: round.day, streak: liveStreaks().streak, parStreak: liveStreaks().parStreak
     }));
   },
   selectBucket(b) { selectedBucket = b; renderAll(); },

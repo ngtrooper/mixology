@@ -59,7 +59,27 @@
   #pot-surface {
     position: absolute; inset: 11px; border-radius: 50%; background: #ffffff;
     box-shadow: inset 0 8px 16px rgba(28,26,23,.20), inset 0 -4px 8px rgba(255,255,255,.35);
-    transition: background-color .18s ease; overflow: hidden; pointer-events: none;
+    transition: background-color .22s ease-out; overflow: hidden; pointer-events: none;
+  }
+  /* Round 8: surface sheen + a slow swirl while pouring. */
+  #pot-surface::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.38), rgba(255,255,255,0) 42%);
+  }
+  #pot-surface::before {
+    content: ""; position: absolute; inset: -20%; border-radius: 50%; pointer-events: none; opacity: 0;
+    background: conic-gradient(from 0deg, rgba(255,255,255,0), rgba(255,255,255,.16), rgba(0,0,0,.06), rgba(255,255,255,0) 60%);
+    transition: opacity .25s ease;
+  }
+  #stage.pouring #pot-surface::before { opacity: 1; animation: swirl 1.6s linear infinite; }
+  @keyframes swirl { to { transform: rotate(360deg); } }
+  .bloom {
+    position: absolute; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%) scale(.2); opacity: 0; will-change: transform, opacity;
+  }
+  .splash {
+    position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(28,26,23,.15); will-change: transform, opacity;
   }
   /* Finished round: the pot is locked (round 7). The surface visibly
      greys out and the cursor drops; a press shakes the pot and the
@@ -100,12 +120,17 @@
   #stage.pouring #pour-fx { opacity: 1; }
   #stage.pouring #pour-fx .pbucket { transform: rotate(-46deg); }
   #pour-stream {
-    position: absolute; left: calc(62% + 7px); top: 25.5%; width: 6px; height: 15%;
-    border-radius: 3px; background: #ffffff; box-shadow: 0 0 0 1px rgba(28,26,23,.12);
-    opacity: 0; transform-origin: top center;
+    position: absolute; left: calc(62% + 5px); top: 25.5%; width: 9px; height: 15%;
+    border-radius: 5px 5px 4px 4px; background-color: #ffffff; box-shadow: 0 0 0 1px rgba(28,26,23,.14);
+    /* round 8: a flowing stream — highlight + moving bands over the pigment colour */
+    background-image: linear-gradient(90deg, rgba(255,255,255,.45), rgba(255,255,255,0) 45%, rgba(0,0,0,.12)),
+      repeating-linear-gradient(180deg, rgba(255,255,255,.22) 0 5px, rgba(255,255,255,0) 5px 13px);
+    background-size: 100% 100%, 100% 26px;
+    opacity: 0; transform-origin: top center; transform: scaleY(0); transition: opacity .12s ease, transform .14s ease-out;
   }
-  #stage.pouring #pour-stream { opacity: .92; animation: stream-wobble .28s ease-in-out infinite alternate; }
-  @keyframes stream-wobble { from { transform: scaleY(1) rotate(-1.2deg); } to { transform: scaleY(1.04) rotate(1.2deg); } }
+  #stage.pouring #pour-stream { opacity: .96; transform: scaleY(1); animation: stream-flow .32s linear infinite, stream-wobble .3s ease-in-out infinite alternate; }
+  @keyframes stream-flow { from { background-position: 0 0, 0 0; } to { background-position: 0 0, 0 26px; } }
+  @keyframes stream-wobble { from { width: 8px; margin-left: 0; } to { width: 10px; margin-left: -1px; } }
 
   /* ---- collapsible toolbar ---- */
   #toolbar { margin: 14px 0 0; border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
@@ -160,6 +185,10 @@
   }
   #btn-share { background: var(--ink); color: var(--paper); border: none; }
   #btn-duel { background: var(--card); color: var(--ink); border: 1.5px solid var(--ink); }
+  #btn-today {
+    display: none; width: 100%; margin-top: 10px; border-radius: 10px; padding: 12px;
+    font-size: 14.5px; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; border: none;
+  }
   #btn-next-practice {
     display: none; width: 100%; margin-top: 10px; border-radius: 10px; padding: 12px;
     font-size: 14.5px; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; border: none;
@@ -270,6 +299,7 @@
       <button id="btn-duel" type="button">Copy duel link</button>
     </div>
     <button id="btn-next-practice" type="button">Next practice color →</button>
+    <button id="btn-today" type="button">Play today's color →</button>
   </section>
 
   <footer>
@@ -299,6 +329,7 @@
 </div>
 
 <script src="colors.js"></script>
+<script src="schedule.js"></script>
 <script src="engine.js"></script>
 <script src="game.js"></script>
 </body>

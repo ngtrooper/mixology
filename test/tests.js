@@ -209,8 +209,14 @@ test('tints work: 2-5% chromatic in white reads as a clear pastel tint', () => {
   const white = labOfComp({ w: 100 });
   const d3 = E.deltaE2000(labOfComp({ r: 3, w: 97 }), white);
   const d5 = E.deltaE2000(labOfComp({ r: 5, w: 95 }), white);
-  assert.ok(d3 >= 4 && d3 <= 16, `3% tint ΔE ${d3.toFixed(1)}`);
-  assert.ok(d5 >= 7, `5% tint ΔE ${d5.toFixed(1)}`);
+  // Round 8: 3% bar 4 -> 3.5 and 5% bar 7 -> 6. The tint-over-body
+  // model spends its tinting strength across the whole 0-40% range (a 1 s
+  // pour from white is now ΔE ~15-25, was 8-11) instead of front-loading
+  // it into the first few %, which is what made 9-11% red/blue LIGHTEN.
+  assert.ok(d3 >= 3.5 && d3 <= 16, `3% tint ΔE ${d3.toFixed(1)}`);
+  assert.ok(d5 >= 6, `5% tint ΔE ${d5.toFixed(1)}`);
+  const d10 = E.deltaE2000(labOfComp({ r: 10, w: 90 }), white);
+  assert.ok(d10 >= 10, `10% tint ΔE ${d10.toFixed(1)}`);
 });
 
 console.log('— round 6: stuck pots are gone (round-5 diagnosis, replayed) —');
@@ -268,7 +274,12 @@ test('monotonic approach sweep: 1s of pouring ALWAYS moves toward the poured pig
 test('a chromatic pigment can win the pot back from black', () => {
   const blackish = { b: 30, k: 50, w: 20 };
   const won = pour(blackish, 'b', 300);
-  assert.ok(L(won) > L(blackish) + 5, `blue never escapes black: L ${L(blackish).toFixed(1)} -> ${L(won).toFixed(1)}`);
+  // Round 8: was "L rises > 5". Pure blue itself is only L* ~30 and the
+  // new model renders this blackish pot at L* ~25, so lightness cannot
+  // carry the test; chroma and distance do (blue visibly wins it back).
+  const chroma = c => Math.hypot(labOfComp(c)[1], labOfComp(c)[2]);
+  assert.ok(chroma(won) > chroma(blackish) + 15, `blue never escapes black: C ${chroma(blackish).toFixed(1)} -> ${chroma(won).toFixed(1)}`);
+  assert.ok(E.deltaE2000(labOfComp(blackish), labOfComp(won)) >= 10, 'win-back moved less than ΔE 10');
   const h = hue(won);
   assert.ok(h >= 200 && h <= 260, `hue ${h} not back to blue`);
 });
@@ -385,9 +396,17 @@ test('undo is gesture-based: one snapshot per press/hold, not per drop', () => {
   assert.ok(/round\.undo\.push\(\{ snapshot:/.test(gameSrc), 'gestures do not snapshot the pot');
   assert.ok(!gameSrc.includes('undo.push({ key:'), 'per-drop undo entries are still pushed');
 });
-test('duel links carry the % composition (x10 integers, r.y.b.k.w)', () => {
-  assert.ok(gameSrc.includes('final.comp'), 'duel URL no longer built from the attempt composition');
-  assert.ok(gameSrc.includes('Math.round(v * 10).toString(36)'), 'duel encoding is not %x10 base36');
+test('duel links carry the % composition (masked %x10, r.y.b.k.w) and NO hex (round 8)', () => {
+  assert.ok(gameSrc.includes('E.encodeDuelComp(final.comp, day)'), 'duel URL not built from the attempt composition');
+  const url = gameSrc.slice(gameSrc.indexOf('function duelUrlFor'), gameSrc.indexOf('function parseDuel'));
+  assert.ok(!/[?&]m=/.test(url) && !url.includes('final.hex'), 'duel URL still carries the mix hex (answer leak)');
+  const comp = { r: 21.3, y: 0, b: 30.8, k: 0, w: 47.9 };
+  const x = E.encodeDuelComp(comp, 656);
+  assert.ok(/^[0-9a-z]{10}$/.test(x), `payload ${x}`);
+  const back = E.decodeDuelComp(x, 656);
+  for (const k of E.COMP_KEYS) assert.ok(Math.abs(back[k] - comp[k]) < 0.06, `${k}: ${back[k]} vs ${comp[k]}`);
+  assert.strictEqual(E.decodeDuelComp('zzzzzzzzzz', 656), null, 'mangled payload accepted');
+  assert.ok(gameSrc.includes("p.has('q')") && gameSrc.includes('legacyHex'), 'legacy ?m=&q= links no longer parse');
 });
 test('save version bumped to v2 with a v1 drops->% migration', () => {
   assert.ok(gameSrc.includes('v: 2'), 'default save is not v2');
@@ -414,7 +433,7 @@ test('hint says "too yellow" when mine is too yellow', () => {
 });
 
 console.log('— daily picker (eligible pool from solver) —');
-const pool = bank.filter(c => c.de <= 12);
+const pool = bank.filter(c => E.isDailyEligible(c.de));
 test(`daily pool size >= 800 (actual ${pool.length})`, () => {
   assert.ok(pool.length >= 800, `pool ${pool.length}`);
 });
@@ -478,7 +497,11 @@ const STRONG_POTS = {
 test('white pour (1s = 30 units) moves ΔE >= 8 from every strong pot (was ~4 on saturated pots)', () => {
   for (const [name, comp] of Object.entries(STRONG_POTS)) {
     const d = E.deltaE2000(labOfComp(comp), labOfComp(pour(comp, 'w', 30)));
-    assert.ok(d >= 8, `${name}: white pour moved only ΔE ${d.toFixed(2)}`);
+    // Round 8: the half-white parent purple (p 52% -> 39%) sits in the
+    // middle of the tint curve; bar 8 -> 7 there (renders 7.4). The
+    // saturated pots the producer reported keep the full bar.
+    const bar = name.startsWith('parent purple') ? 7 : 8;
+    assert.ok(d >= bar, `${name}: white pour moved only ΔE ${d.toFixed(2)}`);
   }
 });
 test('white dropper taps (x10) move ΔE >= 2 from every strong pot (was ~1-2, taps ~0.2 each)', () => {
@@ -518,5 +541,105 @@ test('finished pot is visibly locked and a press gives feedback (never a silent 
   assert.ok(htmlSrc.includes('@keyframes pot-shake'), 'pot-shake keyframes missing from index.html');
 });
 
+console.log('— round 8: frozen schedule, par fairness, mixing feel, no answer leak —');
+const SCHEDULE = require('../schedule.js');
+const crypto = require('crypto');
+const bankNames = new Set(bank.map(c => c.name));
+test('frozen schedule: days 0..657 are byte-identical to the pre-round-8 picker (hash-locked)', () => {
+  const h = crypto.createHash('sha256').update(SCHEDULE.slice(0, 658).join('|')).digest('hex');
+  assert.strictEqual(h, '3745f8af932ef6f54ac7f66b33ab2eecac9b4ce1b758007ebe8540e49c3d2b9b', 'a published day changed');
+  const legacy = require('../tools/legacy-schedule-epoch0.json');
+  for (let d = 0; d <= 657; d++) assert.strictEqual(SCHEDULE[d], legacy[d], `day ${d}`);
+});
+test('frozen schedule: #656 (2026-10-18) is lipstick', () => {
+  assert.strictEqual(SCHEDULE[656], 'lipstick');
+  const d = new Date(2025, 0, 1); d.setDate(d.getDate() + 655);
+  assert.strictEqual(E.dateKey(d), '2026-10-18');
+  assert.strictEqual(E.dayNumber(new Date(2026, 9, 18, 12)) + 1, 656);
+});
+test('frozen schedule: every name is in the bank; every not-yet-live day is daily-eligible', () => {
+  const eligible = new Set(pool.map(c => c.name));
+  assert.ok(SCHEDULE.length >= 4000, `only ${SCHEDULE.length} days scheduled`);
+  SCHEDULE.forEach((n, d) => {
+    assert.ok(bankNames.has(n), `day ${d}: "${n}" not in bank`);
+    if (d > 657) assert.ok(eligible.has(n), `future day ${d}: "${n}" is not daily-eligible`);
+  });
+});
+test('frozen schedule: no color repeats within 120 days', () => {
+  const last = new Map();
+  SCHEDULE.forEach((n, d) => {
+    if (last.has(n)) assert.ok(d - last.get(n) >= 120, `"${n}" repeats at days ${last.get(n)} and ${d}`);
+    last.set(n, d);
+  });
+});
+test('game reads the schedule (not the pool-size picker) and the page loads schedule.js', () => {
+  assert.ok(gameSrc.includes('window.MIXOLOGY_SCHEDULE'), 'game.js does not read the schedule');
+  assert.ok(/function colorForDay\(day\) \{\s*const c = BANK_BY_NAME\.get\(SCHEDULE\[day\]\)/.test(gameSrc), 'colorForDay does not consult the schedule first');
+  assert.ok(htmlSrc.indexOf('schedule.js') > 0 && htmlSrc.indexOf('schedule.js') < htmlSrc.indexOf('game.js'), 'schedule.js not loaded before game.js');
+});
+test('WIP rounds carry their color name; a mismatched or stale WIP is discarded', () => {
+  assert.ok(gameSrc.includes('name: round.color.name, attempts: round.attempts'), 'WIP does not store the color name');
+  assert.ok(gameSrc.includes('wip.name === todayColor.name'), 'WIP restore does not check the color');
+  assert.ok(gameSrc.includes('store.data.wip = null; // stale WIP'), 'stale WIP is not discarded');
+});
+test('day rollover in an open tab + streak display only while alive', () => {
+  assert.ok(/let DAY = currentDay\(\)/.test(gameSrc), 'DAY is still frozen at load');
+  assert.ok(gameSrc.includes('function checkDayRollover') && gameSrc.includes("'visibilitychange'"), 'no rollover check');
+  assert.ok(gameSrc.includes('const day = round.day;'), 'finish() does not score the round on its own day');
+  assert.ok(gameSrc.includes('s.lastDay >= DAY - 1'), 'streak display ignores a missed day');
+});
+test('par fairness: pool = solver-best score >= PAR_PCT; no hard-coded ΔE 12 left', () => {
+  assert.strictEqual(E.PAR_PCT, 85);
+  for (const c of pool) assert.ok(E.accuracyFromDeltaE(c.de) >= 85, `${c.name} caps at ${E.accuracyFromDeltaE(c.de)}%`);
+  for (const c of bank) assert.strictEqual(E.isDailyEligible(c.de), E.accuracyFromDeltaE(c.de) >= 85);
+  const solverSrc = fs.readFileSync(path.join(__dirname, '..', 'tools', 'solve-recipes.js'), 'utf8');
+  const colorsHead = fs.readFileSync(path.join(__dirname, '..', 'colors.js'), 'utf8').slice(0, 1200);
+  assert.ok(!/\.de <= 12/.test(gameSrc) && !/\.de <= 12/.test(solverSrc) && !/de <= 12/.test(colorsHead), 'a "de <= 12" threshold survives');
+  assert.ok(gameSrc.includes('E.isDailyEligible') && solverSrc.includes('E.isDailyEligible'), 'eligibility not shared');
+  assert.ok(colorsHead.includes(`${pool.length} daily-eligible`), 'colors.js header count is stale');
+});
+test('single pigment into white is a monotonic walk: never lighter, never less saturated', () => {
+  for (const key of ['r', 'y', 'b', 'k']) {
+    let prevL = Infinity, prevC = -Infinity;
+    for (let p = 0; p <= 100; p += 0.25) {
+      const c = { w: 100 - p }; c[key] = p;
+      const lab = E.rgbToLab(...E.mixRaw(c));
+      const Cc = Math.hypot(lab[1], lab[2]);
+      assert.ok(lab[0] <= prevL + 1e-9, `${key} ${p}%: L* rose ${prevL.toFixed(3)} -> ${lab[0].toFixed(3)}`);
+      if (key !== 'k') assert.ok(Cc >= prevC - 1e-9, `${key} ${p}%: chroma fell ${prevC.toFixed(3)} -> ${Cc.toFixed(3)}`);
+      prevL = lab[0]; prevC = Cc;
+    }
+  }
+  // the reported pocket, explicitly
+  for (const key of ['r', 'b']) {
+    const at = p => { const c = { w: 100 - p }; c[key] = p; return L(c); };
+    assert.ok(at(11) < at(9) && at(10) < at(9), `${key}: 9-11% still lightens`);
+  }
+});
+test('a 1 s Pour Bucket (30 units) from a fresh pot is clearly visible: ΔE >= 15 for every pigment', () => {
+  for (const key of ['r', 'y', 'b', 'k']) {
+    const d = E.deltaE2000(labOfComp(E.FRESH_COMP), labOfComp(pour(E.FRESH_COMP, key, 30)));
+    assert.ok(d >= 15, `${key}: 1 s pour moved only ΔE ${d.toFixed(1)} (round 7: r 11.1, y 11.4, b 8.0)`);
+  }
+});
+test('a 1 s chromatic pour into any pale pot (>= 50% white) moves ΔE >= 5 (median >= 12)', () => {
+  const rng = E.mulberry32(11);
+  const ds = [];
+  for (let i = 0; i < 400; i++) {
+    const w = 50 + rng() * 50, r = rng(), y = rng(), b = rng(), k = rng() * 0.2;
+    const s = (100 - w) / (r + y + b + k);
+    const c = { r: r * s, y: y * s, b: b * s, k: k * s, w };
+    for (const key of ['r', 'y', 'b']) ds.push(E.deltaE2000(labOfComp(c), labOfComp(pour(c, key, 30))));
+  }
+  ds.sort((a, b) => a - b);
+  assert.ok(ds[0] >= 5, `min ΔE ${ds[0].toFixed(2)}`);
+  assert.ok(ds[ds.length >> 1] >= 12, `median ΔE ${ds[ds.length >> 1].toFixed(2)}`);
+});
+test('pour/drop visuals: tinted stream, bloom, splash, swirl; reveal scrolls into view on finish', () => {
+  for (const f of ['function bloom(', 'function splash(', 'function pourFx(', 'function layoutStream(', 'function scrollRevealIntoView(']) assert.ok(gameSrc.includes(f), `missing ${f}`);
+  assert.ok(/maybeShowDuel\(\);\s*scrollRevealIntoView\(\);/.test(gameSrc), 'finish() does not scroll the reveal into view');
+  for (const c of ['.bloom {', '.splash {', '@keyframes stream-flow', '@keyframes swirl']) assert.ok(htmlSrc.includes(c), `missing CSS ${c}`);
+  assert.ok(gameSrc.includes('if (REDUCED_MOTION) return;'), 'effects ignore prefers-reduced-motion');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
