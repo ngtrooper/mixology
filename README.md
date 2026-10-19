@@ -49,6 +49,15 @@ Consequences that are **invariants**, not implementation details:
   mix" (scored attempt) bars. They are **never** included in share text or
   duel links, and a test enforces this.
 - Subtitle: "How well do you know your colors?"
+- **Dark mode is palette-only** (round 13). `@media (prefers-color-scheme: dark)` sits at the end of the stylesheet and swaps the CSS variables. Never recolor paint: the pot surface, pigments and swatches keep their true colors.
+- **First-visit welcome** (round 14) shows once, and only to players with no saved days and no WIP. Its flag lives in its own key, `mixology.welcomed.v1`; don't add it to the save. Keep tool dosages out of it, since they live only in Tips.
+- **Modals** (tips, calendar, welcome) must use `openOverlay` / `closeOverlay` and the `.modal-ov` class to get focus trap and restore.
+- **Stats live only in the 📅 overlay** (round 16), via `E.computeStats(days)`, which is pure and read-only. No counts on the main screen.
+- **Celebration** (round 15): confetti only at 95%+, never under reduced motion. Sound and haptics are tiered (below par / par / 95%+).
+- **Assets** (round 11): `icons/icon.svg` is the source. The PNGs (favicon-32, apple-touch 180, 192, 512, maskable 512) and `icons/og-image.png` (1200×630) were rendered from it with Playwright. The og image never names a daily color.
+- **Share card** (round 12): `drawShareCard(day)` draws a 1080² canvas with no name, no colors and no recipe. Share attaches it through Web Share when the platform can share files.
+- **Buttons with icons** (round 25): use `flashLabel(btn, text)` for temporary labels. Setting `textContent` directly would wipe the SVG.
+- **a11y baseline** (rounds 17, 21, 26): axe-core is clean in 12 states (light/dark × home, reveal, calendar, stats, tips, welcome). Keep `<main id="app">`, the `#sr-announce` live region, `aria-pressed` on pigments and tools, and `--muted` at ≥ 4.5:1.
 - **Sharing never names the color** (round 12): the share text and PNG card use the hook
   line instead of the name and show no colors or recipes. The card is drawn by `drawShareCard`.
 - **No hints** on attempts (just %), **no live caption** naming the mix,
