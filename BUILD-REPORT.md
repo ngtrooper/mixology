@@ -2,6 +2,26 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 75 (2026-10-19, Grok Bot): STAR TIERS RE-POINTED + DIAMOND (Franklin)
+- **New tiers** (`E.STAR_TIERS`, on the rounded % the player sees; a higher tier replaces a lower one):
+  - 100 **diamond** ("diamond star: 100%")
+  - 97–99 **gold** ("gold star: 97%+")
+  - 90–96 **silver** ("silver star: 90%+")
+  - 85–89 **bronze** ("bronze star: 85%+"; 85 is par)
+  - below 85: none
+- **Diamond look:**
+  - Fill is an icy white → pale cyan → sky-blue gradient (one shared `#star-diamond-g` in index.html).
+  - It has a deep-blue outline, white facet lines from the center to each point, and a small static sparkle at the top-right.
+  - A soft blue glow helps it read on white and black and keeps it distinct from grey silver. There is no animation.
+- **Where:** the same places as round 74 (Calendar circles, Collection tiles and detail, reveal "Your mix"), and the aria labels follow the tiers. No markup moved, so the 320px no-overlap check still passes.
+- **Unchanged:** stars are derived and never stored; share text and the image card have no star or color name; the r73 recipe lock; no pot effects.
+- **Tests:**
+  - Thresholds: 84 none, 85/89 bronze, 90/96 silver, 97/99 gold, 100 diamond.
+  - Rounding: 84.4 none, 84.5 bronze, 89.5 silver, 96.6 gold, 99.5 diamond.
+  - Labels, ΔE mapping (par = bronze), the diamond gradient/facets and no star animation.
+- Shots: `r75-calendar-{390,320}-live.png`, `r75-collection-tiles-live.png`, `r75-collection-detail-diamond-live.png`, `r75-reveal-diamond-live.png`.
+- Version 1.18.0. 177 tests.
+
 ## Round 74 (2026-10-19, Grok Bot): STAR BADGES (Franklin)
 - **Tiers** (`E.starTier(pct)`, on the rounded % the player sees): 90–96 **bronze**, 97–99 **silver**, 100 **gold**. A higher tier replaces a lower one. Labels: "bronze star: 90%+", "silver star: 97%+", "gold star: 100%".
 - **Where:**

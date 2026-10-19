@@ -472,7 +472,7 @@
   .cal-day.today { border: 2px solid var(--ink); }
   .cal-day.sel { box-shadow: 0 0 0 2px var(--accent); }
   .cal-day.blank { visibility: hidden; }
-  /* round 74 (Franklin): star badges, 90-96 bronze, 97-99 silver, 100 gold.
+  /* round 74/75 (Franklin): star badges, 85-89 bronze, 90-96 silver, 97-99 gold, 100 diamond.
      Sits in the swatch's top-right corner (outside a circle's centered %),
      thin dark outline + shadow so it reads on light and dark swatches. */
   .cd-sw, .ct, .vs .sw { position: relative; }
@@ -483,6 +483,11 @@
   .star-gold path { fill: #ffc928; }
   .star-silver path { fill: #dfe4ea; }
   .star-bronze path { fill: #d08a4c; }
+  /* round 75: diamond = icy white-to-blue gradient, deep-blue outline, white facets + a static sparkle */
+  .star-diamond path { fill: url(#star-diamond-g); stroke: #0f3d6e; }
+  .star-diamond { filter: drop-shadow(0 0 1px rgba(0,30,70,.6)) drop-shadow(0 0 2px rgba(120,210,255,.55)); }
+  .star-diamond path.facet { fill: none; stroke: rgba(255,255,255,.95); stroke-width: .9; paint-order: normal; }
+  .star-diamond path.spark { fill: #fff; stroke: #0f3d6e; stroke-width: .7; }
   .cd-sw .star { top: -7px; right: -6px; width: 10px; height: 10px; } /* above the centered %, even at 320px */
   .ct .star { top: -3px; right: -3px; width: 11px; height: 11px; }
   .vs .sw .star.big { top: 6px; right: 6px; width: 22px; height: 22px; }
@@ -556,6 +561,7 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="star-diamond-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#c9f1ff"/><stop offset="1" stop-color="#5cc3ff"/></linearGradient></defs></svg>
 <noscript><div id="noscript">Mixology needs JavaScript to mix paint. Please enable it and reload.</div></noscript>
 <main id="app">
   <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
@@ -780,9 +786,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.17.0"></script>
-<script src="schedule.js?v=1.17.0"></script>
-<script src="engine.js?v=1.17.0"></script>
-<script src="game.js?v=1.17.0"></script>
+<script src="colors.js?v=1.18.0"></script>
+<script src="schedule.js?v=1.18.0"></script>
+<script src="engine.js?v=1.18.0"></script>
+<script src="game.js?v=1.18.0"></script>
 </body>
 </html>

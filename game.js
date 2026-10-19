@@ -1018,9 +1018,14 @@ document.addEventListener('keydown', e => {
 /* Round 74 (Franklin): star badge markup. The SVG is decorative (aria-hidden);
  * each caller adds the tier's words to its own accessible name. */
 const STAR_PATH = 'M12 2.6l2.8 6.1 6.6.7-4.9 4.5 1.4 6.6L12 17.2l-5.9 3.3 1.4-6.6-4.9-4.5 6.6-.7z';
+const STAR_FACETS = 'M12 4.2V12.4M19.4 10L12 12.4M16.9 19.2L12 12.4M7.1 19.2L12 12.4M4.6 10L12 12.4';
+const STAR_SPARK = 'M20.5 .2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z';
 function starBadge(tier, extra) {
   if (!tier) return '';
-  return `<span class="star star-${tier.id}${extra ? ' ' + extra : ''}" data-star="${tier.id}" title="${tier.label}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${STAR_PATH}"/></svg></span>`;
+  // round 75: the diamond star is icy (shared gradient #star-diamond-g in
+  // index.html), with facet lines and a small static sparkle
+  const gem = tier.id === 'diamond' ? `<path class="facet" d="${STAR_FACETS}"/><path class="spark" d="${STAR_SPARK}"/>` : '';
+  return `<span class="star star-${tier.id}${extra ? ' ' + extra : ''}" data-star="${tier.id}" title="${tier.label}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${STAR_PATH}"/>${gem}</svg></span>`;
 }
 function renderCalendar() {
   const grid = $('cal-grid');
@@ -1515,7 +1520,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.17.0',
+  version: '1.18.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

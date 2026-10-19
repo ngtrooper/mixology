@@ -653,11 +653,12 @@ function officialRecipeVisible(name, finishedDays) {
 
 /* ---------------- Star badges (round 74, Franklin) ----------------
  * A small star in the corner of a swatch for a high score, using the same
- * rounded % the player sees: 90-96 bronze, 97-99 silver, 100 gold (gold
- * replaces silver replaces bronze). Shown on Calendar day circles (that day's
+ * rounded % the player sees. Round 75 tiers: 85-89 bronze, 90-96 silver,
+ * 97-99 gold, 100 diamond (a higher tier replaces a lower one). Shown on Calendar day circles (that day's
  * best attempt), Collection tiles (best mix against that color) and the reveal.
  * Purely derived from saved scores: nothing new is stored, so old saves work. */
-const STAR_TIERS = [{ id: 'gold', min: 100, label: 'gold star: 100%' }, { id: 'silver', min: 97, label: 'silver star: 97%+' }, { id: 'bronze', min: 90, label: 'bronze star: 90%+' }];
+// round 75 (Franklin): re-pointed. 100 diamond, 97-99 gold, 90-96 silver, 85-89 bronze (85 = par).
+const STAR_TIERS = [{ id: 'diamond', min: 100, label: 'diamond star: 100%' }, { id: 'gold', min: 97, label: 'gold star: 97%+' }, { id: 'silver', min: 90, label: 'silver star: 90%+' }, { id: 'bronze', min: 85, label: 'bronze star: 85%+' }];
 function starTier(pct) {
   const n = Number(pct);
   if (!Number.isFinite(n)) return null;
