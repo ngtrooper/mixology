@@ -2,6 +2,9 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 35 (2026-10-18, Grok Bot): SPARKLINE → DAY
+- Tapping a dot in Stats › Last 14 days switches to Calendar, jumps to that month, and opens the day's detail (recipe vs your mix, tries). Dots have an 11 px invisible hit area. Version 1.10.3. Test added.
+
 ## Round 34 (2026-10-18, Grok Bot): CALENDAR MONTH SLIDE
 - Prev/next (and swipe, which uses the same buttons) slide the month grid in from the direction of travel: 0.26 s with a fade, none under reduced motion. Version 1.10.2.
 

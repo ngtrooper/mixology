@@ -358,6 +358,8 @@
   .st-spark { width: 100%; height: auto; display: block; }
   .st-spark path { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .55; }
   .st-spark circle { fill: var(--muted); }
+  .st-spark circle.hit { fill: transparent; cursor: pointer; }
+  .st-spark .sp-dot:hover circle:not(.hit) { r: 4.5; }
   .st-spark circle.par { fill: var(--accent); }
   .st-spark .parline { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
   .st-spark text { font-size: 9px; fill: var(--muted); }
@@ -611,9 +613,9 @@
   </div>
 </div>
 
-<script src="colors.js?v=1.10.2"></script>
-<script src="schedule.js?v=1.10.2"></script>
-<script src="engine.js?v=1.10.2"></script>
-<script src="game.js?v=1.10.2"></script>
+<script src="colors.js?v=1.10.3"></script>
+<script src="schedule.js?v=1.10.3"></script>
+<script src="engine.js?v=1.10.3"></script>
+<script src="game.js?v=1.10.3"></script>
 </body>
 </html>

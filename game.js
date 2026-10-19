@@ -930,7 +930,8 @@ function recentFormSVG() {
   const x = i => P + i * (W - 2 * P) / (N - 1), y = v => H - P - ((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * (H - 2 * P);
   let path = '';
   pts.forEach((p, k) => { path += (k && pts[k - 1].i === p.i - 1 ? 'L' : 'M') + x(p.i).toFixed(1) + ' ' + y(p.pct).toFixed(1); });
-  const dots = pts.map(p => `<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="3.2" class="${p.pct >= E.PAR_PCT ? 'par' : ''}"/>`).join('');
+  // round 35: each dot (with a bigger invisible hit area) opens that day in the Calendar tab
+  const dots = pts.map(p => `<g class="sp-dot" data-day="${DAY - (N - 1) + p.i}"><circle cx="${x(p.i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="11" class="hit"/><circle cx="${x(p.i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="3.2" class="${p.pct >= E.PAR_PCT ? 'par' : ''}"/></g>`).join('');
   return `<div class="st-h">Last 14 days</div><svg class="st-spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Scores over the last 14 days: ${pts.map(p => p.pct + '%').join(', ')}">` +
     `<line x1="${P}" x2="${W - P}" y1="${y(E.PAR_PCT).toFixed(1)}" y2="${y(E.PAR_PCT).toFixed(1)}" class="parline"/>` +
     `<text x="${W - P}" y="${(y(E.PAR_PCT) - 3).toFixed(1)}" text-anchor="end">par</text>` +
@@ -1161,6 +1162,12 @@ $('btn-tips').addEventListener('click', () => { stopPour(); openOverlay('tips-ov
 $('btn-calendar').addEventListener('click', openCalendar);
 $('tab-cal').addEventListener('click', () => setCalTab('cal'));
 $('tab-stats').addEventListener('click', () => setCalTab('stats'));
+$('cal-stats').addEventListener('click', e => {
+  const dot = e.target.closest && e.target.closest('.sp-dot'); if (!dot) return;
+  const day = Number(dot.dataset.day); if (!Number.isFinite(day)) return;
+  const d = dateForDay(day); calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  setCalTab('cal'); renderCalendar(); showCalDetail(day);
+});
 $('btn-cal-close').addEventListener('click', closeCalendar);
 $('cal-overlay').addEventListener('click', e => { if (e.target === $('cal-overlay')) closeCalendar(); });
 /* Round 28: swipe the calendar grid left/right to change month (touch). */
@@ -1244,7 +1251,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.2',
+  version: '1.10.3',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

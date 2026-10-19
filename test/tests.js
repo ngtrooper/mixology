@@ -921,5 +921,10 @@ test('color names display in headline case (small words lower, slashes split); s
   // saves / WIP still store the raw bank name
   assert.ok(gameSrc.includes('name: round.color.name,') && gameSrc.includes('store.data.wip = { day: round.day, name: round.color.name'));
 });
+test('sparkline dots open that day in the Calendar tab', () => {
+  assert.ok(gameSrc.includes('<g class="sp-dot" data-day="${DAY - (N - 1) + p.i}">'), 'dots carry no day');
+  const h = gameSrc.slice(gameSrc.indexOf("$('cal-stats').addEventListener('click'"), gameSrc.indexOf("$('cal-stats').addEventListener('click'") + 400);
+  assert.ok(h.includes("setCalTab('cal'); renderCalendar(); showCalDetail(day);"), 'dot tap does not open the day');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
