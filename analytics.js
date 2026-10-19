@@ -7,7 +7,7 @@
  * │ https://<code>.goatcounter.com). Empty string = analytics OFF: no    │
  * │ script is loaded and no network request is ever made.                │
  * └──────────────────────────────────────────────────────────────────────┘ */
-const ANALYTICS_CODE = '';
+const ANALYTICS_CODE = 'ngtrooper';
 
 /* Never counted: an empty code; localhost / private hosts / file:// (and
  * GoatCounter itself skips local addresses); automated browsers

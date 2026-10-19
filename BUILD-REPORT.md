@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 79 (2026-10-19, Grok Bot): ANALYTICS TURNED ON (Franklin)
+
+- `analytics.js`: `const ANALYTICS_CODE = 'ngtrooper';` (dashboard https://ngtrooper.goatcounter.com). No other code change.
+- Test updated: the shipped-empty assertion now expects `'ngtrooper'`. 195 tests pass.
+- Version 1.20.1 (game.js + every `?v=` stamp).
+- Live check: headless browser on the deployed site, with every request to `ngtrooper.goatcounter.com/count` recorded and then aborted, so no fake hits reached the real stats.
+
 ## Round 78 (2026-10-19, Grok Bot): PRIVATE ANALYTICS, GOATCOUNTER, SHIPPED OFF (Franklin)
 - **New `analytics.js`** (loaded before game.js, cache-busted like the rest). The constant `ANALYTICS_CODE = ''` at the top of the file is the one place to edit.
   - Empty means disabled: no script tag and no request. That was verified in the browser: 0 requests to zgo.at or goatcounter.com.

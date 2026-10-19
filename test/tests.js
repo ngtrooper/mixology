@@ -1589,9 +1589,9 @@ console.log('— round 78: private analytics (GoatCounter) —');
   const gSrc = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
   const mem = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, m }; };
   const env = o => Object.assign({ code: 'mixology', protocol: 'https:', hostname: 'ngtrooper.github.io', search: '', webdriver: false, storage: mem() }, o);
-  test('one config constant, shipped EMPTY (analytics off); empty code means no script and no request', () => {
+  test('one config constant (set to ngtrooper in round 79); an empty code means no script and no request', () => {
     assert.strictEqual((aSrc.match(/^const ANALYTICS_CODE = '[^']*';$/gm) || []).length, 1);
-    assert.strictEqual(A.ANALYTICS_CODE, '', 'push with the code empty until Franklin sends it');
+    assert.strictEqual(A.ANALYTICS_CODE, 'ngtrooper', 'GoatCounter site code: https://ngtrooper.goatcounter.com');
     assert.strictEqual(A.disabledReason(env({ code: '' })), 'no code');
     // start() returns before creating the script tag whenever there is a reason
     const st = aSrc.slice(aSrc.indexOf('function start()'), aSrc.indexOf('function track('));
