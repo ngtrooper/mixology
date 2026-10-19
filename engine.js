@@ -66,6 +66,20 @@
  *    Acceptance (round 7): from ANY composition, 1 s of white
  *    pouring moves ΔE >= 8 and 10 white dropper taps move ΔE >= 2;
  *    at ~74% white a mid-chroma mix reads pale (L* >= 75).
+ * 6. ROUND 8 — TINT OVER BODY (supersedes 4 and 5). Notes 4-5
+ *    whitened twice (dilution x blend), so pigment poured into white
+ *    barely showed (2 s of red = 45% red rendered #F5CACC pale pink)
+ *    and cfade made 9-11% red/blue get LIGHTER as pigment went in.
+ *    Now the pigments-only part of the pot (r,y,b,k renormalized,
+ *    white removed) renders a BODY with rules 1-3 (mud drive still
+ *    sees the real white share, so white still breaks mud), and white
+ *    acts once: an OKLab blend from white toward the body by
+ *    t(p), p = pigment share, a cubic Hermite 0->1 with start slope
+ *    TINT_C (r/y/b) / TINT_K (black), share-weighted, and end slope
+ *    TINT_END. Body is independent of white and t is strictly
+ *    increasing, so a single pigment into white is a monotonic walk
+ *    (asserted in tests). 1 s pour from white: ΔE r 20.9 / y 15.0 /
+ *    b 18.4 / k 24.7 (round 7: 11.1 / 11.4 / 8.0 / 25.6).
  *
  * SCORING
  * -------
@@ -95,14 +109,13 @@ const SHARE_GAIN = 4;     // share shaping: 1 - (1 - share)^SHARE_GAIN
 const BLACK_HALF = 25;    // black damper half-point, in % of black
 const MUD_MAX = 0.9;      // max pull toward the mud corner
 const MUD_START = 0.45;   // chroma/(chroma+white) where the mud pull starts
-const WHITE_BLEND = 0.6;  // white tint blend strength (round 7: was 0.5)
-const TW_EXP = 1.0;       // white blend exponent on tw (round 7: was 1.2)
-const DIL_MAX = 0.58;     // round 7: white dilution of cube coordinates at DIL_HI
-const DIL_LO = 0.06;      // white share of pot where dilution starts
-const DIL_HI = 0.55;      // white share of pot where dilution reaches DIL_MAX
-const DIL_TAIL = 0.18;    // extra dilution past DIL_HI, full at 100% white —
-                          // a mostly-white pot must keep answering white pours
-const DIL_CFADE = 11;     // chroma load at which dilution reaches full strength
+const TINT_C = 1.4;       // round 8: start slope of the tint curve for r/y/b (tinting strength)
+const TINT_K = 2.0;       // round 8: start slope for black
+const TINT_END = 1.0;     // round 8: end slope — how hard white answers on a loaded pot
+/* Daily fairness (round 8): a color is daily-eligible only when its
+ * solver-best recipe scores at least par. Single source of truth for
+ * game.js, tools/solve-recipes.js and the colors.js header. */
+const PAR_PCT = 85;
 
 const COMP_KEYS = ['r', 'y', 'b', 'k', 'w'];
 const FRESH_COMP = { r: 0, y: 0, b: 0, k: 0, w: 100 };
@@ -134,24 +147,29 @@ function addUnits(comp, key, n) {
   return normalizeComp(out);
 }
 
-/** composition {r,y,b,k,w} (%) -> [R,G,B] 0..255 floats */
-function mixRaw(comp) {
-  const c = normalizeComp(comp);
-  const r = c.r, y = c.y, b = c.b, k = c.k, w = c.w;
-  const C = r + y + b;
+/** composition {r,y,b,k,w} (%) -> [R,G,B] 0..255 floats
+ *
+ * Round 8 ("tint-over-body", header note 6): the pigments-only part of
+ * the pot (r, y, b, k renormalized to 100 — white removed) renders a
+ * BODY color with the round-6 cube + mud + black-damper rules; white
+ * then acts exactly once, as an OKLab blend from white toward that
+ * body by a tinting curve t(p) of the pigment share p = 1 - w/100
+ * (cubic Hermite, t(0) = 0, t(1) = 1, start slope = tinting strength,
+ * end slope = how hard white answers). Because the body does not depend on white and t is
+ * strictly increasing, pouring a single pigment into white is a
+ * monotonic walk from white to that pigment's corner — no lightening
+ * pockets (round 7's cfade dilution made 9-11% red/blue get LIGHTER).
+ */
+function bodyRaw(r, y, b, k, w) {
+  const P = r + y + b + k;
+  const f = 100 / P;
+  const rr = r * f, yy = y * f, bb = b * f, kk = k * f;
+  const C = rr + yy + bb;
   let out = [255, 255, 255];
   if (C > 1e-9) {
     const s = C / (C + STR_HALF * (1 - C / 100));
     const shape = share => 1 - Math.pow(1 - share, SHARE_GAIN);
-    // White dilution (header note 5): white's share of the whole pot
-    // shrinks the cube coordinates toward the white corner, but only
-    // once the pot carries a real chromatic load.
-    const twc = w / (w + C + k);
-    const cfade = clamp(C / DIL_CFADE, 0, 1);
-    const dilAmt = DIL_MAX * clamp((twc - DIL_LO) / (DIL_HI - DIL_LO), 0, 1)
-      + DIL_TAIL * clamp((twc - DIL_HI) / (1 - DIL_HI), 0, 1);
-    const dil = 1 - dilAmt * cfade;
-    const cr = s * shape(r / C) * dil, cy = s * shape(y / C) * dil, cb = s * shape(b / C) * dil;
+    const cr = s * shape(rr / C), cy = s * shape(yy / C), cb = s * shape(bb / C);
     out = [0, 0, 0];
     for (const key of Object.keys(CUBE)) {
       const wr = key[0] === '1' ? cr : 1 - cr;
@@ -162,25 +180,41 @@ function mixRaw(comp) {
       const col = CUBE[key];
       out[0] += col[0] * wgt; out[1] += col[1] * wgt; out[2] += col[2] * wgt;
     }
-    // Balanced mixes darken toward the mud corner; white breaks mud.
-    const balance = 3 * Math.min(r, y, b) / C;
-    const drive = C / (C + w);
+    // Balanced mixes darken toward the mud corner; white (in the real
+    // pot) breaks mud — drive is chroma's share of chroma + white.
+    const balance = 3 * Math.min(r, y, b) / (r + y + b);
+    const drive = (r + y + b) / (r + y + b + w);
     const mudAmt = MUD_MAX * balance * clamp((drive - MUD_START) / (1 - MUD_START), 0, 1);
     if (mudAmt > 0) {
       const mud = CUBE['111'];
       for (let i = 0; i < 3; i++) out[i] = out[i] * (1 - mudAmt) + mud[i] * mudAmt;
     }
   }
-  // Share-based black damper (see header note 3).
-  const kd = k <= 0 ? 0 : k / (k + BLACK_HALF * (1 - k / 100));
+  // Share-based black damper, on the pigment-only body.
+  const kd = kk <= 0 ? 0 : kk / (kk + BLACK_HALF * (1 - kk / 100));
   const dark = 1 - 0.94 * kd;
   for (let i = 0; i < 3; i++) out[i] = out[i] * dark + BLACK_POINT[i] * (1 - dark);
-  // White tint blend (see header note 4).
-  const pigment = C + k;
-  const tw = pigment === 0 ? 1 : w / (w + pigment);
-  const blend = WHITE_BLEND * Math.pow(tw, TW_EXP) * (1 - 0.85 * kd);
-  for (let i = 0; i < 3; i++) out[i] = out[i] + (255 - out[i]) * blend;
   return out;
+}
+function mixRaw(comp) {
+  const c = normalizeComp(comp);
+  const r = c.r, y = c.y, b = c.b, k = c.k, w = c.w;
+  const P = r + y + b + k;
+  if (P <= 1e-9) return [255, 255, 255];
+  const body = bodyRaw(r, y, b, k, w);
+  // Tinting curve: cubic Hermite from (0,0) to (1,1) with end slopes
+  // TINT_START (how fast pigment tints white; black and chromatics
+  // weighted by share) and TINT_END (how fast white answers at the end
+  // of a loaded mix). Monotonic because s0^2 + s1^2 <= 9 (Fritsch-Carlson).
+  const s0 = (TINT_C * (r + y + b) + TINT_K * k) / P;
+  const s1 = TINT_END;
+  const p = P / 100, p2 = p * p, p3 = p2 * p;
+  const t = (-2 * p3 + 3 * p2) + s0 * (p3 - 2 * p2 + p) + s1 * (p3 - p2);
+  // Blend in OKLab (white = L 1, a = b = 0): perceptually even tint
+  // steps that keep hue (CIELAB drifts blue tints purple and red tints
+  // salmon; plain sRGB blends read uneven). mixColor clamps to sRGB.
+  const ok = rgbToOklab(body);
+  return oklabToRgb([1 + (ok[0] - 1) * t, ok[1] * t, ok[2] * t]);
 }
 
 /** composition -> '#RRGGBB' */
@@ -220,6 +254,38 @@ function rgbToLab(r, g, b) {
   const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
   const fx = f(x / Xn), fy = f(y / Yn), fz = f(z / Zn);
   return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+/** sRGB 0..255 <-> OKLab (Ottosson). Used only for the white tint blend. */
+function srgbToLinear(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+function linearToSrgb(v) { return 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(Math.max(v, 0), 1 / 2.4) - 0.055); }
+function rgbToOklab(rgb) {
+  const [r, g, b] = rgb.map(srgbToLinear);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+}
+function oklabToRgb(lab) {
+  const [L, a, b] = lab;
+  const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+  const m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+  const s = Math.pow(L - 0.0894841775 * a - 1.2914855480 * b, 3);
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076119010 * s].map(linearToSrgb);
+}
+/** CIELAB (D65) -> sRGB floats 0..255 (unclamped). */
+function labToRgb(L, a, bb) {
+  const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - bb / 200;
+  const inv = t => t * t * t > 0.008856 ? t * t * t : (t - 16 / 116) / 7.787;
+  const X = 95.047 * inv(fx) / 100, Y = 100 * inv(fy) / 100, Z = 108.883 * inv(fz) / 100;
+  const R = 3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
+  const G = -0.9692660 * X + 1.8760108 * Y + 0.0415560 * Z;
+  const B = 0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
+  const g = v => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(Math.max(v, 0), 1 / 2.4) - 0.055);
+  return [g(R), g(G), g(B)];
 }
 function hexToLab(hex) {
   const [r, g, b] = hexToRgb(hex);
@@ -271,6 +337,9 @@ function deltaE2000(lab1, lab2) {
 function accuracyFromDeltaE(dE) {
   return clamp(Math.round(100 * Math.max(0, 1 - Math.pow(dE / 50, 1.25))), 0, 100);
 }
+
+/** Daily-eligible: the solver's best mix for this color scores >= par. */
+function isDailyEligible(de) { return accuracyFromDeltaE(de) >= PAR_PCT; }
 
 function bandForDeltaE(dE) {
   if (dE <= 2) return 'DEAD ON';
@@ -387,13 +456,37 @@ function nearestColorName(lab, bankLabs, bank, excludeNames) {
   return best ? { name: best.name, hex: best.hex, deltaE: bestDe } : null;
 }
 
+/* ---------------- duel link payload (round 8) ----------------
+ * The player's % composition (r.y.b.k.w, %x10 integers) masked with a
+ * day-seeded keystream, 2 base36 chars per share. Obfuscation, not
+ * cryptography: it keeps hexes/recipes from being readable in a posted
+ * link; the page only renders it after the visitor finishes that day. */
+const DUEL_MOD = 1296; // 36^2
+function duelKey(day) {
+  const rng = mulberry32(hashSeed('mixology-duel-' + day));
+  return [0, 1, 2, 3, 4].map(() => Math.floor(rng() * DUEL_MOD));
+}
+function encodeDuelComp(comp, day) {
+  const key = duelKey(day);
+  return [comp.r, comp.y, comp.b, comp.k, comp.w]
+    .map((v, i) => ((Math.round(v * 10) + key[i]) % DUEL_MOD).toString(36).padStart(2, '0')).join('');
+}
+function decodeDuelComp(x, day) {
+  if (!/^[0-9a-z]{10}$/i.test(x)) return null;
+  const key = duelKey(day);
+  const v = [0, 1, 2, 3, 4].map(i => ((parseInt(x.substr(i * 2, 2), 36) - key[i]) % DUEL_MOD + DUEL_MOD) % DUEL_MOD / 10);
+  const total = v.reduce((a, b) => a + b, 0);
+  if (total < 95 || total > 105) return null; // mangled link
+  return normalizeComp({ r: v[0], y: v[1], b: v[2], k: v[3], w: v[4] });
+}
+
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP,
-  STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START, WHITE_BLEND, TW_EXP,
-  DIL_MAX, DIL_LO, DIL_HI, DIL_TAIL, DIL_CFADE,
-  normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, hexToLab,
+  STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible,
+  normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
-  hashSeed, mulberry32, dayNumber, dateKey, pickDailyIndex, nearestColorName
+  hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;
