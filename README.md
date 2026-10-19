@@ -3,7 +3,8 @@
 One color name a day, the same for everyone. You're told what today's color is
 *called* — never shown it. Dose paint into the pot, guess what the name looks
 like, and get scored on **% accuracy** (perceptual distance, CIEDE2000) when
-you seal up to 3 attempts. The reveal is a side-by-side: the official color vs
+you seal **2 attempts** (round 9; your best attempt is your score, the round
+ends by itself after the 2nd — there is no early "lock it in"). The reveal is a side-by-side: the official color vs
 your mix, and your %.
 
 ## The pot model (the heart of the game — read before touching engine.js)
@@ -28,6 +29,14 @@ Consequences that are **invariants**, not implementation details:
 ## Design locks (producer decisions — do not relitigate in code)
 
 - Score is **% accuracy only**. No points anywhere.
+- **Two attempts, best counts** (round 9, Franklin): `MAX_ATTEMPTS = 2` in
+  game.js for daily and practice; no early-finish button. Days saved before
+  round 9 keep the attempt they were scored on (last-counts) — see
+  `scoredAttempt`.
+- **Tools are SVG rigs** (round 9): the bucket tilts and the stream is drawn
+  from its measured lip (`#bucket-lip`); the dropper forms the drop at
+  `#dropper-tip`. Both are tinted with the selected pigment.
+- **Calendar** (round 9) reads `store.data.days` (local to the device).
 - **No hints** on attempts (just %), **no live caption** naming the mix,
   **no counts/tallies** on the main screen. Tool dosages live only in the
   Tips overlay. The game is meant to be hard: some people can't visualize
