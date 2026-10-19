@@ -355,7 +355,8 @@ test('radial stage: circular pot at center, pigment ring, collapsible toolbar', 
   assert.ok(htmlSrc.includes('id="pot-surface"'), 'pot has no inner surface element');
   assert.ok((htmlSrc.match(/class="bucket pigment/g) || []).length === 5, 'pigment ring is not 5 circles');
   assert.ok(htmlSrc.includes('id="toolbar"') && htmlSrc.includes('id="btn-toolbar-toggle"'), 'toolbar/toggle missing');
-  assert.ok(htmlSrc.includes('id="droplet"') && htmlSrc.includes('id="pour-fx"'), 'dose animations missing from DOM');
+  // Round 9: the emoji bucket / bare droplet became SVG tool rigs.
+  assert.ok(htmlSrc.includes('id="dropper-rig"') && htmlSrc.includes('id="pour-rig"'), 'dose animations missing from DOM');
 });
 test('display rename to Mixology; internal identifiers untouched', () => {
   assert.ok(htmlSrc.includes('<title>Mixology'), 'page title not renamed');
@@ -636,10 +637,56 @@ test('a 1 s chromatic pour into any pale pot (>= 50% white) moves ΔE >= 5 (medi
   assert.ok(ds[ds.length >> 1] >= 12, `median ΔE ${ds[ds.length >> 1].toFixed(2)}`);
 });
 test('pour/drop visuals: tinted stream, bloom, splash, swirl; reveal scrolls into view on finish', () => {
-  for (const f of ['function bloom(', 'function splash(', 'function pourFx(', 'function layoutStream(', 'function scrollRevealIntoView(']) assert.ok(gameSrc.includes(f), `missing ${f}`);
+  for (const f of ['function bloom(', 'function splash(', 'function pourFx(', 'function drawStream(', 'function scrollRevealIntoView(']) assert.ok(gameSrc.includes(f), `missing ${f}`);
   assert.ok(/maybeShowDuel\(\);\s*scrollRevealIntoView\(\);/.test(gameSrc), 'finish() does not scroll the reveal into view');
   for (const c of ['.bloom {', '.splash {', '@keyframes stream-flow', '@keyframes swirl']) assert.ok(htmlSrc.includes(c), `missing CSS ${c}`);
   assert.ok(gameSrc.includes('if (REDUCED_MOTION) return;'), 'effects ignore prefers-reduced-motion');
+});
+
+console.log('— round 9: two attempts, no lock-in, tool rigs, calendar —');
+test('"Lock it in" (early finish, #btn-finish) is gone from the page and the code', () => {
+  assert.ok(!htmlSrc.includes('btn-finish') && !gameSrc.includes('btn-finish'), '#btn-finish still present');
+  assert.ok(!/lock it in/i.test(htmlSrc), '"Lock it in" copy survives on the page');
+  assert.ok(!/textContent = `Lock it in/.test(gameSrc), '"Lock it in" label still rendered');
+});
+test('two attempts per round: constant, auto-finish on the 2nd seal, two slots, copy updated', () => {
+  assert.ok(/const MAX_ATTEMPTS = 2;/.test(gameSrc), 'MAX_ATTEMPTS is not 2');
+  assert.ok(gameSrc.includes('if (round.attempts.length >= MAX_ATTEMPTS) finish();'), 'round does not end after the last seal');
+  assert.ok(!/attempts\.length >= 3/.test(gameSrc) && !/i < 3; i\+\+/.test(gameSrc), 'a hard-coded 3 survives');
+  assert.strictEqual((htmlSrc.match(/class="attempt-slot"/g) || []).length, 2, 'static page does not have 2 slots');
+  assert.ok(!/three/i.test(htmlSrc) && !/three/i.test(gameSrc), '"three" copy survives');
+});
+test('best attempt counts; pre-round-9 days keep the attempt they were scored on', () => {
+  assert.ok(gameSrc.includes('const final = bestAttempt(round.attempts);'), 'finish() does not score the best attempt');
+  // replay the helpers outside the DOM
+  const grab = name => { const i = gameSrc.indexOf('function ' + name); let depth = 0, j = gameSrc.indexOf('{', i); for (; j < gameSrc.length; j++) { if (gameSrc[j] === '{') depth++; else if (gameSrc[j] === '}' && --depth === 0) break; } return gameSrc.slice(i, j + 1); };
+  const env = new Function(grab('bestAttempt') + '\n' + grab('scoredAttempt') + '\nreturn { bestAttempt, scoredAttempt };')();
+  const a = [{ pct: 91, hex: '#111111' }, { pct: 80, hex: '#222222' }];
+  assert.strictEqual(env.bestAttempt(a).pct, 91);
+  assert.strictEqual(env.bestAttempt([{ pct: 70, hex: '#1' }, { pct: 70, hex: '#2' }]).hex, '#1', 'tie should keep the earliest');
+  const old = { pct: 60, hex: '#333333', attempts: [{ pct: 90, hex: '#111111' }, { pct: 75, hex: '#222222' }, { pct: 60, hex: '#333333' }] };
+  assert.strictEqual(env.scoredAttempt(old).pct, 60, 'an old last-counts day changed score');
+});
+test('save migration: a 3-attempt-era WIP with 2 seals finishes on load; old 3-attempt days still render', () => {
+  assert.ok(gameSrc.includes('if (round.attempts.length >= MAX_ATTEMPTS) finish();\n      else renderAll();'), 'WIP with 2 seals is not finished on load');
+  assert.ok(gameSrc.includes('Math.max(MAX_ATTEMPTS, round.attempts.length)'), 'finished 3-attempt days lose their 3rd slot');
+});
+test('pour rig: SVG bucket tinted with the pigment; stream path starts at the tilted bucket lip', () => {
+  assert.ok(htmlSrc.includes('id="bucket-lip"') && htmlSrc.includes('class="pig-fill"'), 'bucket svg has no lip marker / pigment fill');
+  assert.ok(!htmlSrc.includes('🪣</span>'), 'emoji bucket still used in the stage');
+  assert.ok(htmlSrc.includes('#stage.pouring #pour-rig { transform: rotate(-64deg); }'), 'bucket does not tilt while pouring');
+  assert.ok(/lip = pointOf\(lipEl\)/.test(gameSrc) && gameSrc.includes('`M${lip.x.toFixed(1)}'), 'stream path does not start at the measured lip');
+});
+test('dropper rig: drop forms at the measured tip, then falls into the pot', () => {
+  assert.ok(htmlSrc.includes('id="dropper-tip"'), 'dropper svg has no tip marker');
+  assert.ok(/const tip = pointOf\(tipEl\)/.test(gameSrc), 'drop does not start at the dropper tip');
+  assert.ok(gameSrc.includes("scale(.15)") && gameSrc.includes('squeeze'), 'no forming/squeeze phase');
+});
+test('calendar: header button, month nav, built from saved days, today/missed/played states, detail', () => {
+  assert.ok(htmlSrc.includes('id="btn-calendar"') && htmlSrc.includes('id="cal-overlay"'), 'no calendar button/overlay');
+  assert.ok(htmlSrc.includes('id="btn-cal-prev"') && htmlSrc.includes('id="btn-cal-next"'), 'no month navigation');
+  for (const c of ["' played'", "' missed'", "' today'", "' future'"]) assert.ok(gameSrc.includes(c), `no ${c} state`);
+  assert.ok(gameSrc.includes('store.data.days[day]') && gameSrc.includes('function showCalDetail'), 'calendar not built from saved days / no detail');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
