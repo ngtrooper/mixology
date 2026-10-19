@@ -611,8 +611,16 @@ function shareText(day) {
   ];
   return lines.join('\n');
 }
+/* Round 25: buttons carry SVG icons, so a temporary "Copied ✓" label must
+ * restore the button's markup, not just its text. Guarded against double taps. */
+function flashLabel(btn, label) {
+  if (!btn.dataset.html) btn.dataset.html = btn.innerHTML;
+  btn.textContent = label;
+  clearTimeout(btn._flashT);
+  btn._flashT = setTimeout(() => { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }, 1600);
+}
 async function doShare(btn, text, okLabel, file) {
-  const done = () => { const old = btn.textContent; btn.textContent = okLabel; setTimeout(() => { btn.textContent = old; }, 1600); };
+  const done = () => flashLabel(btn, okLabel);
   if (navigator.share) {
     // Round 12: attach the PNG card when the platform can share files.
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -689,7 +697,7 @@ async function saveShareCard(btn) {
   const f = await shareCardFile(day); if (!f) return;
   const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  const old = btn.textContent; btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = old; }, 1600);
+  flashLabel(btn, 'Saved ✓');
 }
 
 /* ---------------- rendering -------------------------------------------- */

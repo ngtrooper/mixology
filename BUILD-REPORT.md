@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 25 (2026-10-18, Grok Bot): REVEAL ACTION ICONS · STORAGE ROBUSTNESS CHECK
+- Share result, Copy duel link and Save image card now have SVG icons (share-arrow, link, picture). The 🖼 emoji is gone.
+- `flashLabel()` shows "Copied ✓" / "Link copied ✓" / "Saved ✓" and then restores the button's full markup, so icons survive. Double taps no longer get stuck on the ✓ label (the old code could save "Copied ✓" as the label to restore).
+- Robustness check, with no code change needed: with `localStorage` throwing on access, or `setItem` throwing QuotaExceeded, the game still loads, plays, finishes and opens calendar and stats with no page errors.
+- Test added.
+
 ## Round 24 (2026-10-18, Grok Bot): INSTALL POLISH · TIPS
 - Installed (standalone) on notched phones: `#app` padding now respects `env(safe-area-inset-*)` (we already set `viewport-fit=cover`).
   - Added apple/mobile web-app-capable and status-bar meta tags.

@@ -866,5 +866,12 @@ test('standalone install: safe-area padding, manifest id/orientation; Tips expla
   const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-overlay"'), htmlSrc.indexOf('</div>\n</div>', htmlSrc.indexOf('<div id="tips-overlay"')));
   assert.ok(tips.includes('without naming the color') && tips.includes('calendar and stats'), 'tips do not cover sharing/stats');
 });
+console.log('— round 25: reveal action icons —');
+test('temporary button labels restore the original markup (icons survive "Copied ✓")', () => {
+  const f = gameSrc.slice(gameSrc.indexOf('function flashLabel'), gameSrc.indexOf('async function doShare'));
+  assert.ok(f.includes('btn.dataset.html = btn.innerHTML') && f.includes('btn.innerHTML = btn.dataset.html'), 'label restore loses markup');
+  assert.ok(!/const old = btn\.textContent/.test(gameSrc), 'a textContent-only restore remains');
+  for (const id of ['btn-share', 'btn-duel', 'btn-card']) assert.ok(new RegExp(`id="${id}" type="button"><svg class="ti"`).test(htmlSrc), id + ' has no icon');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
