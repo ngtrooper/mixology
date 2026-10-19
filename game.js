@@ -737,6 +737,25 @@ function titleCase(s) {
     first = false; return out;
   });
 }
+/* Round 65 (Franklin, overrides the old no-counts lock): each paint disc shows
+ * the pot's live % of that paint (largest-remainder whole numbers, "<1%" for
+ * a trace). renderAll runs on every pour tick, so the DOM write is coalesced
+ * into one per animation frame. The aria-label carries the same number. */
+let discPctRaf = 0;
+function scheduleDiscPercents() {
+  if (discPctRaf) return;
+  const raf = window.requestAnimationFrame || (f => setTimeout(f, 16));
+  discPctRaf = raf(() => { discPctRaf = 0; renderDiscPercents(); });
+}
+function renderDiscPercents() {
+  if (!round) return;
+  const pct = E.displayPercents(round.pot);
+  for (const b of BUCKET_KEYS) {
+    const btn = $(BUCKET_EL[b]); if (!btn) continue;
+    const el = btn.querySelector('.ppct'); if (el && el.textContent !== pct[b]) el.textContent = pct[b];
+    btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot`);
+  }
+}
 function renderAll() {
   if (!round) return;
   const daily = round.mode === 'daily';
@@ -765,6 +784,7 @@ function renderAll() {
     $(BUCKET_EL[b]).classList.toggle('sel', selectedBucket === b);
     $(BUCKET_EL[b]).setAttribute('aria-pressed', String(selectedBucket === b)); // round 26
   }
+  scheduleDiscPercents(); // round 65
   for (const t of Object.keys(TOOLS)) {
     $('tool-' + t).classList.toggle('sel', selectedTool === t);
     $('tool-' + t).setAttribute('aria-pressed', String(selectedTool === t));
@@ -1333,7 +1353,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.11.2',
+  version: '1.12.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

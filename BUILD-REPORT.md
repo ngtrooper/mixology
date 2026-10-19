@@ -2,6 +2,20 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 65 (2026-10-18, Grok Bot): LIVE POT % ON THE PAINT DISCS (Franklin, overrides the no-counts lock)
+- Each of the five paint discs shows the pot's live share of that paint: fresh pot reads white 100%, the others 0%.
+  - Numbers update live during pours. The DOM write is coalesced to one per animation frame, because `renderAll` runs on every pour tick.
+- Rounding is `E.displayPercents` (pure, in engine.js): whole numbers with largest-remainder rounding so the five add up to 100. A nonzero share under 1% shows `<1%`, and only then may the visible sum read 99.
+- Display:
+  - Legibility: dark ink on white and yellow, light ink with a soft shadow on red, blue and black. Checked in light and dark mode.
+  - `pointer-events: none` on the labels: a tap on the label lands on the disc (verified with `elementFromPoint`).
+  - aria-label: "Select red pigment, 18% of the pot".
+- **The pot itself stays number-free.** There are still no attempt feedback or recipe readouts before the reveal.
+- Copy: the Tips explain the disc numbers, and the welcome card adds "Each paint shows its share of the pot."
+- README design locks record Franklin's override.
+- The old "no counts" test is renamed (it still bans recipe readouts and drop tallies). New tests cover the rounding (2,000 random pots plus a pour sequence) and the markup.
+- Version 1.12.0. Shots: `r65-local-*`, `r65-live-fresh-pot-*`, `r65-live-mid-mix-*` (390px).
+
 ## Round 64 (2026-10-18, Grok Bot): POUR SOUND FOLLOWS THE RAMP
 - The pour glug rises in pitch (+50 Hz at full speed) and shortens, and once past half speed it comes every 3 ticks instead of 5. You can hear the bucket speed up. Respects mute.
 - Version 1.11.2. Test added.

@@ -52,7 +52,7 @@ Consequences that are **invariants**, not implementation details:
 - **Dark mode is palette-only** (round 13). `@media (prefers-color-scheme: dark)` sits at the end of the stylesheet and swaps the CSS variables. Never recolor paint: the pot surface, pigments and swatches keep their true colors.
 - **First-visit welcome** (round 14) shows once, and only to players with no saved days and no WIP. Its flag lives in its own key, `mixology.welcomed.v1`; don't add it to the save. Keep tool dosages out of it, since they live only in Tips.
 - **Modals** (tips, calendar, welcome) must use `openOverlay` / `closeOverlay` and the `.modal-ov` class to get focus trap and restore.
-- **Stats live only in the 📅 overlay** (round 16), via `E.computeStats(days)`, which is pure and read-only. No counts on the main screen.
+- **Stats live only in the 📅 overlay** (round 16), via `E.computeStats(days)`, which is pure and read-only. No stats on the main screen (the round-65 disc percentages are the only numbers there).
 - **Celebration** (round 15): confetti only at 95%+, never under reduced motion. Sound and haptics are tiered (below par / par / 95%+).
 - **Assets** (round 11): `icons/icon.svg` is the source. The PNGs (favicon-32, apple-touch 180, 192, 512, maskable 512) and `icons/og-image.png` (1200×630) were rendered from it with Playwright. The og image never names a daily color.
 - **Share card** (round 12): `drawShareCard(day)` draws a 1080² canvas with no name, no colors and no recipe. Share attaches it through Web Share when the platform can share files.
@@ -66,7 +66,7 @@ Consequences that are **invariants**, not implementation details:
 - **Sharing never names the color** (round 12): the share text and PNG card use the hook
   line instead of the name and show no colors or recipes. The card is drawn by `drawShareCard`.
 - **No hints** on attempts (just %), **no live caption** naming the mix,
-  **no counts/tallies** on the main screen. Tool dosages live only in the
+  **no counts/tallies** on the main screen, **except** (round 65, Franklin, 2026-10-18, overriding the earlier lock) each paint disc shows the pot's live % of that paint (`E.displayPercents`: whole numbers, largest-remainder so they sum to 100, `<1%` for a trace). The pot itself stays number-free, and there are still no attempt feedback or recipe readouts before the reveal. Tool dosages live only in the
   Tips overlay. The game is meant to be hard: some people can't visualize
   the color, and that's the game.
 - **Never show the official recipe or the target hex before the reveal.**
@@ -74,7 +74,7 @@ Consequences that are **invariants**, not implementation details:
   *player's* mix, never the answer).
 - Two dosing tools: **Dropper** (1 unit/click, falling-drop animation) and
   **Pour Bucket** (hold to pour: starts ~30 units/sec, ramps to ~90/sec after ~1 s, per `E.pourUnitsAt`, round 62; pouring animation). The Pour
-  Bucket is the default tool. Pigment selectors are unlabeled full-color
+  Bucket is the default tool. Pigment selectors are full-color (round 65: each carries its live pot %)
   discs in a ring around a central circular pot; dosing happens on the pot.
 - Buckets are R / Y / B / K / W (white is a full pigment). Known gamut hole:
   cyan/turquoise is unreachable in this paint box; those bank colors are

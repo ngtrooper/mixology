@@ -341,7 +341,7 @@ test('tips overlay explains the percentage pot and states the dosages (only ther
   assert.ok(htmlSrc.includes('pushes the other paints down'), 'tips does not explain displacement');
   assert.ok(!htmlSrc.includes('Pour out') && !htmlSrc.includes('Pour Out'), 'tips mentions the cancelled Pour Out');
 });
-test('no counts on the main screen: no recipe readout, no per-bucket tallies', () => {
+test('no recipe readout or per-bucket drop tallies on the main screen (round-65 disc % is the one allowed number)', () => {
   assert.ok(!htmlSrc.includes('id="recipe"'), '#recipe readout still in index.html');
   assert.ok(!htmlSrc.includes('bcount'), 'per-bucket count elements still in index.html');
   assert.ok(!gameSrc.includes("$('recipe')"), 'game.js still writes the recipe readout');
@@ -1101,6 +1101,39 @@ test('holding Enter/Space on the pot with the Pour Bucket runs the real pour (ra
 });
 test('pour sound follows the ramp (higher, quicker glugs at speed)', () => {
   assert.ok(gameSrc.includes('pour(k = 0) { beep(110 + 50 * k') && gameSrc.includes('if (ticks % (k > 0.5 ? 3 : 5) === 0) sfx.pour(k);'));
+});
+console.log('— round 65: live pot % on the paint discs (Franklin) —');
+test('displayPercents: fresh pot, largest-remainder sums to 100, <1% traces, whole numbers', () => {
+  assert.deepStrictEqual(E.displayPercents(E.FRESH_COMP), { r: '0%', y: '0%', b: '0%', k: '0%', w: '100%' });
+  assert.deepStrictEqual(E.displayPercents({ r: 33.4, y: 33.3, b: 33.3, k: 0, w: 0 }), { r: '34%', y: '33%', b: '33%', k: '0%', w: '0%' });
+  assert.strictEqual(E.displayPercents({ r: 0.3, w: 99.7 }).r, '<1%');
+  assert.strictEqual(E.displayPercents({ r: 0.3, w: 99.7 }).w, '100%');
+  const rng = E.mulberry32(65);
+  for (let i = 0; i < 2000; i++) {
+    const raw = [rng(), rng(), rng(), rng() * 0.3, rng()]; const tot = raw.reduce((a, x) => a + x, 0);
+    const c = { r: raw[0] / tot * 100, y: raw[1] / tot * 100, b: raw[2] / tot * 100, k: raw[3] / tot * 100, w: raw[4] / tot * 100 };
+    const d = E.displayPercents(c); let sum = 0;
+    for (const k of ['r', 'y', 'b', 'k', 'w']) {
+      assert.ok(/^(\d{1,3}|<1)%$/.test(d[k]), d[k]);
+      if (d[k] !== '<1%') { const n = parseInt(d[k], 10); sum += n; assert.ok(Math.abs(n - c[k]) < 1, `${k} ${c[k]} shown ${d[k]}`); }
+      else assert.ok(c[k] > 0 && c[k] < 1);
+      if (c[k] === 0) assert.strictEqual(d[k], '0%');
+    }
+    if (!Object.values(d).includes('<1%')) assert.strictEqual(sum, 100, JSON.stringify(c));
+  }
+  // a pour sequence through the real model always reads 100 total until a trace appears
+  let c = { ...E.FRESH_COMP }; for (let i = 0; i < 40; i++) { c = E.addUnits(c, 'b', 1); const d = E.displayPercents(c); assert.strictEqual(['r','y','b','k','w'].reduce((a, k) => a + (parseInt(d[k], 10) || 0), 0), 100); }
+});
+test('disc % markup: on all five discs, no taps (pointer-events none), legible ink, aria-label, rAF-throttled, pot number-free', () => {
+  for (const id of ['bucket-r', 'bucket-y', 'bucket-b', 'bucket-k', 'bucket-base'])
+    assert.ok(new RegExp(`id="${id}"[^>]*><span class="ppct" aria-hidden="true">(0|100)%</span></button>`).test(htmlSrc), id);
+  assert.ok(/\.pigment \.ppct \{[^}]*pointer-events: none/.test(htmlSrc), 'ppct can block taps');
+  assert.ok(htmlSrc.includes('#bucket-base .ppct, #bucket-y .ppct { color: #1c1a17;'), 'white/yellow need dark ink');
+  assert.ok(gameSrc.includes('requestAnimationFrame') && gameSrc.includes('function scheduleDiscPercents()') && gameSrc.includes('scheduleDiscPercents(); // round 65'));
+  assert.ok(gameSrc.includes('`Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot`'));
+  const pot = htmlSrc.slice(htmlSrc.indexOf('<button id="pot"'), htmlSrc.indexOf('</button>', htmlSrc.indexOf('<button id="pot"')));
+  assert.ok(!/\d+%/.test(pot), 'the pot must stay number-free');
+  assert.ok(htmlSrc.includes("live share of the pot"), 'Tips does not explain the disc numbers');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

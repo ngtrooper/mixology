@@ -116,6 +116,20 @@ const TINT_END = 1.0;     // round 8: end slope — how hard white answers on a 
  * solver-best recipe scores at least par. Single source of truth for
  * game.js, tools/solve-recipes.js and the colors.js header. */
 const PAR_PCT = 85;
+/* Round 65 (Franklin): live pot composition on the paint discs. Whole numbers
+ * by largest-remainder rounding, so the five shown numbers add up to 100. A
+ * share that is nonzero but rounds to 0 shows "<1%" (then the sum may read
+ * 99). Pure display helper; it never changes the pot. */
+function displayPercents(comp) {
+  const c = normalizeComp(comp), keys = ['r', 'y', 'b', 'k', 'w'];
+  const fl = keys.map(k => Math.floor(c[k])), rem = keys.map((k, i) => c[k] - fl[i]);
+  let left = 100 - fl.reduce((a, x) => a + x, 0);
+  const order = keys.map((k, i) => i).sort((a, b) => rem[b] - rem[a] || a - b);
+  for (const i of order) { if (left <= 0) break; if (rem[i] > 0) { fl[i]++; left--; } }
+  const out = {};
+  keys.forEach((k, i) => { out[k] = fl[i] === 0 && c[k] > 0 ? '<1%' : fl[i] + '%'; });
+  return out;
+}
 /* Round 62: Pour Bucket ramp. A press starts at POUR_RATE_START units/s (fine
  * control for short taps), then from POUR_RAMP_FROM s to POUR_RAMP_TO s the
  * rate climbs linearly to POUR_RATE_MAX and holds there. Measured from a fresh
@@ -541,7 +555,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName
