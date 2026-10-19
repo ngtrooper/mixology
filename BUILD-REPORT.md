@@ -2,6 +2,20 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 76 (2026-10-19, Grok Bot): DIAMOND GLOW + TWINKLE (Franklin)
+- **Diamond badge only** (never the pot):
+  - A soft blue/white halo (`::before`, radial gradient) pulses over 2.6s (`dia-halo`).
+  - A tiny white 4-point glint at the top-right fades and rotates in once per 2.6s cycle (`dia-glint`).
+  - Both animate only opacity and transform.
+  - Each diamond gets a rolling `--tw` delay (0, 0.83, 1.66, 2.49s, ...), so calendar diamonds never twinkle in unison.
+- **Stronger at rest:** a bluer drop-shadow glow, so diamond is clearly blue and glowing while silver is plain grey, even at 10px.
+- **Halo size:** kept clear of the % at 320px (inset −40%, fades out by 62%). The star SVG still has no overlap with the % at 320 and 390.
+- **Reduced motion:** no animation. The global `* { animation: none }` does not reach `::before`, so the halo and glint switch theirs off explicitly. Diamond instead shows a stronger static halo (opacity .9) and the glint, fully visible.
+- **Tests:** only `dia-halo` and `dia-glint` exist as star keyframes, they touch only opacity/transform, only `.star-diamond` selectors use them, the reduced-motion static rule is present, and diamonds are staggered. 177 tests.
+- **Live check:** 4 diamonds animate with 4 different delays, and silver/gold have none. Under reduced motion, 0 animations, halo .9, glint 1. No star in the pot; share text unchanged.
+- Shots: `r76-calendar-zoom-{390,320}-live.png`, `r76-calendar-zoom-reduced-motion-live.png`, `r76-calendar-{390,320}-live.png`, `r76-reveal-diamond-live.png`.
+- Version 1.18.1.
+
 ## Round 75 (2026-10-19, Grok Bot): STAR TIERS RE-POINTED + DIAMOND (Franklin)
 - **New tiers** (`E.STAR_TIERS`, on the rounded % the player sees; a higher tier replaces a lower one):
   - 100 **diamond** ("diamond star: 100%")

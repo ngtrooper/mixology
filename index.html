@@ -472,7 +472,7 @@
   .cal-day.today { border: 2px solid var(--ink); }
   .cal-day.sel { box-shadow: 0 0 0 2px var(--accent); }
   .cal-day.blank { visibility: hidden; }
-  /* round 74/75 (Franklin): star badges, 85-89 bronze, 90-96 silver, 97-99 gold, 100 diamond.
+  /* round 74/75/76 (Franklin): star badges, 85-89 bronze, 90-96 silver, 97-99 gold, 100 diamond.
      Sits in the swatch's top-right corner (outside a circle's centered %),
      thin dark outline + shadow so it reads on light and dark swatches. */
   .cd-sw, .ct, .vs .sw { position: relative; }
@@ -484,10 +484,26 @@
   .star-silver path { fill: #dfe4ea; }
   .star-bronze path { fill: #d08a4c; }
   /* round 75: diamond = icy white-to-blue gradient, deep-blue outline, white facets + a static sparkle */
-  .star-diamond path { fill: url(#star-diamond-g); stroke: #0f3d6e; }
-  .star-diamond { filter: drop-shadow(0 0 1px rgba(0,30,70,.6)) drop-shadow(0 0 2px rgba(120,210,255,.55)); }
+  .star-diamond path { fill: url(#star-diamond-g); stroke: #0b3a73; }
+  .star-diamond { filter: drop-shadow(0 0 1px rgba(0,30,70,.7)) drop-shadow(0 0 2.5px rgba(80,190,255,.9)); }
   .star-diamond path.facet { fill: none; stroke: rgba(255,255,255,.95); stroke-width: .9; paint-order: normal; }
-  .star-diamond path.spark { fill: #fff; stroke: #0f3d6e; stroke-width: .7; }
+  /* round 76 (Franklin): diamond only, badge only (never the pot). A soft
+     blue/white halo pulses and a tiny 4-point glint twinkles every 2.6s;
+     opacity/transform only; --tw staggers each badge. */
+  .star-diamond::before { content: ''; position: absolute; inset: -40%; border-radius: 50%; z-index: -1;
+    background: radial-gradient(circle, rgba(225,247,255,.95) 0, rgba(90,195,255,.7) 36%, rgba(90,195,255,0) 62%); /* stays clear of the % at 320px */
+    opacity: .55; animation: dia-halo 2.6s ease-in-out infinite; animation-delay: calc(var(--tw, 0s) * -1); }
+  .star-diamond .glint { position: absolute; top: -45%; right: -45%; width: 70%; height: 70%; opacity: 0; transform: scale(.4);
+    animation: dia-glint 2.6s ease-in-out infinite; animation-delay: var(--tw, 0s); }
+  .star-diamond .glint path { fill: #fff; stroke: rgba(20,90,170,.85); stroke-width: 1.2; paint-order: stroke; }
+  @keyframes dia-halo { 0%, 100% { opacity: .4; transform: scale(.85); } 50% { opacity: .95; transform: scale(1.1); } }
+  @keyframes dia-glint { 0%, 55%, 100% { opacity: 0; transform: scale(.4) rotate(0deg); } 70% { opacity: 1; transform: scale(1) rotate(45deg); } 85% { opacity: 0; transform: scale(.5) rotate(90deg); } }
+  @media screen and (prefers-reduced-motion: reduce) {
+    /* no motion: a stronger static halo + a visible glint keep diamond distinct */
+    .star-diamond::before { animation: none !important; opacity: .9; transform: scale(1.05); } /* '*' does not reach ::before */
+    .star-diamond .glint { animation: none !important; }
+    .star-diamond .glint { opacity: 1; transform: scale(.85); }
+  }
   .cd-sw .star { top: -7px; right: -6px; width: 10px; height: 10px; } /* above the centered %, even at 320px */
   .ct .star { top: -3px; right: -3px; width: 11px; height: 11px; }
   .vs .sw .star.big { top: 6px; right: 6px; width: 22px; height: 22px; }
@@ -786,9 +802,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.18.0"></script>
-<script src="schedule.js?v=1.18.0"></script>
-<script src="engine.js?v=1.18.0"></script>
-<script src="game.js?v=1.18.0"></script>
+<script src="colors.js?v=1.18.1"></script>
+<script src="schedule.js?v=1.18.1"></script>
+<script src="engine.js?v=1.18.1"></script>
+<script src="game.js?v=1.18.1"></script>
 </body>
 </html>

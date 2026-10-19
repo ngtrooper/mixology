@@ -1463,8 +1463,17 @@ console.log('— star badges (round 74) —');
     assert.ok(/class="star star-\$\{tier.id\}[^`]*aria-hidden="true"/.test(gSrc));
     assert.ok(hSrc.includes('.star-gold path') && hSrc.includes('.star-silver path') && hSrc.includes('.star-bronze path') && hSrc.includes('.star-diamond path { fill: url(#star-diamond-g)'));
     assert.strictEqual((hSrc.match(/id="star-diamond-g"/g) || []).length, 1, 'one shared diamond gradient');
-    assert.ok(gSrc.includes("tier.id === 'diamond' ? `<path class=\"facet\""), 'diamond facets');
-    assert.ok(!/@keyframes[^{]*(spark|diamond|star)/i.test(hSrc), 'no star animation');
+    assert.ok(gSrc.includes("const gem = dia ? `<path class=\"facet\""), 'diamond facets');
+    // round 76: only the diamond badge animates (halo + glint), on opacity/transform only, and not under reduced motion
+    const kf = [...hSrc.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^}]*\})*)\s*\}/g)];
+    const starKf = kf.filter(m => /star|dia|glint|spark/i.test(m[1]));
+    assert.deepStrictEqual(starKf.map(m => m[1]).sort(), ['dia-glint', 'dia-halo']);
+    for (const m of starKf) for (const decl of m[2].match(/[\w-]+(?=\s*:)/g)) assert.ok(['opacity', 'transform'].includes(decl), `${m[1]} animates ${decl}`);
+    const users = [...hSrc.matchAll(/([^{}]+)\{[^}]*animation:\s*(dia-halo|dia-glint)/g)].map(m => m[1].split('*/').pop().trim());
+    assert.ok(users.length === 2 && users.every(sel => sel.startsWith('.star-diamond')), 'only diamond animates: ' + users);
+    assert.ok(/@media \(prefers-reduced-motion: reduce\) \{\s*\* \{ animation: none !important;/.test(hSrc), 'global reduced-motion kill switch');
+    assert.ok(/@media screen and \(prefers-reduced-motion: reduce\) \{\s*\/\*[^*]*\*\/\s*\.star-diamond::before \{ animation: none !important; opacity: \.9;/.test(hSrc), 'static diamond glow under reduced motion');
+    assert.ok(gSrc.includes('--tw:${((diamondSeq++ * 0.83) % 2.6).toFixed(2)}s'), 'diamonds staggered');
     assert.ok(/\.star \{ position: absolute; top: -4px; right: -4px;/.test(hSrc), 'star sits in the corner, not over the % ');
   });
   test('share text never mentions a star or the color (unchanged)', () => {

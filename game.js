@@ -1019,13 +1019,20 @@ document.addEventListener('keydown', e => {
  * each caller adds the tier's words to its own accessible name. */
 const STAR_PATH = 'M12 2.6l2.8 6.1 6.6.7-4.9 4.5 1.4 6.6L12 17.2l-5.9 3.3 1.4-6.6-4.9-4.5 6.6-.7z';
 const STAR_FACETS = 'M12 4.2V12.4M19.4 10L12 12.4M16.9 19.2L12 12.4M7.1 19.2L12 12.4M4.6 10L12 12.4';
-const STAR_SPARK = 'M20.5 .2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z';
+const STAR_GLINT = 'M12 0l2.2 9.8L24 12l-9.8 2.2L12 24l-2.2-9.8L0 12l9.8-2.2z'; // 4-point glint
+let diamondSeq = 0;
 function starBadge(tier, extra) {
   if (!tier) return '';
   // round 75: the diamond star is icy (shared gradient #star-diamond-g in
   // index.html), with facet lines and a small static sparkle
-  const gem = tier.id === 'diamond' ? `<path class="facet" d="${STAR_FACETS}"/><path class="spark" d="${STAR_SPARK}"/>` : '';
-  return `<span class="star star-${tier.id}${extra ? ' ' + extra : ''}" data-star="${tier.id}" title="${tier.label}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${STAR_PATH}"/>${gem}</svg></span>`;
+  // round 76: diamond also gets a halo (::before) and a separate glint element,
+  // both animated on opacity/transform only, each badge offset by a rolling
+  // delay so several diamonds never blink in unison
+  const dia = tier.id === 'diamond';
+  const gem = dia ? `<path class="facet" d="${STAR_FACETS}"/>` : '';
+  const glint = dia ? `<span class="glint"><svg viewBox="0 0 24 24"><path d="${STAR_GLINT}"/></svg></span>` : '';
+  const delay = dia ? ` style="--tw:${((diamondSeq++ * 0.83) % 2.6).toFixed(2)}s"` : '';
+  return `<span class="star star-${tier.id}${extra ? ' ' + extra : ''}" data-star="${tier.id}" title="${tier.label}" aria-hidden="true"${delay}><svg viewBox="0 0 24 24"><path d="${STAR_PATH}"/>${gem}</svg>${glint}</span>`;
 }
 function renderCalendar() {
   const grid = $('cal-grid');
@@ -1520,7 +1527,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.18.0',
+  version: '1.18.1',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
