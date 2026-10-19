@@ -184,7 +184,12 @@
     flex: 1; border: 1px solid var(--line); background: var(--card); border-radius: 999px;
     padding: 9px 2px; font-size: 13.5px; cursor: pointer; color: var(--ink);
   }
-  .tool.sel { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tool.sel { background: var(--ink); color: var(--paper); border-color: var(--ink); --tool-hi: var(--ink); }
+  /* round 20: SVG tool icons (replace the 💧 / 🪣 / ↩ emoji) */
+  .ti { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; display: inline-block; }
+  .tool { --tool-hi: var(--card); }
+  #toolbar-current .ti { margin-right: 4px; }
+  .tool:active { transform: scale(.97); }
   #util-tools { display: flex; gap: 6px; margin: 8px 0 0; }
   #util-tools .tool { flex: 1; }
 
@@ -452,17 +457,17 @@
 
   <div id="toolbar">
     <div id="toolbar-head">
-      <div><span id="toolbar-title">Tool</span><span id="toolbar-current">🪣 Pour Bucket</span></div>
+      <div><span id="toolbar-title">Tool</span><span id="toolbar-current"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.6 11.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8z" fill="currentColor"/><path d="M6 8a6 4.5 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.6 12h12.8" stroke="var(--tool-hi, #fff)" stroke-width="1.6" opacity=".55"/></svg>Pour Bucket</span></div>
       <button id="btn-toolbar-toggle" type="button" aria-expanded="true" aria-label="Collapse toolbar">▾</button>
     </div>
     <div id="toolbar-body">
       <div id="tools">
-        <button class="tool" type="button" data-tool="dropper" id="tool-dropper">💧 Dropper</button>
-        <button class="tool sel" type="button" data-tool="pour" id="tool-pour">🪣 Pour Bucket</button>
+        <button class="tool" type="button" data-tool="dropper" id="tool-dropper"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11z" fill="currentColor"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="var(--tool-hi, #fff)" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/></svg>Dropper</button>
+        <button class="tool sel" type="button" data-tool="pour" id="tool-pour"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.6 11.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8z" fill="currentColor"/><path d="M6 8a6 4.5 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.6 12h12.8" stroke="var(--tool-hi, #fff)" stroke-width="1.6" opacity=".55"/></svg>Pour Bucket</button>
       </div>
       <div id="util-tools">
-        <button class="tool" type="button" id="btn-undo">↩ Undo</button>
-        <button class="tool" type="button" id="btn-reset">Reset pot</button>
+        <button class="tool" type="button" id="btn-undo"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7L4 12l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 12H14a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Undo</button>
+        <button class="tool" type="button" id="btn-reset"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17.5 3.5v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset pot</button>
       </div>
     </div>
   </div>

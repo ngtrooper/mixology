@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 20 (2026-10-18, Grok Bot): SVG TOOL ICONS
+- The 💧 / 🪣 / ↩ emoji in the toolbar are now inline SVG icons (drop, bucket, undo arrow, reset loop) using `currentColor`. They invert correctly on the selected pill and in dark mode, and look the same on every OS.
+- The collapsed-toolbar label copies the selected tool's icon.
+- Old test updated: the static label is still "Pour Bucket", now preceded by the SVG.
+- The Tips prose keeps its emoji.
+
 ## Round 19 (2026-10-18, Grok Bot): NEXT-COLOR COUNTDOWN
 - A finished daily reveal ends with "Next color in 1h 41m". It counts down to local midnight via `dateForDay(DAY + 1)`, the same boundary `dayNumber()` uses, and refreshes on the existing 20 s rollover tick.
 - Hidden in practice, before finishing, and on a stale (yesterday's) round, where the "Play today's color" button shows instead.

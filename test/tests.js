@@ -533,7 +533,8 @@ test('disc keys in index.html are exactly the engine COMP_KEYS (the base/w bug c
 test('Pour Bucket is the default tool — on load and on entering practice', () => {
   assert.ok(/let selectedTool = 'pour'/.test(gameSrc), 'selectedTool does not default to pour');
   assert.ok(/function startPractice\(\) \{\s*selectedTool = 'pour'/.test(gameSrc), 'startPractice does not reset to the Pour Bucket');
-  assert.ok(htmlSrc.includes('id="toolbar-current">🪣 Pour Bucket'), 'static collapsed-toolbar label is not the Pour Bucket');
+  // round 20: the label carries an SVG icon before the text
+  assert.ok(/id="toolbar-current"><svg class="ti"[^]*?<\/svg>Pour Bucket</.test(htmlSrc), 'static collapsed-toolbar label is not the Pour Bucket');
   assert.ok(htmlSrc.includes('<button class="tool sel" type="button" data-tool="pour" id="tool-pour">'), 'pour tool is not pre-selected in the static HTML');
 });
 test('finished pot is visibly locked and a press gives feedback (never a silent dead pot)', () => {

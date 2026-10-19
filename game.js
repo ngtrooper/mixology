@@ -723,7 +723,10 @@ function renderAll() {
     $(BUCKET_EL[b]).classList.toggle('sel', selectedBucket === b);
   }
   for (const t of Object.keys(TOOLS)) $('tool-' + t).classList.toggle('sel', selectedTool === t);
-  $('toolbar-current').textContent = selectedTool === 'dropper' ? '💧 Dropper' : '🪣 Pour Bucket';
+  { // round 20: same SVG icon as the selected tool button
+    const src = $('tool-' + selectedTool).querySelector('svg');
+    $('toolbar-current').innerHTML = (src ? src.outerHTML : '') + (selectedTool === 'dropper' ? 'Dropper' : 'Pour Bucket');
+  }
   // Round 9: show the selected tool's rig over the pot, tinted with the pigment
   $('stage').classList.toggle('tool-pour', selectedTool === 'pour');
   $('stage').classList.toggle('tool-dropper', selectedTool === 'dropper');
