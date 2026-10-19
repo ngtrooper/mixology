@@ -179,10 +179,38 @@ function beginGesture() {
 }
 function endGesture() { gestureOpen = false; }
 
+/* Round 81 (Franklin): a first-time player sees "Hold to pour" on the empty
+ * pot until their first drop, then never again in this browser. Static
+ * label (pointer-events none), no pot effects; only a short fade on
+ * dismissal. Anyone with a saved day or a day in progress never sees it. */
+const POURED_KEY = 'mixology.poured.v1';
+const potHint = { on: false };
+function initPotHint() {
+  let poured = false; try { poured = !!localStorage.getItem(POURED_KEY); } catch (e) { poured = true; }
+  const hasHistory = Object.keys(store.data.days || {}).length > 0 || !!store.data.wip;
+  potHint.on = !poured && !hasHistory;
+}
+function potIsEmpty() { return !!round && BUCKET_KEYS.every(b => (b === 'w' ? 100 : 0) === Math.round(Number(round.pot[b]) || 0)); }
+function potHintShown() { return potHint.on && !!round && !round.finished && potIsEmpty(); }
+function markPoured() {
+  if (!potHint.on) return;
+  potHint.on = false;
+  try { localStorage.setItem(POURED_KEY, '1'); } catch (e) { /* private mode */ }
+}
+function renderPotHint() {
+  const el = $('pot-hint'); if (!el) return;
+  const show = potHintShown();
+  if (show) { clearTimeout(el._t); el.hidden = false; el.classList.add('show'); return; }
+  if (el.hidden) return;
+  el.classList.remove('show'); // CSS fades it out (instant under reduced motion)
+  clearTimeout(el._t); el._t = setTimeout(() => { if (!potHintShown()) el.hidden = true; }, REDUCED_MOTION ? 0 : 400);
+}
+
 /* Apply ONE unit (one drop = 1% of the pot) of the selected pigment.
  * Displacement is the engine's job (addUnits renormalizes to 100). */
 function applyUnit(silent) {
   round.pot = E.addUnits(round.pot, selectedBucket, 1);
+  markPoured(); // round 81: the first drop retires the "Hold to pour" label for good
   if (!silent) sfx.dose();
   renderAll(); persistWip();
 }
@@ -817,8 +845,9 @@ function renderAll() {
   }
   { // round 26: the pot says what a press will do (the selected pigment and tool, which are already visible)
     const pn = { r: 'red', y: 'yellow', b: 'blue', k: 'black', w: 'white' }[selectedBucket] || 'paint';
-    $('pot').setAttribute('aria-label', round.finished ? 'Pot (round complete)'
-      : selectedTool === 'pour' ? `Pour ${pn} into the pot (hold to keep pouring)` : `Add one drop of ${pn} to the pot`);
+    $('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (round.finished ? 'Pot (round complete)'
+      : selectedTool === 'pour' ? `Pour ${pn} into the pot (hold to keep pouring)` : `Add one drop of ${pn} to the pot`));
+    renderPotHint(); // round 81
   }
   { // round 20: same SVG icon as the selected tool button
     const src = $('tool-' + selectedTool).querySelector('svg');
@@ -1581,6 +1610,7 @@ $('btn-mute').addEventListener('click', () => {
 });
 renderMute();
 
+initPotHint(); // round 81: decided once, from the save as loaded
 initDaily();
 // round 78: anonymous counts (no-op until ANALYTICS_CODE is set in analytics.js)
 track('open'); trackReturn(); if (incomingDuel) track('duel-open');
@@ -1589,7 +1619,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.20.2',
+  version: '1.21.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

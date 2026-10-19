@@ -1678,5 +1678,51 @@ console.log('— round 80: close button always reachable on short phones —');
     assert.ok(gameSrc.includes("if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); }"));
   });
 }
+
+console.log('— round 81: "Hold to pour" on the empty pot for first-time players —');
+{
+  const block = gameSrc.slice(gameSrc.indexOf("const POURED_KEY = 'mixology.poured.v1';"), gameSrc.indexOf('/* Apply ONE unit'));
+  // Run the real hint code against a stub page: one #pot-hint element, a save, a round, localStorage.
+  function boot({ days = {}, wip = null, ls = {}, finished = false } = {}) {
+    const el = { hidden: true, cls: new Set(), classList: { add(c) { el.cls.add(c); }, remove(c) { el.cls.delete(c); } } };
+    const mem = Object.assign({}, ls), localStorage = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+    const env = { round: { finished, pot: { r: 0, y: 0, b: 0, k: 0, w: 100 } } };
+    const api = new Function('$', 'store', 'env', 'localStorage', 'BUCKET_KEYS', 'REDUCED_MOTION', 'setTimeout', 'clearTimeout',
+      'let round; Object.defineProperty(env, "r", { get: () => round, set: v => { round = v; } }); round = env.round;\n' + block +
+      '\nreturn { initPotHint, potHintShown, markPoured, renderPotHint, setRound: v => { round = v; } };')(
+      id => (id === 'pot-hint' ? el : null), { data: { days, wip } }, env, localStorage, ['r', 'y', 'b', 'k', 'w'], true, f => f(), () => {});
+    api.initPotHint(); api.renderPotHint();
+    return { api, el, mem, env };
+  }
+  const drop = t => { t.env.round.pot = { r: 0, y: 1, b: 0, k: 0, w: 99 }; t.api.markPoured(); t.api.renderPotHint(); };
+  test('fresh save: the label shows on the empty pot (and the pot\'s accessible name starts with it)', () => {
+    const t = boot();
+    assert.ok(t.api.potHintShown() && !t.el.hidden && t.el.cls.has('show'));
+    assert.ok(gameSrc.includes("$('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (round.finished"));
+  });
+  test('the first drop hides it for good: flag saved, still hidden after undo to an empty pot, and after a reload', () => {
+    const t = boot(); drop(t);
+    assert.ok(!t.api.potHintShown() && t.el.hidden && !t.el.cls.has('show'));
+    assert.strictEqual(t.mem['mixology.poured.v1'], '1');
+    t.env.round.pot = { r: 0, y: 0, b: 0, k: 0, w: 100 }; t.api.renderPotHint(); // undo / reset back to white
+    assert.ok(!t.api.potHintShown() && t.el.hidden);
+    const again = boot({ ls: t.mem }); // reload with the same localStorage, still no saved day
+    assert.ok(!again.api.potHintShown() && again.el.hidden);
+    // every dose path goes through applyUnit, which retires the label
+    const au = gameSrc.slice(gameSrc.indexOf('function applyUnit('), gameSrc.indexOf('function dose('));
+    assert.ok(au.includes('markPoured();') && gameSrc.includes('initPotHint(); // round 81') && gameSrc.indexOf('initPotHint(); // round 81') < gameSrc.lastIndexOf('initDaily();'));
+  });
+  test('existing players never see it: any saved day, or a day in progress', () => {
+    assert.ok(!boot({ days: { 1: { pct: 80 } } }).api.potHintShown());
+    assert.ok(!boot({ wip: { day: 2, name: 'x', attempts: [], pot: { r: 0, y: 0, b: 0, k: 0, w: 100 } } }).api.potHintShown());
+    assert.ok(!boot({ finished: true }).api.potHintShown(), 'never on a finished (locked) pot');
+  });
+  test('label markup/CSS: dark static text on the canvas, never takes the press, no selection or callout, no pot animation', () => {
+    assert.ok(htmlSrc.includes('<span id="pot-surface"></span><span id="pot-hint" hidden aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true">') && htmlSrc.includes('<span>Hold to pour</span></span></button>'));
+    const css = htmlSrc.slice(htmlSrc.indexOf('  #pot-hint {'), htmlSrc.indexOf('  #pot-hint svg'));
+    assert.ok(/color: #2a2621;/.test(css) && /pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;/.test(css));
+    assert.ok(/opacity: 0; transition: opacity \.35s ease;/.test(css) && !/animation|@keyframes|transform: scale/.test(css), 'only a fade, no effect');
+  });
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

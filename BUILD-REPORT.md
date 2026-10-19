@@ -2,6 +2,21 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 81 (2026-10-19, Grok Bot): "HOLD TO POUR" ON THE EMPTY POT (Franklin)
+
+- **Why:** testers didn't know how to start; one didn't realize you press/hold the big circle to add color.
+- **What:** a centered "Hold to pour" label with a small hand icon on the empty white pot, for first-time players only.
+  - Dark text (`#2a2621`) on the white canvas, in light and dark mode.
+  - Static, with a 0.35s opacity fade on dismissal; reduced motion makes it instant.
+  - No other pot effect.
+- **When:** shown while the pot is empty (white 100%) and the round is open, only if this browser has no saved day, no day in progress, and no `mixology.poured.v1` flag. That check is decided once at startup from the save.
+- **Dismissal:** the first drop, through `applyUnit`, which every Dropper/Pour/keyboard dose uses, sets `mixology.poured.v1 = 1` and retires the label for good. Undo, reset and reload never bring it back.
+- **Press:** `pointer-events: none`, `user-select: none`, `-webkit-touch-callout: none`. A hold on the label pours into the pot.
+- **Accessibility:** the label is `aria-hidden`. While shown, the pot's aria-label starts with "Hold to pour."
+- **Not changed:** no other onboarding change. The welcome card and the r43 coach rings are unchanged, there is no Add/Remove toggle, and the "−" badges are unchanged.
+- **Tests:** 4 new, which run the real hint code against a stub page and save: shown for a fresh save; hidden after the first drop, after undo to empty, and after reload; hidden for existing players (saved day, day in progress, finished pot); markup/CSS (dark, pointer-events none, no select/callout, fade only). 202 pass.
+- Version 1.21.0.
+
 ## Round 80 (2026-10-19, Grok Bot): CLOSE BUTTON ALWAYS REACHABLE ON SHORT PHONES (iPhone tester)
 
 - **Bug:** on an iPhone the Collection dialog could be taller than the visible screen. The panel was capped at `92vh` (Tips at `85vh`), and on iOS that is the large viewport with the toolbars hidden. The ✕ was absolutely positioned inside the scrolling panel. So the centered panel's top, with the ✕, sat under the Safari toolbar, and scrolling took the ✕ away with the content.
