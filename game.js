@@ -194,7 +194,7 @@ function dose(bucket, silent) {
   return true;
 }
 function undo() {
-  stopPour();
+  stopPour(); stopRemove();
   if (!round || round.finished || !round.undo.length) return;
   const last = round.undo.pop();
   if (last.snapshot) round.pot = last.snapshot;
@@ -341,8 +341,54 @@ function stopPour() {
   for (const id of ['stream-main', 'stream-outline']) { const el = $(id); if (el) el.style.strokeWidth = ''; }
 }
 
-function seal() {
+/* Round 68 (Franklin): take a paint OUT. Every disc holding paint gets a small
+ * "−" badge (its own button, outside the disc so it is not hit by mistake when
+ * picking a paint). A tap takes out 1 unit (about 1% of the pot) and the rest
+ * renormalize. A hold keeps removing on the Pour Bucket's ramp (30/s up to 90/s,
+ * E.pourUnitsAt) until release or until that paint reaches 0. One press or hold
+ * is ONE undo step. The selection does not change. */
+let removeTimer = null, removeKey = null;
+function removeOne(key) {
+  round.pot = E.removeUnits(round.pot, key, 1);
+}
+function startRemove(key) {
+  if (!round || round.finished || removeTimer) return;
   stopPour();
+  if (!(round.pot[key] > 0)) return;
+  beginGesture();
+  removeKey = key;
+  removeOne(key); sfx.undo(); buzz(6);
+  renderAll(); persistWip();
+  let removed = 0; const t0 = performance.now();
+  removeTimer = setInterval(() => {
+    if (!round || round.finished || !(round.pot[key] > 0)) { stopRemove(); return; }
+    const sec = (performance.now() - t0) / 1000;
+    const n = Math.min(6, Math.floor(E.pourUnitsAt(sec)) - removed);
+    if (n > 0) {
+      for (let i = 0; i < n && round.pot[key] > 0; i++) removeOne(key);
+      removed += n; renderAll(); persistWip();
+      if (!(round.pot[key] > 0)) { buzz(12); stopRemove(); }
+    }
+  }, 1000 / POUR_TICK_HZ);
+}
+function stopRemove() {
+  if (removeTimer) { clearInterval(removeTimer); removeTimer = null; }
+  if (removeKey && round) {
+    const pct = E.displayPercents(round.pot)[removeKey];
+    announce(`${PIG_NAMES[removeKey]} is now ${pct} of the pot`);
+  }
+  removeKey = null;
+  endGesture();
+}
+/** Playtest/keyboard: one tap of the remove badge (one undo step). */
+function removePaint(key) {
+  if (!round || round.finished || !(round.pot[key] > 0)) return false;
+  startRemove(key); stopRemove();
+  return true;
+}
+
+function seal() {
+  stopPour(); stopRemove();
   if (!round || round.finished || round.attempts.length >= MAX_ATTEMPTS) return null;
   const hex = mixHex();
   const de = E.deltaE2000(E.hexToLab(hex), targetLab());
@@ -660,8 +706,8 @@ function titleCase(s) {
   });
 }
 /* Round 65 (Franklin, overrides the old no-counts lock): each paint disc shows
- * the pot's live % of that paint (largest-remainder whole numbers, "<1%" for
- * a trace). renderAll runs on every pour tick, so the DOM write is coalesced
+ * the pot's live % of that paint (largest-remainder whole numbers that sum to
+ * 100; round 68: no "<1%", traces snap to 0 in the engine). renderAll runs on every pour tick, so the DOM write is coalesced
  * into one per animation frame. The aria-label carries the same number. */
 let discPctRaf = 0;
 function scheduleDiscPercents() {
@@ -676,6 +722,11 @@ function renderDiscPercents() {
     const btn = $(BUCKET_EL[b]); if (!btn) continue;
     const el = btn.querySelector('.ppct'); if (el && el.textContent !== pct[b]) el.textContent = pct[b];
     btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot`);
+    // round 68: the remove badge shows only when taking this paint out would change the pot
+    const rm = $('rm-' + b); if (!rm) continue;
+    const show = !round.finished && round.pot[b] > 0 && pct[b] !== '100%';
+    if (rm.hidden === show) rm.hidden = !show;
+    rm.setAttribute('aria-label', `Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. Hold to keep removing`);
   }
 }
 function renderAll() {
@@ -1079,6 +1130,20 @@ document.querySelectorAll('.bucket').forEach(btn => {
     selectedBucket = btn.dataset.bucket; renderAll();
   });
 });
+// Round 68: remove badges. Pointer press = remove (hold ramps); the trailing
+// click is ignored (detail > 0), so only keyboard activation removes from click.
+document.querySelectorAll('.premove').forEach(btn => {
+  const key = btn.dataset.rm;
+  btn.addEventListener('pointerdown', e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    startRemove(key);
+  });
+  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(t, () => { if (removeTimer || removeKey) stopRemove(); });
+  btn.addEventListener('click', e => { if (e.detail === 0) removePaint(key); });
+  btn.addEventListener('contextmenu', e => e.preventDefault()); // a long press must not open a menu
+});
 document.querySelectorAll('.tool[data-tool]').forEach(btn => {
   btn.addEventListener('click', () => {
     stopPour();
@@ -1189,7 +1254,7 @@ $('btn-tips-close').addEventListener('click', closeTips);
 $('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });
 $('tips-overlay').addEventListener('click', e => { if (e.target === $('tips-overlay')) closeTips(); });
 /* Round 40: desktop keyboard shortcuts. 1–5 pick red/yellow/blue/black/white
- * (ring order), D = Dropper, P = Pour Bucket, Z or Ctrl/Cmd+Z = Undo. There is
+ * (ring order; round 68: Shift+1–5 removes 1% of that paint), D = Dropper, P = Pour Bucket, Z or Ctrl/Cmd+Z = Undo. There is
  * deliberately no seal key, so an attempt is never sealed by accident. Ignored
  * while a dialog is open, inside form fields, or with Alt / Ctrl+other. */
 document.addEventListener('keydown', e => {
@@ -1198,6 +1263,9 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
   if (k === 'z' && !e.shiftKey) { if (round && !round.finished) { e.preventDefault(); const had = round.undo.length; undo(); if (had) announce('Undone'); } return; }
   if (mod) return;
+  // round 68: Shift+1–5 takes 1% of that paint out
+  const rmPig = e.shiftKey ? { Digit1: 'r', Digit2: 'y', Digit3: 'b', Digit4: 'k', Digit5: 'w' }[e.code] : null;
+  if (rmPig) { e.preventDefault(); if (!removePaint(rmPig)) announce(`No ${PIG_NAMES[rmPig].toLowerCase()} to remove`); return; }
   const pig = { 1: 'r', 2: 'y', 3: 'b', 4: 'k', 5: 'w' }[e.key];
   // round 60: focus stays where it was, so say what changed for screen readers
   if (pig) { const btn = $(BUCKET_EL[pig]); if (btn) { btn.click(); announce(`${PIG_NAMES[pig]} paint selected`); } return; }
@@ -1275,7 +1343,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.12.3',
+  version: '1.13.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
@@ -1289,6 +1357,7 @@ window.MISNOMER = {
     }));
   },
   selectBucket(b) { selectedBucket = b; renderAll(); },
+  removePaint, // round 68
   selectTool(t) { selectedTool = t; renderAll(); },
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,

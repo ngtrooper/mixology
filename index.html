@@ -167,6 +167,20 @@
   .pigment.sel { animation: pig-pop .28s cubic-bezier(.3,1.6,.5,1); }
   @keyframes pig-pop { 0% { transform: translate(-50%, -50%) scale(.9); } 100% { transform: translate(-50%, -50%) scale(1); } }
   @media (hover: hover) { .pigment:not(.sel):hover { transform: translate(-50%, -50%) scale(1.05); } }
+  /* Round 68 (Franklin): the remove badge. Its own button just outside each
+   * disc's upper corner (outward side), so selecting a disc never hits it.
+   * 30px visible, 40px hit area. Shown only while that paint is in the pot. */
+  .premove { position: absolute; width: 30px; height: 30px; transform: translate(-50%, -50%); z-index: 4;
+    border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); padding: 0;
+    font: 800 20px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25); cursor: pointer; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    animation: rm-pop .22s cubic-bezier(.3,1.6,.5,1); }
+  .premove::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+  .premove[hidden] { display: none; }
+  .premove:active { transform: translate(-50%, -50%) scale(.88); }
+  .premove:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  @keyframes rm-pop { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+  #stage.locked .premove { display: none; }
   #fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
   /* ---- round 9: tool rigs. The Pour Bucket and the Dropper are SVG
      graphics tinted with the selected pigment; the stream is an SVG path
@@ -521,6 +535,11 @@
     <button class="bucket pigment" type="button" data-bucket="b" id="bucket-b" aria-keyshortcuts="3" style="left:74.5%;top:82.5%;background:#1C4096" aria-label="Select blue pigment"><span class="ppct" aria-hidden="true">0%</span></button>
     <button class="bucket pigment" type="button" data-bucket="k" id="bucket-k" aria-keyshortcuts="4" style="left:25.5%;top:82.5%;background:#141416" aria-label="Select black pigment"><span class="ppct" aria-hidden="true">0%</span></button>
     <button class="bucket pigment" type="button" data-bucket="w" id="bucket-base" aria-keyshortcuts="5" style="left:11.5%;top:36%;background:#FFFFFF" aria-label="Select white pigment"><span class="ppct" aria-hidden="true">100%</span></button>
+    <button class="premove" type="button" id="rm-r" data-rm="r" hidden aria-keyshortcuts="Shift+1" style="left:calc(50% - 30px);top:calc(10.5% - 27px)" aria-label="Remove red paint">−</button>
+    <button class="premove" type="button" id="rm-y" data-rm="y" hidden aria-keyshortcuts="Shift+2" style="left:calc(88.5% - 30px);top:calc(36% - 27px)" aria-label="Remove yellow paint">−</button>
+    <button class="premove" type="button" id="rm-b" data-rm="b" hidden aria-keyshortcuts="Shift+3" style="left:calc(74.5% + 30px);top:calc(82.5% - 27px)" aria-label="Remove blue paint">−</button>
+    <button class="premove" type="button" id="rm-k" data-rm="k" hidden aria-keyshortcuts="Shift+4" style="left:calc(25.5% - 30px);top:calc(82.5% - 27px)" aria-label="Remove black paint">−</button>
+    <button class="premove" type="button" id="rm-w" data-rm="w" hidden aria-keyshortcuts="Shift+5" style="left:calc(11.5% - 30px);top:calc(36% - 27px)" aria-label="Remove white paint">−</button>
     <div id="fx">
       <svg id="fx-svg" aria-hidden="true">
         <path id="stream-outline" d=""/><path id="stream-main" d=""/><path id="stream-flow" d=""/>
@@ -634,7 +653,7 @@
       <li><svg viewBox="0 0 48 48" aria-hidden="true"><text x="24" y="31" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="20" fill="currentColor">Aa</text><rect x="5" y="9" width="38" height="30" rx="7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
         <div><b>One color name a day.</b> Same name for everyone. You only see the color at the reveal.</div></li>
       <li><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="26" r="13" fill="#fff" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="5" fill="#D6282E"/><circle cx="24" cy="6" r="5" fill="#FFCD00"/><circle cx="39" cy="10" r="5" fill="#1C4096"/></svg>
-        <div><b>Mix it from five paints.</b> Pick a pigment, then tap or hold the pot to add it. Each paint shows its share of the pot.</div></li>
+        <div><b>Mix it from five paints.</b> Pick a pigment, then tap or hold the pot to add it. Each paint shows its share of the pot; tap its <b>−</b> to take some out.</div></li>
       <li><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="14" width="16" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><rect x="26" y="14" width="16" height="20" rx="4" fill="currentColor"/><path d="M30 24l3 3 6-7" stroke="var(--card)" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
         <div><b>Seal two attempts.</b> Your best one is scored by how close it lands. 85%+ beats par.</div></li>
     </ol>
@@ -650,12 +669,14 @@
     <p>Pick a pigment from the ring, pick a tool, then dose the pot in the middle. Seal two attempts — the round ends after the second, and your best attempt is your score.</p>
     <h3>The pot</h3>
     <p>The pot is always 100% full — it starts as pure white paint. Every drop you add pushes the other paints down to make room, so the total never goes above 100%. One drop is 1% of the pot. And a messed-up pot can always be rescued: just keep adding the color you want and it will take over.</p>
-    <p>Each paint disc shows that paint's live share of the pot in whole percent ("&lt;1%" for a trace), so the five numbers add up to 100%. A fresh pot reads white 100%, everything else 0%. The pot itself never shows a number: judge the color by eye.</p>
+    <p>Each paint disc shows that paint's live share of the pot in whole percent, and the five numbers always add up to 100%. A paint that drops below half a percent is gone completely (it goes to 0%), so you never carry a trace you can't see.</p>
+    <p><b>Taking paint out:</b> every paint in the pot has a small <b>−</b> button by its disc. Tap it to remove about 1% of that paint; hold it to keep removing (it speeds up like the bucket) until you let go or it reaches 0%. The other paints grow back to fill the pot. Undo takes back a whole hold in one step.</p>
+    <p>A fresh pot reads white 100%, everything else 0%. The pot itself never shows a number: judge the color by eye.</p>
     <h3>The tools</h3>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11z" fill="currentColor"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="var(--tool-hi, #fff)" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/></svg><b>Dropper</b> — 1 drop per click on the pot.</p>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.6 11.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8z" fill="currentColor"/><path d="M6 8a6 4.5 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.6 12h12.8" stroke="var(--tool-hi, #fff)" stroke-width="1.6" opacity=".55"/></svg><b>Pour Bucket</b> — press and hold the pot to pour. It starts at about 30 drops per second for fine control and speeds up to about 90 if you keep holding (a full pot of one paint in about 3 seconds). Let go to stop.</p>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7L4 12l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 12H14a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><b>Undo</b> takes back your last press or pour in one step; <b>Reset pot</b> starts the pot over.</p>
-    <p class="kbd-tip">On a keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick red, yellow, blue, black, white · <kbd>D</kbd> Dropper · <kbd>P</kbd> Pour Bucket · <kbd>Z</kbd> Undo · hold <kbd>Enter</kbd> on the pot to pour (or press it for a drop) · <kbd>PgUp</kbd>/<kbd>PgDn</kbd> change month in the calendar.</p>
+    <p class="kbd-tip">On a keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick red, yellow, blue, black, white · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd> remove 1% of that paint · <kbd>D</kbd> Dropper · <kbd>P</kbd> Pour Bucket · <kbd>Z</kbd> Undo · hold <kbd>Enter</kbd> on the pot to pour (or press it for a drop) · <kbd>PgUp</kbd>/<kbd>PgDn</kbd> change month in the calendar.</p>
     <h3>Scoring</h3>
     <p>Your score is % accuracy: 100% means your mix is indistinguishable from the official color, measured by perceptual distance (CIEDE2000). 85% or better beats par.</p>
     <p>A fresh color arrives every day — same name for everyone. Come back tomorrow.</p>
@@ -684,9 +705,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.12.3"></script>
-<script src="schedule.js?v=1.12.3"></script>
-<script src="engine.js?v=1.12.3"></script>
-<script src="game.js?v=1.12.3"></script>
+<script src="colors.js?v=1.13.0"></script>
+<script src="schedule.js?v=1.13.0"></script>
+<script src="engine.js?v=1.13.0"></script>
+<script src="game.js?v=1.13.0"></script>
 </body>
 </html>

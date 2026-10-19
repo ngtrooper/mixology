@@ -117,17 +117,23 @@ const TINT_END = 1.0;     // round 8: end slope — how hard white answers on a 
  * game.js, tools/solve-recipes.js and the colors.js header. */
 const PAR_PCT = 85;
 /* Round 65 (Franklin): live pot composition on the paint discs. Whole numbers
- * by largest-remainder rounding, so the five shown numbers add up to 100. A
- * share that is nonzero but rounds to 0 shows "<1%" (then the sum may read
- * 99). Pure display helper; it never changes the pot. */
+ * by largest-remainder rounding. Round 68: the pot never holds traces (see
+ * snapTraces), so there is no "<1%" any more. Every paint that is in the pot
+ * shows at least 1%, and the five numbers always add up to exactly 100. Pure
+ * display helper; it never changes the pot. */
 function displayPercents(comp) {
   const c = normalizeComp(comp), keys = ['r', 'y', 'b', 'k', 'w'];
   const fl = keys.map(k => Math.floor(c[k])), rem = keys.map((k, i) => c[k] - fl[i]);
   let left = 100 - fl.reduce((a, x) => a + x, 0);
+  // a present paint is never shown as 0%
+  keys.forEach((k, i) => { if (fl[i] === 0 && c[k] > 0) { fl[i] = 1; rem[i] = 0; left--; } });
   const order = keys.map((k, i) => i).sort((a, b) => rem[b] - rem[a] || a - b);
   for (const i of order) { if (left <= 0) break; if (rem[i] > 0) { fl[i]++; left--; } }
+  while (left < 0) { // the forced 1%s are paid for by the biggest share
+    const i = fl.indexOf(Math.max(...fl)); fl[i]--; left++;
+  }
   const out = {};
-  keys.forEach((k, i) => { out[k] = fl[i] === 0 && c[k] > 0 ? '<1%' : fl[i] + '%'; });
+  keys.forEach((k, i) => { out[k] = fl[i] + '%'; });
   return out;
 }
 /* Round 62: Pour Bucket ramp. A press starts at POUR_RATE_START units/s (fine
@@ -208,16 +214,34 @@ function normalizeComp(comp) {
   return out;
 }
 
+/* Round 68 (Franklin): no lingering traces. Diluting a paint only ever shrinks
+ * it geometrically, so it used to hang at "<1%" for hundreds of units and never
+ * reach 0. After every dose, any paint under TRACE_PCT of the pot is set to 0
+ * and the rest renormalized, so the mix and the disc numbers agree. The solver
+ * (tools/solve-recipes.js) works under the same rule, so every stored recipe
+ * has each paint at 0 or at least TRACE_PCT and is reachable in play. */
+const TRACE_PCT = 0.5;
+function snapTraces(comp) {
+  const out = normalizeComp(comp);
+  let snapped = false;
+  for (const key of COMP_KEYS) if (out[key] > 0 && out[key] < TRACE_PCT) { out[key] = 0; snapped = true; }
+  return snapped ? normalizeComp(out) : out;
+}
+
 /**
  * Dose `key` by n units (n may be fractional or negative): the component
- * grows by n, then the whole pot renormalizes back to 100% — the added
- * paint displaces the rest proportionally. Pure; returns a new vector.
+ * grows by n, then the whole pot renormalizes back to 100%. The added
+ * paint displaces the rest proportionally; a negative n takes that paint
+ * out (round 68 remove control) and the rest grows back. Traces snap to 0
+ * (snapTraces). Pure; returns a new vector.
  */
 function addUnits(comp, key, n) {
   const out = normalizeComp(comp);
   out[key] = Math.max(0, out[key] + n);
-  return normalizeComp(out);
+  return snapTraces(out);
 }
+/** Round 68: take `n` units of `key` out of the pot (the remove control). */
+function removeUnits(comp, key, n) { return addUnits(comp, key, -Math.abs(n)); }
 
 /** composition {r,y,b,k,w} (%) -> [R,G,B] 0..255 floats
  *
@@ -555,7 +579,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName

@@ -53,8 +53,8 @@ for (let r = 0; r <= 100; r += STEP)
       }
 console.log(`coarse grid mixes: ${grid.length}`);
 
-function deOf(comp, targetLab) {
-  return E.deltaE2000(E.hexToLab(E.mixColor(comp)), targetLab);
+function deOf(comp, targetLab) { // round 68: scored as the game holds it (traces snapped)
+  return E.deltaE2000(E.hexToLab(E.mixColor(E.snapTraces(comp))), targetLab);
 }
 
 function solve(targetLab) {
@@ -80,9 +80,10 @@ function solve(targetLab) {
           if (from === to) continue;
           const delta = Math.min(step, best[from]);
           if (delta <= 0) continue;
-          const cand = { ...best };
+          let cand = { ...best };
           cand[from] -= delta;
           cand[to] += delta;
+          cand = E.snapTraces(cand); // round 68: no sub-TRACE_PCT paint in a recipe
           const de = deOf(cand, targetLab);
           if (de < bestDe - 1e-9) { bestDe = de; best = cand; improved = true; }
         }
@@ -102,7 +103,7 @@ function roundRecipe(comp) {
   }
   out.w = Math.round((100 - sum) * 10) / 10;
   if (out.w < 0) { out.w = 0; }
-  return E.normalizeComp(out);
+  return E.snapTraces(out); // round 68: every paint 0 or >= TRACE_PCT
 }
 
 // ---------- solve the bank ----------

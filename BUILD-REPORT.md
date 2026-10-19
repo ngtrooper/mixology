@@ -2,6 +2,35 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 68 (2026-10-18, Grok Bot): NO TRACES, PLUS A REMOVE CONTROL (Franklin)
+**Problem.** With live % on the discs, dilution showed a flaw. A paint only shrinks geometrically, so 3% yellow sat at "<1%" for about 230 more white units and never reached 0.
+
+**(a) Snap traces in the model.**
+- `engine.snapTraces`: after every dose, any paint under `TRACE_PCT` = 0.5% of the pot is set to 0 and the rest renormalized.
+  - Runs inside `addUnits`, so the mix and the disc numbers always agree.
+- `displayPercents` no longer has "<1%". It shows whole numbers that always sum to 100, and a paint in the pot never reads 0%.
+- Measured: diluting 3% yellow with white now reaches 0 after 180 units, with the disc reading 3, 2, 1, then 0.
+- **Solver.** The old recipes had 137 components under 1%, the smallest 0.1 (dark mustard), so this threshold would have made them unreachable. `solve-recipes.js` now scores and searches under the same snap rule.
+  - Every stored recipe has each paint at 0 or at least 0.5%. Tested, and the stored de reproduces.
+  - 144 recipes changed. Mean de change −0.002, worst +0.52 (floral white 0→0.52).
+- **Fairness.** Eligible pool 853 → 853: none lost, none gained.
+  - `build-schedule --freeze-through=657` replaced 0 entries; `schedule.js` is byte-identical.
+  - 0 future days ineligible. Today (lipstick, recipe unchanged) and tomorrow are untouched.
+
+**(b) Remove control.**
+- Each disc holding paint gets a "−" badge. It is its own button just outside the disc's upper corner, on the outward side; red's sits on the left, away from the tool rig.
+  - 30 px visible with a 40 px hit area. Badge center is 40 px from the disc center (disc radius 32), and a hit test at its center hits the badge.
+  - Hidden on a fresh pot, when that paint is at 0 or 100%, and on a finished round.
+- **Tap** removes 1 unit (about 1% of the pot; 8.66% → 7.74% measured). The other paints grow back in proportion.
+- **Hold** removes on the bucket ramp (30/s up to 90/s) until release or 0.
+  - Measured: a 9% red clears in 0.31 s held, or 9–10 taps.
+  - One undo step per press or hold (verified). The selection never changes.
+- Shift+1–5 removes 1% from the keyboard. Each badge's aria-label reads "Remove red paint, 9% of the pot. Hold to keep removing". The result is announced on release.
+- `touch-action: none` and no context menu, so a long press neither scrolls nor opens a menu.
+- Tips and welcome copy updated.
+- axe is clean in light and dark. Shots: `r68-*-remove-badges-{light,dark}.png`, `r68-*-after-remove.png`.
+- Version 1.13.0. 153 tests.
+
 ## Round 67 (2026-10-18, Grok Bot): NO EFFECTS IN THE POT (Franklin)
 - Testers found the pot effects distracting. Franklin: nothing drawn on or in the pot.
 - Removed:

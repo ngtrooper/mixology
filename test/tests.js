@@ -1103,26 +1103,87 @@ test('pour sound follows the ramp (higher, quicker glugs at speed)', () => {
   assert.ok(gameSrc.includes('pour(k = 0) { beep(110 + 50 * k') && gameSrc.includes('if (ticks % (k > 0.5 ? 3 : 5) === 0) sfx.pour(k);'));
 });
 console.log('— round 65: live pot % on the paint discs (Franklin) —');
-test('displayPercents: fresh pot, largest-remainder sums to 100, <1% traces, whole numbers', () => {
+test('displayPercents (r68): whole numbers that ALWAYS sum to 100, a present paint never reads 0%, no "<1%"', () => {
   assert.deepStrictEqual(E.displayPercents(E.FRESH_COMP), { r: '0%', y: '0%', b: '0%', k: '0%', w: '100%' });
   assert.deepStrictEqual(E.displayPercents({ r: 33.4, y: 33.3, b: 33.3, k: 0, w: 0 }), { r: '34%', y: '33%', b: '33%', k: '0%', w: '0%' });
-  assert.strictEqual(E.displayPercents({ r: 0.3, w: 99.7 }).r, '<1%');
-  assert.strictEqual(E.displayPercents({ r: 0.3, w: 99.7 }).w, '100%');
+  assert.deepStrictEqual(E.displayPercents({ r: 0.6, w: 99.4 }), { r: '1%', y: '0%', b: '0%', k: '0%', w: '99%' });
   const rng = E.mulberry32(65);
-  for (let i = 0; i < 2000; i++) {
-    const raw = [rng(), rng(), rng(), rng() * 0.3, rng()]; const tot = raw.reduce((a, x) => a + x, 0);
-    const c = { r: raw[0] / tot * 100, y: raw[1] / tot * 100, b: raw[2] / tot * 100, k: raw[3] / tot * 100, w: raw[4] / tot * 100 };
+  for (let i = 0; i < 3000; i++) {
+    const raw = [rng(), rng(), rng(), rng() * 0.05, rng() * (i % 3 ? 1 : 0.02)]; const tot = raw.reduce((a, x) => a + x, 0);
+    const c = E.snapTraces({ r: raw[0] / tot * 100, y: raw[1] / tot * 100, b: raw[2] / tot * 100, k: raw[3] / tot * 100, w: raw[4] / tot * 100 });
     const d = E.displayPercents(c); let sum = 0;
     for (const k of ['r', 'y', 'b', 'k', 'w']) {
-      assert.ok(/^(\d{1,3}|<1)%$/.test(d[k]), d[k]);
-      if (d[k] !== '<1%') { const n = parseInt(d[k], 10); sum += n; assert.ok(Math.abs(n - c[k]) < 1, `${k} ${c[k]} shown ${d[k]}`); }
-      else assert.ok(c[k] > 0 && c[k] < 1);
-      if (c[k] === 0) assert.strictEqual(d[k], '0%');
+      assert.ok(/^\d{1,3}%$/.test(d[k]), d[k]);
+      const n = parseInt(d[k], 10); sum += n;
+      assert.ok(Math.abs(n - c[k]) < 1.5, `${k} ${c[k]} shown ${d[k]}`);
+      if (c[k] === 0) assert.strictEqual(d[k], '0%'); else assert.ok(n >= 1, `${k} ${c[k]} shown as 0%`);
     }
-    if (!Object.values(d).includes('<1%')) assert.strictEqual(sum, 100, JSON.stringify(c));
+    assert.strictEqual(sum, 100, JSON.stringify(c));
   }
-  // a pour sequence through the real model always reads 100 total until a trace appears
-  let c = { ...E.FRESH_COMP }; for (let i = 0; i < 40; i++) { c = E.addUnits(c, 'b', 1); const d = E.displayPercents(c); assert.strictEqual(['r','y','b','k','w'].reduce((a, k) => a + (parseInt(d[k], 10) || 0), 0), 100); }
+  assert.ok(!fs.readFileSync(path.join(__dirname, '..', 'engine.js'), 'utf8').includes("'<1%'"), 'the <1% display is back');
+});
+console.log('— round 68: no traces, and a remove control (Franklin) —');
+test('snapTraces: any paint under TRACE_PCT (0.5%) after a dose is set to 0; the rest renormalize to 100', () => {
+  assert.strictEqual(E.TRACE_PCT, 0.5);
+  const c = E.snapTraces({ r: 0.4, y: 0, b: 30, k: 0, w: 69.6 });
+  assert.strictEqual(c.r, 0); assert.ok(Math.abs(c.b + c.w - 100) < 1e-9 && Math.abs(c.b / c.w - 30 / 69.6) < 1e-9);
+  assert.deepStrictEqual(E.snapTraces({ r: 0.5, w: 99.5 }), E.normalizeComp({ r: 0.5, w: 99.5 })); // 0.5 itself stays
+  // diluting a 10% red pot with white: red used to hang at "<1%" for ~230 units; now it is gone at under 0.5%
+  let p = E.normalizeComp({ r: 10, w: 90 }), n = 0;
+  while (p.r > 0) { p = E.addUnits(p, 'w', 1); n++; assert.ok(n < 400); }
+  const ln = Math.log, expect = Math.ceil(ln(10 / 0.5) / ln(101 / 100));
+  assert.ok(Math.abs(n - expect) <= 1, `red reached 0 after ${n} units (expected ~${expect})`);
+  // and no dose anywhere ever leaves a 0 < x < 0.5 component
+  const rng = E.mulberry32(68); let q = { ...E.FRESH_COMP };
+  for (let i = 0; i < 4000; i++) {
+    const k = ['r', 'y', 'b', 'k', 'w'][Math.floor(rng() * 5)];
+    q = rng() < 0.3 ? E.removeUnits(q, k, 1) : E.addUnits(q, k, 1 + Math.floor(rng() * 8));
+    for (const x of Object.values(q)) assert.ok(x === 0 || x >= E.TRACE_PCT, JSON.stringify(q));
+    assert.ok(Math.abs(Object.values(q).reduce((a, x) => a + x, 0) - 100) < 1e-6);
+  }
+});
+test('every bank recipe is reachable under the snap rule: each paint 0 or >= 0.5%, and its stored de reproduces', () => {
+  for (const c of bank) {
+    for (const [k, v] of Object.entries(c.recipe)) assert.ok(v === 0 || v >= E.TRACE_PCT, `${c.name} ${k}=${v}`);
+    const de = E.deltaE2000(E.hexToLab(E.mixColor(E.snapTraces(c.recipe))), E.hexToLab(c.hex));
+    assert.ok(Math.abs(de - c.de) < 0.006, `${c.name}: stored ${c.de}, recomputed ${de}`);
+  }
+  assert.ok(/E\.snapTraces\(comp\)/.test(fs.readFileSync(path.join(__dirname, '..', 'tools', 'solve-recipes.js'), 'utf8')), 'solver ignores the snap rule');
+});
+test('removeUnits: tap takes ~1% of that paint out, the rest grow back in proportion, a paint never goes negative', () => {
+  const a = E.normalizeComp({ r: 10, b: 30, w: 60 });
+  const b = E.removeUnits(a, 'r', 1);
+  assert.ok(b.r < a.r && a.r - b.r > 0.85 && a.r - b.r < 1.0, `removed ${a.r - b.r}`);
+  assert.ok(Math.abs(b.b / b.w - 0.5) < 1e-9, 'others not proportional');
+  assert.ok(b.b > a.b && b.w > a.w);
+  let c = a, taps = 0; while (c.r > 0) { c = E.removeUnits(c, 'r', 1); taps++; }
+  assert.ok(taps >= 9 && taps <= 10, `10% red cleared in ${taps} taps`);
+  assert.deepStrictEqual(E.removeUnits(E.FRESH_COMP, 'r', 1), E.FRESH_COMP);
+  // time to clear 10% red by holding (press unit + the bucket ramp): well under half a second
+  let units = 1, t = 0; while (units < taps) { t += 1 / 30; units = 1 + Math.floor(E.pourUnitsAt(t)); }
+  assert.ok(t < 0.35, `hold clears 10% in ${t.toFixed(2)} s`);
+});
+test('remove badge markup: five separate buttons outside the discs (not nested), hidden until paint is in, 40px hit area, a11y', () => {
+  for (const [k, n] of [['r', 1], ['y', 2], ['b', 3], ['k', 4], ['w', 5]]) {
+    const m = htmlSrc.match(new RegExp(`<button class="premove" type="button" id="rm-${k}" data-rm="${k}" hidden aria-keyshortcuts="Shift\\+${n}"[^>]*aria-label="Remove [a-z]+ paint">−</button>`));
+    assert.ok(m, `rm-${k} missing`);
+  }
+  assert.ok(/\.premove \{[^}]*width: 30px; height: 30px/.test(htmlSrc) && /\.premove::before \{[^}]*inset: -6px/.test(htmlSrc), 'badge size / hit area');
+  assert.ok(/\.premove \{[^}]*touch-action: none/.test(htmlSrc), 'a hold would scroll the page');
+  assert.ok(/#stage\.locked \.premove \{ display: none; \}/.test(htmlSrc), 'badges on a finished round');
+  assert.ok(gameSrc.includes("const show = !round.finished && round.pot[b] > 0 && pct[b] !== '100%';"));
+  assert.ok(gameSrc.includes('`Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. Hold to keep removing`'));
+  assert.ok(gameSrc.includes("e.preventDefault(); e.stopPropagation();"), 'a badge press could reach the disc or pot');
+  assert.ok(gameSrc.includes("btn.addEventListener('click', e => { if (e.detail === 0) removePaint(key); });"), 'keyboard activation');
+});
+test('remove hold: same ramp as the bucket, ONE undo step per hold, stops at 0, keeps the selection; Shift+1–5 shortcut; copy', () => {
+  const f = gameSrc.slice(gameSrc.indexOf('function startRemove('), gameSrc.indexOf('function stopRemove('));
+  assert.ok(f.includes('beginGesture();') && f.includes('E.pourUnitsAt(sec)') && f.includes('Math.min(6,'), 'ramp / gesture');
+  assert.ok(!f.includes('selectedBucket'), 'removing changes the selection');
+  assert.ok(gameSrc.slice(gameSrc.indexOf('function stopRemove('), gameSrc.indexOf('function removePaint(')).includes('endGesture();'));
+  assert.ok(gameSrc.includes("{ Digit1: 'r', Digit2: 'y', Digit3: 'b', Digit4: 'k', Digit5: 'w' }[e.code]"));
+  assert.ok(htmlSrc.includes('tap its <b>−</b> to take some out') && htmlSrc.includes('<b>Taking paint out:</b>') && htmlSrc.includes('<kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd> remove 1% of that paint'));
+  assert.ok(!htmlSrc.includes('&lt;1%'), 'Tips still mention <1%');
 });
 test('disc % markup: on all five discs, no taps (pointer-events none), legible ink, aria-label, rAF-throttled, pot number-free', () => {
   for (const id of ['bucket-r', 'bucket-y', 'bucket-b', 'bucket-k', 'bucket-base'])
