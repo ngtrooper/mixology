@@ -744,5 +744,23 @@ test('icons, manifest and og:image exist, are linked, and are real PNGs of the r
   for (const s of ['rel="manifest"', 'rel="apple-touch-icon"', 'icons/icon.svg', 'og:image" content="https://ngtrooper.github.io/mixology/icons/og-image.png', 'summary_large_image', 'name="theme-color"'])
     assert.ok(htmlSrc.includes(s), 'missing ' + s);
 });
+console.log('— round 12: spoiler-free sharing —');
+test('share text + PNG card never contain the color name (hook line instead), mix color or recipe', () => {
+  const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('async function doShare'));
+  assert.ok(share.includes('`🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — How well do you know your colors?`'), 'share headline is not the hook');
+  assert.ok(!/\.name\b/.test(share), 'share text references the color name');
+  const card = gameSrc.slice(gameSrc.indexOf('function drawShareCard'), gameSrc.indexOf('function roundRect'));
+  assert.ok(card.length > 500, 'share card renderer missing');
+  assert.ok(!/\.name\b|\.hex\b|recipe|mixColor|colorForDay/.test(card), 'share card can leak the name / color / recipe');
+  assert.ok(card.includes('How well do you know your colors?'), 'card has no hook line');
+  // duel URL carries only d / p / x, never a name
+  const duel = gameSrc.slice(gameSrc.indexOf('function duelUrlFor'), gameSrc.indexOf('function parseDuel'));
+  assert.ok(!/\.name\b|&n=/.test(duel), 'duel link carries the name');
+  // today's incoming duel (not yet played) must not show the name
+  const md = gameSrc.slice(gameSrc.indexOf('function maybeShowDuel'), gameSrc.indexOf('function escapeHtml'));
+  const todayBranch = md.slice(md.indexOf('incomingDuel.day >= DAY'), md.indexOf('} else {', md.indexOf('incomingDuel.day >= DAY')));
+  assert.ok(!/theirColor|\.name/.test(todayBranch), "today's duel card spoils");
+  assert.ok(htmlSrc.includes('id="btn-card"') && gameSrc.includes('navigator.canShare({ files: [file] })'), 'no PNG card / file share');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

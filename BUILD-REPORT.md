@@ -2,6 +2,18 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 12 (2026-10-18, Grok Bot): SPOILER-FREE SHARING · PNG RESULT CARD
+- **Franklin's request:** shared text no longer names the color. The headline is now `🎨 MIXOLOGY #1 — How well do you know your colors?`, followed by the score/tries line, streak and duel link.
+  - Duel links carry only d/p/x, never a name.
+  - An incoming duel for today (when the visitor hasn't played) still shows no name or color. The game screen itself shows the name as usual.
+  - A test asserts the name is absent from the share text, the card renderer and the duel URL.
+- **PNG result card:** `drawShareCard(day)` renders a 1080×1080 canvas with the wordmark, #N and date, the hook line, the big %, the band, try bars and the streak.
+  - It is spoiler-free: no name, no mix or official color, no recipe.
+  - **Share result** attaches the PNG when `navigator.canShare({files})` allows it (phones), otherwise it falls back to text share, then to clipboard. A cancelled share no longer falls through to copying.
+  - A small **🖼 Save image card** link downloads `mixology-<N>.png`.
+  - Both are daily-only (hidden in practice).
+- Version 1.9.0.
+
 ## Round 11 (2026-10-18, Grok Bot, original brief priority 4): PUBLISHING BASICS
 - `icons/icon.svg` is the app mark: a pot with an R/Y/B wedge rim, a mixed center and a falling red drop. Rendered PNGs: favicon-32, apple-touch-icon (180, opaque), icon-192, icon-512, and icon-maskable-512 (with a safe-zone pad).
 - `manifest.webmanifest` sets standalone display, start_url `./` and paper theme/background colors.

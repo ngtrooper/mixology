@@ -534,7 +534,8 @@ function shareText(day) {
   const final = scoredAttempt(rec);
   const s = store.data;
   const lines = [
-    `🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — "${rec.name.toUpperCase()}"`,
+    // Franklin: never put the color's name in shared text, only the hook.
+    `🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — How well do you know your colors?`,
     'My mix: ██████',
     `${rec.pct}% accuracy — ${rec.band} · Tries: ${rec.attempts.map(a => a.pct + '%').join(' · ')}`,
     `🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? ` · Par streak ${s.parStreak}` : ''),
@@ -542,13 +543,85 @@ function shareText(day) {
   ];
   return lines.join('\n');
 }
-async function doShare(btn, text, okLabel) {
+async function doShare(btn, text, okLabel, file) {
   const done = () => { const old = btn.textContent; btn.textContent = okLabel; setTimeout(() => { btn.textContent = old; }, 1600); };
   if (navigator.share) {
-    try { await navigator.share({ text }); return; } catch (e) { /* fall through to copy */ }
+    // Round 12: attach the PNG card when the platform can share files.
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], text }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
   }
   try { await navigator.clipboard.writeText(text); done(); }
   catch (e) { window.prompt('Copy your result:', text); }
+}
+
+/* Round 12: a 1080x1080 PNG result card, drawn on a canvas.
+ * SPOILER-FREE by design. It shows the number, the hook line, %, band, tries
+ * and streak, but never the color's name, the player's mix color, the
+ * official color or a recipe,
+ * so a friend who hasn't played yet can't read the answer off the image. */
+function drawShareCard(day) {
+  const rec = store.data.days[day];
+  if (!rec) return null;
+  const S = 1080, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  const sans = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  x.fillStyle = '#f6f1e7'; x.fillRect(0, 0, S, S);
+  x.fillStyle = '#fffdf8'; x.strokeStyle = '#ddd3c0'; x.lineWidth = 4;
+  roundRect(x, 60, 60, S - 120, S - 120, 48); x.fill(); x.stroke();
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  x.fillStyle = '#1c1a17'; x.font = `800 64px ${sans}`;
+  if ('letterSpacing' in x) x.letterSpacing = '10px';
+  x.fillText('MIXOLOGY', S / 2 - 12, 190);
+  if ('letterSpacing' in x) x.letterSpacing = '0px';
+  const ww = x.measureText('MIXOLOGY').width;
+  x.fillStyle = '#b3541e'; x.beginPath(); x.arc(S / 2 + ww / 2 + 30, 180, 9, 0, 7); x.fill();
+  x.fillStyle = '#7a7264'; x.font = `500 34px ${sans}`;
+  x.fillText([dayTag(day), shortDate(day)].filter(Boolean).join(' · '), S / 2, 250);
+  x.fillStyle = '#1c1a17'; x.font = `italic 62px Georgia, "Times New Roman", serif`;
+  x.fillText('How well do you know your colors?', S / 2, 390);
+  x.font = `800 250px ${sans}`; x.fillText(`${rec.pct}%`, S / 2, 650);
+  x.font = `800 44px ${sans}`;
+  if ('letterSpacing' in x) x.letterSpacing = '6px';
+  x.fillText(String(rec.band || '').toUpperCase(), S / 2, 730);
+  if ('letterSpacing' in x) x.letterSpacing = '0px';
+  // try pips: neutral ink, filled to each attempt's %, so no color leaks
+  const tries = rec.attempts || [], pw = 300, ph = 26, gap = 40;
+  const tx0 = S / 2 - (tries.length * pw + (tries.length - 1) * gap) / 2;
+  tries.forEach((a, i) => {
+    const px = tx0 + i * (pw + gap), py = 822, best = a.pct === rec.pct;
+    x.font = `${best ? 800 : 600} 30px ${sans}`; x.fillStyle = best ? '#1c1a17' : '#7a7264';
+    x.fillText(`Try ${i + 1} · ${a.pct}%`, px + pw / 2, py - 16);
+    x.fillStyle = '#efe8da'; roundRect(x, px, py, pw, ph, ph / 2); x.fill();
+    x.save(); roundRect(x, px, py, pw, ph, ph / 2); x.clip();
+    x.fillStyle = best ? '#1c1a17' : '#9a917f'; x.fillRect(px, py, pw * Math.max(0, Math.min(100, a.pct)) / 100, ph); x.restore();
+  });
+  const s = store.data;
+  x.fillStyle = '#1c1a17'; x.font = `600 38px ${sans}`;
+  x.fillText(`🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? `  ·  Par streak ${s.parStreak}` : ''), S / 2, 940);
+  x.fillStyle = '#7a7264'; x.font = `500 30px ${sans}`;
+  x.fillText('ngtrooper.github.io/mixology', S / 2, 990);
+  return c;
+}
+function roundRect(x, l, t, w, h, r) {
+  x.beginPath(); x.moveTo(l + r, t); x.arcTo(l + w, t, l + w, t + h, r); x.arcTo(l + w, t + h, l, t + h, r);
+  x.arcTo(l, t + h, l, t, r); x.arcTo(l, t, l + w, t, r); x.closePath();
+}
+function shareCardFile(day) {
+  return new Promise(res => {
+    let c = null; try { c = drawShareCard(day); } catch (e) { c = null; }
+    if (!c || !c.toBlob) return res(null);
+    c.toBlob(b => res(b ? new File([b], `mixology-${dayTag(day).replace('#', '') || day}.png`, { type: 'image/png' }) : null), 'image/png');
+  });
+}
+async function saveShareCard(btn) {
+  const day = round && round.mode === 'daily' ? round.day : DAY;
+  const f = await shareCardFile(day); if (!f) return;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  const old = btn.textContent; btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = old; }, 1600);
 }
 
 /* ---------------- rendering -------------------------------------------- */
@@ -633,6 +706,7 @@ function renderAll() {
     $('reveal-recipes').innerHTML = recipesHTML(round.color, fin);
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
+    $('card-row').style.display = round.mode === 'daily' ? 'block' : 'none';
   } else {
     $('reveal').style.display = 'none';
     $('reveal-recipes').innerHTML = '';
@@ -896,7 +970,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(
 $('btn-undo').addEventListener('click', undo);
 $('btn-reset').addEventListener('click', resetPot);
 $('btn-seal').addEventListener('click', () => seal());
-$('btn-share').addEventListener('click', ev => doShare(ev.currentTarget, shareText(), 'Copied ✓'));
+$('btn-share').addEventListener('click', async ev => {
+  const btn = ev.currentTarget, day = round && round.mode === 'daily' ? round.day : DAY;
+  const file = navigator.canShare ? await shareCardFile(day) : null;
+  doShare(btn, shareText(), 'Copied ✓', file);
+});
+$('btn-card').addEventListener('click', ev => saveShareCard(ev.currentTarget));
 $('btn-duel').addEventListener('click', ev => {
   const day = round && round.mode === 'daily' ? round.day : DAY;
   const rec = store.data.days[day];
@@ -918,7 +997,8 @@ initDaily();
 
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
-  version: '1.8.0',
+  drawShareCard,
+  version: '1.9.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

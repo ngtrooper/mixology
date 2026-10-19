@@ -49,6 +49,8 @@ Consequences that are **invariants**, not implementation details:
   mix" (scored attempt) bars. They are **never** included in share text or
   duel links, and a test enforces this.
 - Subtitle: "How well do you know your colors?"
+- **Sharing never names the color** (round 12): the share text and PNG card use the hook
+  line instead of the name and show no colors or recipes. The card is drawn by `drawShareCard`.
 - **No hints** on attempts (just %), **no live caption** naming the mix,
   **no counts/tallies** on the main screen. Tool dosages live only in the
   Tips overlay. The game is meant to be hard: some people can't visualize
