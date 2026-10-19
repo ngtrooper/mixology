@@ -2,6 +2,33 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 78 (2026-10-19, Grok Bot): PRIVATE ANALYTICS, GOATCOUNTER, SHIPPED OFF (Franklin)
+- **New `analytics.js`** (loaded before game.js, cache-busted like the rest). The constant `ANALYTICS_CODE = ''` at the top of the file is the one place to edit.
+  - Empty means disabled: no script tag and no request. That was verified in the browser: 0 requests to zgo.at or goatcounter.com.
+  - When set, it injects `<script async src="https://gc.zgo.at/count.js" data-goatcounter="https://<code>.goatcounter.com/count">`. The automatic page view uses `location.pathname` only, so duel query strings are never sent.
+- **Skipped:**
+  - localhost, private IPs and `file:`.
+  - `navigator.webdriver` (headless test runs).
+  - `?noanalytics`, which also sets the permanent `localStorage['mixology.noanalytics.v1'] = '1'`. `?analytics=on` clears it.
+  - GoatCounter's `skipgc = 't'`.
+- **Events:** `goatcounter.count({path, title, event: true})`, deduped once per local day per browser in `mixology.analytics.sent.v1`, and queued until count.js is ready (polls 500 ms for 30 s, then gives up).
+  - Event list: open, start-#N, finish-#N, score-band-<tier|none>, return-day-0..7|8+, streak-<1,2,3,5,7,14,30+>, played-days-<same steps>, share, duel-open.
+  - A regex whitelist (`validEvent`) drops anything else, so a color name can never be sent.
+- **Robustness:** every call is in try/catch. A blocked count.js (onerror) turns analytics off for the session. If analytics.js itself is ad-blocked, `window.MixAnalytics` is undefined and game.js's `track()` is a no-op.
+- **Game hooks** (game.js):
+  - On load: open, return-day and duel-open.
+  - `beginGesture` (first dose of a daily round): start-#N.
+  - `finish()` for a daily: finish-#N, score-band, streak, played-days and return-day.
+  - The Share button: share.
+- **UI:** nothing changes while analytics is off. When on, the Tips overlay shows a small "No cookies. Anonymous play counts only." line.
+- **Browser check** (the game served from a non-local test host, count.js stubbed so nothing reached GoatCounter):
+  - Empty code: off, 0 requests.
+  - Test code: page view `/mixology/`, then open, return-day-1, duel-open, start-#2, finish-#2, score-band-none, streak-2, played-days-2 and share. A second Share tap was deduped.
+  - `?noanalytics` and the flag: off, 0 requests.
+  - Script blocked: game fully playable, no errors.
+- **Tests:** 7 new, covering the constant shipped empty, disabled-when-empty, the script attributes, the skip rules, once-per-day dedupe and the day reset, buckets, the whitelist (no bank name can be an event), and the game hooks. The cache-bust test now expects analytics.js. 195 tests.
+- Version 1.20.0.
+
 ## Round 77 (2026-10-19, Grok Bot): 100% REACHABLE, HINT AFTER ATTEMPT 1, "MIXOLOGY: DAILY COLOR MIX" (Franklin)
 Context: /workspace/research/mixology_competitors.md found that players hate "looks perfect but can't hit 100%", and that similar games build targets from whole drops.
 

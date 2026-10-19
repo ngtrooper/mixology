@@ -174,6 +174,7 @@ let gestureOpen = false;
 function beginGesture() {
   if (gestureOpen || !round) return;
   gestureOpen = true;
+  if (round.mode === 'daily' && !round.finished) trackDaily('start', round.day); // round 78: first dose of the day
   round.undo.push({ snapshot: { ...round.pot } });
 }
 function endGesture() { gestureOpen = false; }
@@ -418,6 +419,26 @@ function hintHTML(att) {
   return t ? `<span id="hint" class="hint"><span class="hint-k">Hint</span> ${escapeHtml(t)}</span>` : '';
 }
 
+/* Round 78 (Franklin): anonymous play counts via analytics.js. A no-op while
+ * ANALYTICS_CODE is empty, when analytics.js is blocked, and for opted-out
+ * browsers. Only puzzle numbers and coarse buckets: never a name or a score. */
+const MA = window.MixAnalytics;
+function track(name) { try { if (MA) MA.track(name); } catch (e) { /* never break the game */ } }
+function trackDaily(kind, day) { const n = E.publicNumber(day); if (n) track(`${kind}-#${n}`); }
+function trackReturn() {
+  if (!MA) return;
+  const f = firstPlayedDay(); if (f == null) return;
+  const b = MA.returnBucket(DAY - f); if (b) track('return-day-' + b);
+}
+function trackFinish(day, pct) {
+  if (!MA) return;
+  trackDaily('finish', day);
+  track('score-band-' + MA.scoreBand(pct));
+  const st = MA.stepBucket(liveStreaks().streak); if (st) track('streak-' + st);
+  const pd = MA.stepBucket(Object.keys(store.data.days).length); if (pd) track('played-days-' + pd);
+  trackReturn();
+}
+
 function finish() {
   stopPour();
   if (!round || round.finished || !round.attempts.length) return;
@@ -459,6 +480,7 @@ function finish() {
   revealEntrance(final.pct);
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
   queueDiscoveryToasts(collectRound(round.attempts, round.color.name)); // round 69: announced only now, at the reveal
+  if (round.mode === 'daily') trackFinish(round.day, final.pct); // round 78
 }
 
 /* Round 17: screen-reader announcements (polite live region). It only
@@ -1519,6 +1541,7 @@ $('btn-reset').addEventListener('click', resetPot);
 $('btn-seal').addEventListener('click', () => seal());
 $('btn-share').addEventListener('click', async ev => {
   const btn = ev.currentTarget, day = round && round.mode === 'daily' ? round.day : DAY;
+  track('share'); // round 78
   const file = navigator.canShare ? await shareCardFile(day) : null;
   doShare(btn, shareText(), 'Copied ✓', file);
 });
@@ -1555,11 +1578,14 @@ $('btn-mute').addEventListener('click', () => {
 renderMute();
 
 initDaily();
+// round 78: anonymous counts (no-op until ANALYTICS_CODE is set in analytics.js)
+track('open'); trackReturn(); if (incomingDuel) track('duel-open');
+try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = false; } catch (e) { /* ignore */ }
 
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.19.0',
+  version: '1.20.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

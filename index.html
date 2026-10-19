@@ -320,6 +320,7 @@
   #reveal-next { display: none; text-align: center; font-size: 12.5px; color: var(--muted); letter-spacing: .5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
   #noscript { margin: 12px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: var(--ink); text-align: center; font-size: 14px; }
   .tips-foot { text-align: center; margin-top: 14px; }
+  .tips-privacy { text-align: center; margin: 8px 0 0; font-size: 11.5px; color: var(--muted); } /* round 78 */
   #btn-replay-intro { background: none; border: none; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
   #btn-card { background: none; border: none; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
   #btn-share { background: var(--ink); color: var(--paper); border: none; }
@@ -789,6 +790,7 @@
     <p>The reveal shows the official recipe next to your mix. <b>Share result</b> sends your score without naming the color, so no spoilers. On phones it attaches an image card. <b>Copy duel link</b> lets a friend try to beat you on the same color.</p>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg>opens your calendar: every day you've played. The <b>Stats</b> button (bars) shows your streaks and how your scores spread, and <b>Collection</b> (tiles) shows every named color you've discovered. All of it is saved on this device only.</p>
     <p class="tips-foot"><button id="btn-replay-intro" type="button">Replay the intro</button></p>
+    <p id="privacy-note" class="tips-privacy" hidden>No cookies. Anonymous play counts only.</p>
   </div>
 </div>
 
@@ -810,9 +812,10 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.19.0"></script>
-<script src="schedule.js?v=1.19.0"></script>
-<script src="engine.js?v=1.19.0"></script>
-<script src="game.js?v=1.19.0"></script>
+<script src="colors.js?v=1.20.0"></script>
+<script src="schedule.js?v=1.20.0"></script>
+<script src="engine.js?v=1.20.0"></script>
+<script src="analytics.js?v=1.20.0"></script>
+<script src="game.js?v=1.20.0"></script>
 </body>
 </html>

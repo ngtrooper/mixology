@@ -912,7 +912,7 @@ test('script tags are cache-busted with the game version (no new-JS/old-HTML mis
   const v = (gameSrc.match(/version: '([\d.]+)'/) || [])[1];
   assert.ok(v, 'no version');
   const tags = [...htmlSrc.matchAll(/<script src="([a-z]+)\.js(\?v=[\d.]+)?"><\/script>/g)];
-  assert.deepStrictEqual(tags.map(m => m[1]), ['colors', 'schedule', 'engine', 'game']);
+  assert.deepStrictEqual(tags.map(m => m[1]), ['colors', 'schedule', 'engine', 'analytics', 'game']); // round 78: analytics.js
   for (const m of tags) assert.strictEqual(m[2], '?v=' + v, `${m[1]}.js not stamped with ?v=${v} (bump both together)`);
 });
 console.log('— round 33: headline title case —');
@@ -1580,6 +1580,71 @@ console.log('— round 77: 100% reachable, hint after attempt 1, title —');
     assert.strictEqual(m.name, 'Mixology: Daily Color Mix'); assert.strictEqual(m.short_name, 'Mixology');
     assert.ok(hSrc.includes('<span class="h1-sub">Daily Color Mix</span></h1>'));
     assert.ok(gSrc.includes('How well do you know your colors?'));
+  });
+}
+console.log('— round 78: private analytics (GoatCounter) —');
+{
+  const A = require('../analytics.js');
+  const aSrc = fs.readFileSync(path.join(__dirname, '..', 'analytics.js'), 'utf8');
+  const gSrc = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
+  const mem = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, m }; };
+  const env = o => Object.assign({ code: 'mixology', protocol: 'https:', hostname: 'ngtrooper.github.io', search: '', webdriver: false, storage: mem() }, o);
+  test('one config constant, shipped EMPTY (analytics off); empty code means no script and no request', () => {
+    assert.strictEqual((aSrc.match(/^const ANALYTICS_CODE = '[^']*';$/gm) || []).length, 1);
+    assert.strictEqual(A.ANALYTICS_CODE, '', 'push with the code empty until Franklin sends it');
+    assert.strictEqual(A.disabledReason(env({ code: '' })), 'no code');
+    // start() returns before creating the script tag whenever there is a reason
+    const st = aSrc.slice(aSrc.indexOf('function start()'), aSrc.indexOf('function track('));
+    assert.ok(st.indexOf("if (!enabled || !root.document) return;") < st.indexOf("createElement('script')"));
+    assert.ok(A.track('open') === false && A.enabled === false);
+  });
+  test('count.js: async from gc.zgo.at with data-goatcounter https://<code>.goatcounter.com/count; page view path has no query string', () => {
+    assert.strictEqual(A.SCRIPT_SRC, 'https://gc.zgo.at/count.js');
+    assert.ok(aSrc.includes("s.async = true; s.src = SCRIPT_SRC;"));
+    assert.ok(aSrc.includes("s.setAttribute('data-goatcounter', `https://${encodeURIComponent(ANALYTICS_CODE)}.goatcounter.com/count`);"));
+    assert.ok(aSrc.includes("{ path: loc.pathname || '/' }"));
+    assert.ok(aSrc.includes('gc.count({ path: name, title: name, event: true })'));
+  });
+  test('skipped: localhost/private/file, automated browsers, ?noanalytics, opt-out flag, skipgc', () => {
+    assert.strictEqual(A.disabledReason(env()), '');
+    for (const h of ['localhost', '127.0.0.1', '192.168.1.5', '10.0.0.2', '172.20.1.1', 'x.localhost', '']) assert.ok(A.disabledReason(env({ hostname: h })), h);
+    assert.strictEqual(A.disabledReason(env({ protocol: 'file:' })), 'file');
+    assert.strictEqual(A.disabledReason(env({ webdriver: true })), 'automated');
+    assert.ok(A.disabledReason(env({ search: '?noanalytics' })) && A.disabledReason(env({ search: '?d=1&noanalytics=1' })));
+    const s1 = mem(); s1.setItem(A.OPTOUT_KEY, '1'); assert.ok(A.disabledReason(env({ storage: s1 })));
+    const s2 = mem(); s2.setItem('skipgc', 't'); assert.ok(A.disabledReason(env({ storage: s2 })));
+    const s3 = mem(); s3.setItem(A.OPTOUT_KEY, '0'); assert.strictEqual(A.disabledReason(env({ storage: s3 })), '');
+  });
+  test('each event at most once per day per browser; a new day resets', () => {
+    const st = mem();
+    assert.strictEqual(A.claimOncePerDay(st, 'open', '2026-10-19'), true);
+    assert.strictEqual(A.claimOncePerDay(st, 'open', '2026-10-19'), false);
+    assert.strictEqual(A.claimOncePerDay(st, 'share', '2026-10-19'), true);
+    assert.strictEqual(A.claimOncePerDay(st, 'open', '2026-10-20'), true);
+    assert.deepStrictEqual(JSON.parse(st.getItem(A.SENT_KEY)), { day: '2026-10-20', sent: ['open'] });
+    const bad = mem(); bad.setItem(A.SENT_KEY, '{oops'); assert.strictEqual(A.claimOncePerDay(bad, 'open', '2026-10-19'), true);
+  });
+  test('buckets: streak/played-days 1,2,3,5,7,14,30+; return-day 0..7, 8+; score bands = star tiers', () => {
+    assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6, 7, 13, 14, 29, 30, 365].map(A.stepBucket), [null, '1', '2', '3', '3', '5', '5', '7', '7', '14', '14', '30+', '30+']);
+    assert.deepStrictEqual([-1, 0, 1, 2, 7, 8, 40].map(A.returnBucket), [null, '0', '1', '2', '7', '8+', '8+']);
+    assert.deepStrictEqual([0, 84, 85, 89, 90, 96, 97, 99, 100].map(A.scoreBand), ['none', 'none', 'bronze', 'bronze', 'silver', 'silver', 'gold', 'gold', 'diamond']);
+  });
+  test('only whitelisted anonymous event shapes; no bank color name can ever be an event', () => {
+    for (const ok of ['open', 'share', 'duel-open', 'start-#2', 'finish-#120', 'score-band-gold', 'return-day-1', 'return-day-8+', 'streak-30+', 'played-days-7']) assert.ok(A.validEvent(ok), ok);
+    // ('bronze', 'silver', 'gold' are also bank names; score-band-<tier> is the star tier, so those three are allowed only there)
+    const TIERS = ['none', 'bronze', 'silver', 'gold', 'diamond'];
+    for (const n of bank.map(c => c.name)) for (const ev of [n, 'start-' + n, 'finish-' + n, ...(TIERS.includes(n) ? [] : ['score-band-' + n])]) assert.ok(!A.validEvent(ev), ev);
+    for (const bad of ['score-97', 'streak-4', 'return-day-9', 'start-#', 'finish-#2 lipstick', '']) assert.ok(!A.validEvent(bad), bad);
+    // game.js builds events only from puzzle numbers and buckets
+    const calls = [...gSrc.matchAll(/(?<!function )track\(([^;]*?)\);/g)].map(m => m[1]).filter(c => c !== "name"); // the wrapper forwards its argument
+    assert.ok(calls.length >= 6 && calls.every(c => !/name|hex|recipe|comp|\.pct\b/.test(c)), calls.join(' | '));
+  });
+  test('game hooks: open, return-day, duel-open at load; start on first daily dose; finish/band/streak/played-days; share', () => {
+    assert.ok(gSrc.includes("track('open'); trackReturn(); if (incomingDuel) track('duel-open');"));
+    assert.ok(gSrc.includes("if (round.mode === 'daily' && !round.finished) trackDaily('start', round.day);"));
+    assert.ok(gSrc.includes("if (round.mode === 'daily') trackFinish(round.day, final.pct);"));
+    assert.ok(gSrc.includes("track('share'); // round 78"));
+    assert.ok(gSrc.includes("function track(name) { try { if (MA) MA.track(name); } catch (e) { /* never break the game */ } }"));
   });
 }
 console.log(`\n${pass} passed, ${fail} failed`);
