@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 31 (2026-10-18, Grok Bot): CALM FINISHED STATE
+- After the round, the big seal button no longer looks like a faded call to action. It becomes "Round complete ✓": a dashed outline with muted text at full opacity, in both light and dark.
+- The best attempt keeps its ink ring. Shots: `r31-after-finished-actions-{light,dark}`. Test added.
+
 ## Round 30 (2026-10-18, Grok Bot): DUEL CARD POLISH
 - Finished duel: title-cased name ("Duel · #1 “Lipstick”"), bold scores, and the winner's swatch ringed in accent with a bold label. Verdict line is bold. "They take this one. Rematch tomorrow." fixes the dash style.
 - The pending (today, not yet played) card gets an accent left border. It is still spoiler-free: no name, no color, no score.

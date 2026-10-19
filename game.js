@@ -780,7 +780,8 @@ function renderAll() {
 
   const sealBtn = $('btn-seal');
   sealBtn.disabled = round.finished || round.attempts.length >= MAX_ATTEMPTS;
-  sealBtn.textContent = round.finished ? 'Round complete'
+  sealBtn.classList.toggle('done', !!round.finished); // round 31: calm finished state
+  sealBtn.textContent = round.finished ? 'Round complete ✓'
     : round.attempts.length === MAX_ATTEMPTS - 1 ? `Seal final attempt` : `Seal attempt ${round.attempts.length + 1}`;
 
   const locked = round.finished;

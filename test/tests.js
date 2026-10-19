@@ -896,5 +896,9 @@ test('stats sparkline: last 14 internal days, gaps for missed days, par line, ac
   assert.ok(f.includes('y(E.PAR_PCT)') && f.includes('role="img" aria-label="Scores over the last 14 days'), 'no par line / label');
   assert.ok(f.includes('if (pts.length < 2) return'), 'sparkline drawn from a single point');
 });
+test('finished seal button is a calm "Round complete ✓" (not a washed-out call to action)', () => {
+  assert.ok(gameSrc.includes("sealBtn.classList.toggle('done', !!round.finished);") && htmlSrc.includes('#btn-seal.done, #btn-seal.done:disabled { opacity: 1;'));
+  assert.ok(htmlSrc.includes('#btn-seal:not(.done), #btn-next-practice, #btn-today { background: #b3541e; }'), 'dark mode repaints the finished button');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

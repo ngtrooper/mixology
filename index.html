@@ -240,6 +240,7 @@
   #btn-seal { background: var(--accent); color: #fff; border: none; }
   .attempt-slot.best { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   #btn-seal:disabled { opacity: .45; }
+  #btn-seal.done, #btn-seal.done:disabled { opacity: 1; background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
   #reveal { display: none; margin: 20px 0 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
   #reveal h2 { margin: 0 0 10px; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); text-align: center; }
   .vs { display: flex; gap: 12px; }
@@ -427,7 +428,7 @@
     .rbar { background: #f1ebdf; }
     .rleg i { border-color: rgba(241,235,223,.35); }
     /* white-on-accent buttons keep the light-mode accent for contrast (~5:1) */
-    #btn-seal, #btn-next-practice, #btn-today { background: #b3541e; }
+    #btn-seal:not(.done), #btn-next-practice, #btn-today { background: #b3541e; }
   }
 </style>
 </head>
