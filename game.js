@@ -1174,8 +1174,14 @@ $('cal-overlay').addEventListener('click', e => { if (e.target === $('cal-overla
     if (!btn.disabled) { btn.click(); buzz(6); }
   }, { passive: true });
 })();
-$('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
-$('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
+/* Round 34: the grid slides in from the side you're heading to. */
+function slideCal(dir) {
+  if (REDUCED_MOTION) return;
+  const g = $('cal-grid'); g.classList.remove('slide-l', 'slide-r'); void g.offsetWidth;
+  g.classList.add(dir < 0 ? 'slide-r' : 'slide-l');
+}
+$('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); slideCal(-1); });
+$('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); slideCal(1); });
 $('btn-tips-close').addEventListener('click', closeTips);
 $('tips-overlay').addEventListener('click', e => { if (e.target === $('tips-overlay')) closeTips(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeWelcome(); } });
@@ -1238,7 +1244,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.1',
+  version: '1.10.2',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

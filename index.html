@@ -338,6 +338,10 @@
     background: var(--card); border-radius: 16px; padding: 14px 14px 12px; width: 100%;
     max-width: 400px; max-height: 92vh; overflow-y: auto; position: relative;
   }
+  #cal-grid.slide-l { animation: cal-in-l .26s cubic-bezier(.2,.8,.3,1); }
+  #cal-grid.slide-r { animation: cal-in-r .26s cubic-bezier(.2,.8,.3,1); }
+  @keyframes cal-in-l { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes cal-in-r { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
   #cal-tabs { display: inline-flex; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin: 0 0 10px; }
   #cal-tabs button { border: none; background: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
   #cal-tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
@@ -607,9 +611,9 @@
   </div>
 </div>
 
-<script src="colors.js?v=1.10.1"></script>
-<script src="schedule.js?v=1.10.1"></script>
-<script src="engine.js?v=1.10.1"></script>
-<script src="game.js?v=1.10.1"></script>
+<script src="colors.js?v=1.10.2"></script>
+<script src="schedule.js?v=1.10.2"></script>
+<script src="engine.js?v=1.10.2"></script>
+<script src="game.js?v=1.10.2"></script>
 </body>
 </html>

@@ -2,6 +2,9 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 34 (2026-10-18, Grok Bot): CALENDAR MONTH SLIDE
+- Prev/next (and swipe, which uses the same buttons) slide the month grid in from the direction of travel: 0.26 s with a fade, none under reduced motion. Version 1.10.2.
+
 ## Round 33 (2026-10-18, Grok Bot): HEADLINE TITLE CASE · BALANCED NAME WRAP
 - CSS `text-transform: capitalize` rendered "Blue With A Hint Of Purple". Names now go through a headline-style `titleCase()`: small joining words stay lower case unless first, and slashes split words. Result: "Blue with a Hint of Purple", "Green/Yellow".
   - Applied to the prompt, reveal, calendar and duel card.
