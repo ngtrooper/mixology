@@ -1309,5 +1309,16 @@ console.log('— round 69: Collection (Franklin) —');
     assert.strictEqual(fam.size, E.HUE_FAMILIES.length, 'an empty family');
   });
 }
+console.log('— round 70: no long-press callout / selection in the play area —');
+test('play area: user-select/touch-callout none, tap highlight off, touch-action, listeners; reading text still selectable', () => {
+  const m = htmlSrc.match(/#stage, #stage \*, #toolbar, #toolbar \*, #attempts-list, #attempts-list \*, #actions, #actions \* \{([^}]*)\}/);
+  assert.ok(m, 'play-area selection block missing');
+  for (const p of ['-webkit-user-select: none', 'user-select: none', '-webkit-touch-callout: none', '-webkit-tap-highlight-color: transparent']) assert.ok(m[1].includes(p), p);
+  assert.ok(/#pot, \.premove \{ touch-action: none; \}/.test(htmlSrc) && /touch-action: manipulation/.test(htmlSrc));
+  assert.ok(gameSrc.includes("const PLAY_AREA = ['stage', 'toolbar', 'attempts-list', 'actions']"));
+  assert.ok(gameSrc.includes("el.addEventListener('contextmenu', e => e.preventDefault());") && gameSrc.includes("el.addEventListener('selectstart', e => e.preventDefault());"));
+  assert.ok(gameSrc.includes("{ passive: false }"), 'touchstart must be non-passive to cancel the iOS callout');
+  assert.ok(!/(#tips-panel|#reveal|body)[^{]*\{[^}]*user-select: none/.test(htmlSrc), 'reading text lost selection');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

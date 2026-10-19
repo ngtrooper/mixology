@@ -82,6 +82,7 @@ Consequences that are **invariants**, not implementation details:
   the solver's best recipe scores ≥ par** (`engine.isDailyEligible`,
   `PAR_PCT = 85`, ≈ ΔE ≤ 11.25) — one shared rule for game.js, the solver
   and the colors.js header; no day can be unwinnable at par.
+- **No selection/callout in the play area** (round 70): play-area elements are user-select/touch-callout none and cancel contextmenu and selectstart. The pot and badges also cancel touchstart. Reading text (Tips, reveal, calendar) stays selectable.
 - **Collection** (round 69, Franklin): a third Calendar overlay tab with every daily-eligible, non-retired color (853).
   - A seal discovers the nearest one within ΔE00 3, or the round's own target if it is within reach. Hard colors use their solver best + 1.
   - Discoveries are announced only at the reveal (no clues mid-round). Today's or the open round's color stays "?" until the round is finished.

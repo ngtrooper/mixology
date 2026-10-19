@@ -1275,6 +1275,23 @@ document.querySelectorAll('.tool[data-tool]').forEach(btn => {
     selectedTool = btn.dataset.tool; renderAll();
   });
 });
+/* Round 70 (Franklin, urgent): iOS/Android long-press in the play area must not
+ * select text, open the Copy / Look Up callout, show the magnifier or open a
+ * context menu. CSS does most of it; these listeners are the belt and braces.
+ * touchstart is only cancelled on the hold targets (pot, remove badges), which
+ * act on pointerdown and take keyboard clicks only, so normal taps on discs,
+ * tools and Seal still produce their click. */
+const PLAY_AREA = ['stage', 'toolbar', 'attempts-list', 'actions'].map(id => $(id)).filter(Boolean);
+for (const el of PLAY_AREA) {
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('selectstart', e => e.preventDefault());
+  el.addEventListener('pointerdown', () => { // a stray selection elsewhere must not grow into the play area
+    try { const s = window.getSelection(); if (s && s.rangeCount && !s.isCollapsed) s.removeAllRanges(); } catch (err) { /* ignore */ }
+  }, true);
+}
+for (const el of [$('pot'), ...document.querySelectorAll('.premove')]) {
+  if (el) el.addEventListener('touchstart', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+}
 /* The pot IS the canvas. Press = dose (Dropper: one drop; Pour Bucket:
  * starts pouring). Release / cancel / lost capture = stop pouring.
  * Mouse/touch clicks arrive via pointerdown; the trailing click event is
@@ -1469,7 +1486,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.14.0',
+  version: '1.14.1',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

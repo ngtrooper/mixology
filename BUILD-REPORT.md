@@ -2,6 +2,20 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 70 (2026-10-18, Grok Bot): NO LONG-PRESS CALLOUT IN THE PLAY AREA (Franklin, urgent)
+- **Bug:** on phones, holding the pot or bucket brought up the OS text callout (Copy / Find Selection / Look Up).
+- **CSS:** the whole play area (#stage, #toolbar, #attempts-list, #actions and everything in them) is `-webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent`.
+  - `touch-action: manipulation` on the stage, the tool and Seal buttons and the discs; `touch-action: none` on the pot and the "−" badges (pointer pour and hold-to-remove).
+- **JS:** `contextmenu` and `selectstart` are cancelled on those areas, and any stray selection is cleared on pointerdown.
+  - The pot and badges cancel `touchstart` (passive:false). They act on pointerdown and take keyboard clicks only, so discs, tools and Seal keep their normal taps.
+- Tips, the reveal, the calendar and the footer stay selectable (verified: the Tips paragraph selects).
+- **Playwright, WebKit iPhone 13 + Chromium Pixel 7** (Chromium long-presses use real CDP touch). After a 1.5 s hold on the pot, a disc, a badge, a tool, an attempt slot and Seal:
+  - `getSelection()` is empty, and contextmenu and selectstart are prevented on each element.
+  - Double-clicking a disc's % selects nothing.
+  - The pour still works (red 0 → 61% in a 1.5 s hold), and so does the badge hold.
+  - Normal WebKit taps still select, dose and seal.
+- Version 1.14.1. 161 tests.
+
 ## Round 69 (2026-10-18, Grok Bot): COLLECTION (Franklin)
 - **Where.** A third tab, "Collection", in the Calendar/Stats overlay. The calendar header button is now labelled "Calendar, stats and collection".
 - **What's in it.** 853 colors: every color that can be a daily (non-retired and daily-eligible).

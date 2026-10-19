@@ -181,6 +181,14 @@
   .premove:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   @keyframes rm-pop { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
   #stage.locked .premove { display: none; }
+  /* Round 70 (Franklin, urgent): no OS text selection, callout (Copy / Look Up)
+   * or magnifier from a long press anywhere in the play area. Reading text
+   * (Tips, reveal, calendar, footer) stays selectable. */
+  #stage, #stage *, #toolbar, #toolbar *, #attempts-list, #attempts-list *, #actions, #actions * {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  }
+  #stage, #toolbar button, #attempts-list, #actions button, .pigment { touch-action: manipulation; }
+  #pot, .premove { touch-action: none; } /* pointer pour / hold-to-remove */
   #fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
   /* ---- round 9: tool rigs. The Pour Bucket and the Dropper are SVG
      graphics tinted with the selected pigment; the stream is an SVG path
@@ -732,9 +740,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.14.0"></script>
-<script src="schedule.js?v=1.14.0"></script>
-<script src="engine.js?v=1.14.0"></script>
-<script src="game.js?v=1.14.0"></script>
+<script src="colors.js?v=1.14.1"></script>
+<script src="schedule.js?v=1.14.1"></script>
+<script src="engine.js?v=1.14.1"></script>
+<script src="game.js?v=1.14.1"></script>
 </body>
 </html>
