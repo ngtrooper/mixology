@@ -1039,7 +1039,11 @@ function overlayFocusables(ov) {
 }
 function openOverlay(id) {
   const ov = $(id); if (!ov) return;
-  if (!ov.classList.contains('open')) overlayReturn[id] = document.activeElement;
+  if (!ov.classList.contains('open')) {
+    overlayReturn[id] = document.activeElement;
+    // round 80: a dialog always opens at the top of its scrolling body
+    const body = ov.querySelector('.ov-body'); if (body) body.scrollTop = 0;
+  }
   ov.classList.add('open');
   const f = overlayFocusables(ov); const first = ov.querySelector('[data-autofocus]') || f[0];
   if (first) try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); }
@@ -1585,7 +1589,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.20.1',
+  version: '1.20.2',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

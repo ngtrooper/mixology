@@ -2,6 +2,26 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 80 (2026-10-19, Grok Bot): CLOSE BUTTON ALWAYS REACHABLE ON SHORT PHONES (iPhone tester)
+
+- **Bug:** on an iPhone the Collection dialog could be taller than the visible screen. The panel was capped at `92vh` (Tips at `85vh`), and on iOS that is the large viewport with the toolbars hidden. The ✕ was absolutely positioned inside the scrolling panel. So the centered panel's top, with the ✕, sat under the Safari toolbar, and scrolling took the ✕ away with the content.
+- **Fix (index.html):**
+  - Calendar, Stats, Collection and Tips are now `.ov-dlg` flex columns: an `.ov-head` row (title plus ✕, `flex: none`, divider) and an `.ov-body` that scrolls on its own (`min-height: 0; overflow-y: auto; overscroll-behavior: contain`).
+  - The panel's `max-height` is the overlay's box (`100%`), with a `100dvh` cap minus the safe-area insets under `@supports`, and `100vh` as the old-browser fallback.
+  - The overlays pad by `env(safe-area-inset-*)`.
+  - The ✕ is now 40px with a 48px tap area and a focus ring. It comes first in the DOM, so it is still the first focus stop.
+  - The welcome card scrolls too (`max-height: 100%`), so "Let's mix" is reachable in landscape.
+- **game.js:** `openOverlay` resets the body's scroll to the top when a dialog opens. Escape and tap-outside already closed every dialog; tests now lock that in. The reveal is part of the page, not a dialog, so it was unaffected.
+- **Not changed:** the "−" remove badges stay exactly as they were. Franklin dropped the Add/Remove toggle idea.
+- **Tests:** 3 new (header/body structure for every dialog; no `vh`-only caps, dvh, safe-area, 40px ✕, welcome scroll; scroll reset plus Escape/tap-outside). 198 pass.
+- **Browser check** (`/workspace/pw/r80.js`):
+  - Chromium and WebKit (mobile) at 320×568, 375×667, 390×844, 568×320, 667×375 and 844×390.
+  - For each of the four dialogs, at the top and scrolled to the bottom: the ✕ is fully on screen, it is the element at its own center, the panel fits, and it is at least 40px. Each dialog then closed by tapping the ✕, by Escape and by tapping outside.
+  - The welcome button was reachable, and a game played through to the reveal.
+  - 108 checks, 0 failures, 0 page errors.
+  - Every request to goatcounter.com and gc.zgo.at was aborted, and `?noanalytics` was set.
+- Version 1.20.2.
+
 ## Round 79 (2026-10-19, Grok Bot): ANALYTICS TURNED ON (Franklin)
 
 - `analytics.js`: `const ANALYTICS_CODE = 'ngtrooper';` (dashboard https://ngtrooper.goatcounter.com). No other code change.

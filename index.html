@@ -338,12 +338,14 @@
   /* ---- round 14: first-visit welcome ---- */
   #welcome-overlay {
     display: none; position: fixed; inset: 0; z-index: 60; padding: 20px;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     background: rgba(28,26,23,.5); align-items: center; justify-content: center;
   }
   #welcome-overlay.open { display: flex; }
   #welcome-panel {
     background: var(--card); border-radius: 18px; padding: 22px 20px 14px; width: 100%; max-width: 380px;
     text-align: center; animation: wl-in .32s cubic-bezier(.2,.9,.3,1.2);
+    max-height: 100%; overflow-y: auto; /* r80: short phones scroll to "Let's mix" */
   }
   @keyframes wl-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
   #welcome-panel h2 { margin: 0; font-size: 19px; letter-spacing: 1.5px; }
@@ -362,7 +364,7 @@
   #tips-overlay.open { display: flex; }
   #tips-panel {
     background: var(--card); border-radius: 16px; padding: 20px 20px 16px; width: 100%;
-    max-width: 400px; max-height: 85vh; overflow-y: auto; position: relative;
+    max-width: 400px; position: relative;
     font-size: 14.5px; line-height: 1.55;
   }
   .kbd-tip { font-size: 13px; color: var(--muted); }
@@ -371,10 +373,6 @@
   #tips-panel h2 { margin: 0 24px 8px 0; font-size: 17px; letter-spacing: 1px; }
   #tips-panel h3 { margin: 14px 0 4px; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
   #tips-panel p { margin: 4px 0; }
-  #btn-tips-close {
-    position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%;
-    border: 1px solid var(--line); background: var(--paper); cursor: pointer; font-size: 15px; color: var(--ink);
-  }
   /* ---- round 9: calendar overlay (built from local save data) ---- */
   #cal-overlay, .ov-sheet {
     display: none; position: fixed; inset: 0; z-index: 50; padding: 16px;
@@ -383,8 +381,37 @@
   #cal-overlay.open, .ov-sheet.open { display: flex; }
   #cal-panel, .ov-panel {
     background: var(--card); border-radius: 16px; padding: 14px 14px 12px; width: 100%;
-    max-width: 400px; max-height: 92vh; overflow-y: auto; position: relative;
+    max-width: 400px; position: relative;
   }
+  /* Round 80 (iPhone tester): the close button must always be on screen.
+     Every dialog is a column: a fixed header row (title + ✕) and a body that
+     scrolls on its own. The overlay pads by the safe-area insets and the
+     panel is capped by the overlay's box (fixed inset 0 = the visible
+     viewport, so iOS toolbars and the 100vh "large viewport" can't push the
+     header off screen); 100dvh is the belt-and-braces cap. */
+  #tips-overlay, #cal-overlay, .ov-sheet {
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  .ov-dlg, #cal-panel.ov-dlg, #tips-panel.ov-dlg {
+    display: flex; flex-direction: column; overflow: hidden; padding: 0;
+    max-height: calc(100vh - 24px); max-height: 100%;
+  }
+  @supports (height: 100dvh) {
+    .ov-dlg, #cal-panel.ov-dlg, #tips-panel.ov-dlg { max-height: min(100%, calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)))); }
+  }
+  .ov-head {
+    flex: none; display: flex; align-items: center; gap: 8px; min-height: 56px;
+    padding: 8px 8px 6px 16px; border-bottom: 1px solid var(--line); background: var(--card);
+  }
+  .ov-head h2, #tips-panel .ov-head h2 { flex: 1; min-width: 0; margin: 0; }
+  .ov-head .ov-close { order: 2; position: relative; top: auto; right: auto; flex: none; width: 40px; height: 40px; font-size: 16px; }
+  .ov-head .ov-close::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; } /* 48px tap area */
+  .ov-head .ov-close:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .ov-body {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain; padding: 10px 14px 14px;
+  }
+  #tips-panel .ov-body { padding: 10px 18px 16px; }
   #cal-grid.slide-l { animation: cal-in-l .26s cubic-bezier(.2,.8,.3,1); }
   #cal-grid.slide-r { animation: cal-in-r .26s cubic-bezier(.2,.8,.3,1); }
   @keyframes cal-in-l { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
@@ -435,7 +462,7 @@
   .st-spark .parline { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
   .st-spark text { font-size: 9px; fill: var(--muted); }
   .st-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 6px; }
-  #cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 34px 8px 0; }
+  #cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; }
   #cal-title { font-weight: 800; font-size: 16px; letter-spacing: .5px; }
   .cal-nav {
     width: 34px; height: 30px; border-radius: 999px; border: 1px solid var(--line);
@@ -444,9 +471,9 @@
   .cal-nav:disabled { opacity: .3; cursor: default; }
   .ov-title { margin: 2px 44px 10px 2px; font-size: 17px; letter-spacing: 1px; }
   .ov-note { margin-top: 10px; font-size: 11.5px; color: var(--muted); text-align: center; }
-  #btn-cal-close, .ov-close {
-    position: absolute; top: 12px; right: 10px; width: 32px; height: 32px; border-radius: 50%;
-    border: 1px solid var(--line); background: var(--paper); cursor: pointer; font-size: 15px; color: var(--ink);
+  .ov-close { /* r80: lives in the .ov-head row (see .ov-head .ov-close) */
+    border-radius: 50%; padding: 0; line-height: 1;
+    border: 1px solid var(--line); background: var(--paper); cursor: pointer; color: var(--ink);
   }
   #cal-week, #cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   #cal-week div { text-align: center; font-size: 10.5px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; padding-bottom: 2px; }
@@ -719,9 +746,9 @@
 </main>
 
 <div id="cal-overlay" class="modal-ov" role="dialog" aria-modal="true" aria-labelledby="cal-h">
-  <div id="cal-panel">
-    <button id="btn-cal-close" type="button" aria-label="Close calendar">✕</button>
-    <h2 class="ov-title" id="cal-h">Calendar</h2>
+  <div id="cal-panel" class="ov-dlg">
+    <div class="ov-head"><button class="ov-close" id="btn-cal-close" type="button" aria-label="Close calendar">✕</button><h2 class="ov-title" id="cal-h">Calendar</h2></div>
+    <div class="ov-body">
     <div id="cal-head">
       <button class="cal-nav" id="btn-cal-prev" type="button" aria-keyshortcuts="PageUp" aria-label="Previous month">‹</button>
       <div id="cal-title">—</div>
@@ -731,23 +758,26 @@
     <div id="cal-grid"></div>
     <div id="cal-detail"></div>
     <div id="cal-note">Saved on this device only.</div>
+    </div>
   </div>
 </div>
 
 <div id="stats-overlay" class="modal-ov ov-sheet" role="dialog" aria-modal="true" aria-labelledby="stats-h">
-  <div class="ov-panel" id="stats-panel">
-    <button class="ov-close" id="btn-stats-close" type="button" aria-label="Close stats">✕</button>
-    <h2 class="ov-title" id="stats-h">Stats</h2>
+  <div class="ov-panel ov-dlg" id="stats-panel">
+    <div class="ov-head"><button class="ov-close" id="btn-stats-close" type="button" aria-label="Close stats">✕</button><h2 class="ov-title" id="stats-h">Stats</h2></div>
+    <div class="ov-body">
     <div id="cal-stats"></div>
     <div class="ov-note">Saved on this device only.</div>
+    </div>
   </div>
 </div>
 
 <div id="col-overlay" class="modal-ov ov-sheet" role="dialog" aria-modal="true" aria-labelledby="col-h">
-  <div class="ov-panel" id="col-panel">
-    <button class="ov-close" id="btn-col-close" type="button" aria-label="Close collection">✕</button>
-    <h2 class="ov-title" id="col-h">Collection</h2>
+  <div class="ov-panel ov-dlg" id="col-panel">
+    <div class="ov-head"><button class="ov-close" id="btn-col-close" type="button" aria-label="Close collection">✕</button><h2 class="ov-title" id="col-h">Collection</h2></div>
+    <div class="ov-body">
     <div id="cal-col"></div>
+    </div>
   </div>
 </div>
 
@@ -768,9 +798,9 @@
   </div>
 </div>
 <div id="tips-overlay" class="modal-ov" role="dialog" aria-modal="true" aria-label="How to play">
-  <div id="tips-panel">
-    <button id="btn-tips-close" type="button" aria-label="Close tips">✕</button>
-    <h2>How to play</h2>
+  <div id="tips-panel" class="ov-dlg">
+    <div class="ov-head"><button class="ov-close" id="btn-tips-close" type="button" aria-label="Close tips">✕</button><h2>How to play</h2></div>
+    <div class="ov-body">
     <p>Every day has one color, given only as a name. Nobody shows you the color — mix what you think the name looks like.</p>
     <p>Pick a pigment from the ring, pick a tool, then dose the pot in the middle. Submit two attempts — the round ends after the second, and your best attempt is your score.</p>
     <h3>The pot</h3>
@@ -791,6 +821,7 @@
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg>opens your calendar: every day you've played. The <b>Stats</b> button (bars) shows your streaks and how your scores spread, and <b>Collection</b> (tiles) shows every named color you've discovered. All of it is saved on this device only.</p>
     <p class="tips-foot"><button id="btn-replay-intro" type="button">Replay the intro</button></p>
     <p id="privacy-note" class="tips-privacy" hidden>No cookies. Anonymous play counts only.</p>
+    </div>
   </div>
 </div>
 
@@ -812,10 +843,10 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.20.1"></script>
-<script src="schedule.js?v=1.20.1"></script>
-<script src="engine.js?v=1.20.1"></script>
-<script src="analytics.js?v=1.20.1"></script>
-<script src="game.js?v=1.20.1"></script>
+<script src="colors.js?v=1.20.2"></script>
+<script src="schedule.js?v=1.20.2"></script>
+<script src="engine.js?v=1.20.2"></script>
+<script src="analytics.js?v=1.20.2"></script>
+<script src="game.js?v=1.20.2"></script>
 </body>
 </html>

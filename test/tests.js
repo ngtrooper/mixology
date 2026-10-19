@@ -1647,5 +1647,36 @@ console.log('— round 78: private analytics (GoatCounter) —');
     assert.ok(gSrc.includes("function track(name) { try { if (MA) MA.track(name); } catch (e) { /* never break the game */ } }"));
   });
 }
+
+console.log('— round 80: close button always reachable on short phones —');
+{
+  const dlgs = [['cal-overlay', 'cal-panel', 'btn-cal-close'], ['stats-overlay', 'stats-panel', 'btn-stats-close'], ['col-overlay', 'col-panel', 'btn-col-close'], ['tips-overlay', 'tips-panel', 'btn-tips-close']];
+  test('every dialog: header row (title + close) outside a separately scrolling body', () => {
+    for (const [ov, panel, close] of dlgs) {
+      const start = htmlSrc.indexOf(`<div id="${ov}"`), seg = htmlSrc.slice(start, htmlSrc.indexOf('\n</div>', start));
+      assert.ok(new RegExp(`id="${panel}"`).test(seg) && /<div [^>]*id="[a-z-]+-panel"[^>]*>|<div class="[^"]*ov-dlg[^"]*"/.test(seg), panel);
+      assert.ok(seg.includes('ov-dlg'), panel + ' not an .ov-dlg');
+      const head = seg.indexOf('<div class="ov-head">'), btn = seg.indexOf(`id="${close}"`), body = seg.indexOf('<div class="ov-body">');
+      assert.ok(head > 0 && head < btn && btn < body, ov + ': close button must sit in the header, before the scrolling body');
+      assert.ok(seg.slice(btn - 40, btn).includes('class="ov-close"'), close + ' missing .ov-close');
+    }
+  });
+  test('dialog CSS: no vh-only caps, dvh + safe-area insets, body scrolls, header never shrinks, 40px+ close', () => {
+    assert.ok(!/max-height: (85|92)vh/.test(htmlSrc), 'old vh caps remain (iOS large viewport hides the header)');
+    assert.ok(htmlSrc.includes('100dvh') && htmlSrc.includes('@supports (height: 100dvh)'));
+    assert.ok(/\.ov-dlg, #cal-panel\.ov-dlg, #tips-panel\.ov-dlg \{\s*display: flex; flex-direction: column; overflow: hidden; padding: 0;\s*max-height: calc\(100vh - 24px\); max-height: 100%;/.test(htmlSrc));
+    assert.ok(/\.ov-head \{\s*flex: none;/.test(htmlSrc) && /\.ov-body \{\s*flex: 1 1 auto; min-height: 0; overflow-y: auto;/.test(htmlSrc));
+    assert.ok(/#tips-overlay, #cal-overlay, \.ov-sheet \{\s*padding: max\(12px, env\(safe-area-inset-top\)\) max\(12px, env\(safe-area-inset-right\)\) max\(12px, env\(safe-area-inset-bottom\)\) max\(12px, env\(safe-area-inset-left\)\);/.test(htmlSrc));
+    assert.ok(/\.ov-head \.ov-close \{[^}]*position: relative;[^}]*width: 40px; height: 40px;/.test(htmlSrc));
+    assert.ok(!/#btn-(tips|cal)-close[^{]*\{[^}]*position: absolute/.test(htmlSrc), 'a close button is still absolutely positioned');
+    assert.ok(/#welcome-panel \{[^}]*max-height: 100%; overflow-y: auto;/.test(htmlSrc), 'welcome card cannot scroll on short screens');
+  });
+  test('dialogs open at the top of their body; Escape and tap-outside still close all of them', () => {
+    const f = gameSrc.slice(gameSrc.indexOf('function openOverlay'), gameSrc.indexOf('function closeOverlay'));
+    assert.ok(f.includes("const body = ov.querySelector('.ov-body'); if (body) body.scrollTop = 0;"));
+    for (const [ov] of dlgs) assert.ok(gameSrc.includes(`$('${ov}').addEventListener('click', e => { if (e.target === $('${ov}'))`), ov + ' tap-outside');
+    assert.ok(gameSrc.includes("if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); }"));
+  });
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
