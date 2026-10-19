@@ -908,5 +908,18 @@ test('script tags are cache-busted with the game version (no new-JS/old-HTML mis
   assert.deepStrictEqual(tags.map(m => m[1]), ['colors', 'schedule', 'engine', 'game']);
   for (const m of tags) assert.strictEqual(m[2], '?v=' + v, `${m[1]}.js not stamped with ?v=${v} (bump both together)`);
 });
+console.log('— round 33: headline title case —');
+test('color names display in headline case (small words lower, slashes split); stored names untouched', () => {
+  const m = gameSrc.slice(gameSrc.indexOf('const SMALL_WORDS'), gameSrc.indexOf('}\n', gameSrc.indexOf('function titleCase')) + 2);
+  const titleCase = new Function(m + '; return titleCase;')();
+  assert.strictEqual(titleCase('blue with a hint of purple'), 'Blue with a Hint of Purple');
+  assert.strictEqual(titleCase('green/yellow'), 'Green/Yellow');
+  assert.strictEqual(titleCase('a dash of red'), 'A Dash of Red');
+  assert.strictEqual(titleCase("robin's egg blue"), "Robin's Egg Blue");
+  assert.ok(gameSrc.includes("$('color-name').textContent = titleCase(round.color.name);"));
+  assert.ok(!/#color-name, #practice-name \{[^}]*text-transform: capitalize/.test(htmlSrc), 'CSS capitalize would undo the small words');
+  // saves / WIP still store the raw bank name
+  assert.ok(gameSrc.includes('name: round.color.name,') && gameSrc.includes('store.data.wip = { day: round.day, name: round.color.name'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

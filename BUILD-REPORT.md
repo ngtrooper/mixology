@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 33 (2026-10-18, Grok Bot): HEADLINE TITLE CASE · BALANCED NAME WRAP
+- CSS `text-transform: capitalize` rendered "Blue With A Hint Of Purple". Names now go through a headline-style `titleCase()`: small joining words stay lower case unless first, and slashes split words. Result: "Blue with a Hint of Purple", "Green/Yellow".
+  - Applied to the prompt, reveal, calendar and duel card.
+  - Saves, WIP and schedule still store the raw bank name.
+- `text-wrap: balance` on the prompt name gives even two-line breaks.
+- Checked the five longest names at 320/390: no overflow.
+- Shots: `r33-before-longname-320` → `r33-after-{longname,slashname}-320`. Test added.
+
 ## Round 32 (2026-10-18, Grok Bot): DEPLOY CACHE SAFETY
 - GitHub Pages serves with `max-age=600`, so for about 10 minutes after a deploy a browser can pair a cached old `game.js` with the new `index.html`, or the reverse.
   - New JS + old HTML is a real crash: for example, `$('btn-card')` would be null and `addEventListener` would throw, killing the game.

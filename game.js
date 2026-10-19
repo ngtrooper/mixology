@@ -705,11 +705,21 @@ async function saveShareCard(btn) {
 
 /* ---------------- rendering -------------------------------------------- */
 const $ = id => document.getElementById(id);
-function titleCase(s) { return s.replace(/\b\w/g, c => c.toUpperCase()); }
+/* Round 33: headline-style title case. Small joining words stay lower case
+ * unless first ("A Dash of Red"), and slashes count as word
+ * breaks ("Green/Yellow"). The stored name is never changed. */
+const SMALL_WORDS = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+function titleCase(s) {
+  let first = true;
+  return String(s).replace(/[A-Za-z\u00C0-\u024F][\w\u00C0-\u024F'’]*/g, w => {
+    const out = !first && SMALL_WORDS.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1);
+    first = false; return out;
+  });
+}
 function renderAll() {
   if (!round) return;
   const daily = round.mode === 'daily';
-  $('color-name').textContent = round.color.name;
+  $('color-name').textContent = titleCase(round.color.name);
   $('prompt-kicker').textContent = daily ? "Today's color is called" : 'Practice color';
   $('prompt-sub').textContent = daily
     ? 'How well do you know your colors?'
@@ -1246,6 +1256,6 @@ window.MISNOMER = {
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,
   newPractice: startPractice,
-  shareText, maybeWelcome, WELCOME_KEY, untilNextColor,
+  shareText, maybeWelcome, WELCOME_KEY, untilNextColor, titleCase,
   engine: E, bank: BANK, pool: POOL
 };
