@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 23 (2026-10-18, Grok Bot): VIEWPORT SWEEP · SMALL-PHONE HEADER
+- Swept 320×640, 390×844, 844×390 landscape and 1280×800 desktop: no horizontal overflow and no errors.
+- **Bug:** at 320px the header buttons overlapped the "MIXOLOGY." wordmark (`r23-before-header-320-overlap.png`).
+  - Fix: a `max-width: 360px` media query with a smaller wordmark and tighter header buttons.
+  - Measured with a text Range at 320/340/360/375/390: the gap between wordmark and buttons is ≥ 6px at every width (`r23-after-header-320.png`).
+- Landscape: the calendar panel scrolls inside 92vh (expected). Desktop stays a centered 460px column.
+
 ## Round 22 (2026-10-18, Grok Bot): TACTILE PIGMENTS
 - Pigment discs press-squish (scale .9 on `:active`), spring back with a pop when selected, and lift slightly on hover (pointer devices only).
 - The selected ring keeps the glossy inset shading it used to lose.
