@@ -7,6 +7,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const E = require('../engine.js');
+// round 62: units in a 1 s Pour Bucket hold (press unit + ramp), was a flat 30
+const ONE_SEC = 1 + Math.floor(E.pourUnitsAt(1));
 const bank = require('../colors.js');
 
 let pass = 0, fail = 0;
@@ -222,13 +224,13 @@ test('tints work: 2-5% chromatic in white reads as a clear pastel tint', () => {
 console.log('— round 6: stuck pots are gone (round-5 diagnosis, replayed) —');
 test('DIAGNOSIS (a): mud pot recovers ΔE>=10 within 1s of white pouring (was 7.7s)', () => {
   const mud = { r: 31, y: 31, b: 31, w: 7 }; // round-5's 130/130/130-in-30 pot, as %
-  const d = E.deltaE2000(labOfComp(mud), labOfComp(pour(mud, 'w', 30)));
-  assert.ok(d >= 10, `ΔE ${d.toFixed(1)} after 30 white units`);
+  const d = E.deltaE2000(labOfComp(mud), labOfComp(pour(mud, 'w', ONE_SEC)));
+  assert.ok(d >= 10, `ΔE ${d.toFixed(1)} after ${ONE_SEC} white units`);
 });
 test('DIAGNOSIS (b): black pot recovers ΔE>=10 within 1s of red pouring (was 4.0s)', () => {
   const blk = { k: 87, w: 13 }; // round-5's 200K-in-30 pot, as %
-  const d = E.deltaE2000(labOfComp(blk), labOfComp(pour(blk, 'r', 30)));
-  assert.ok(d >= 10, `ΔE ${d.toFixed(1)} after 30 red units`);
+  const d = E.deltaE2000(labOfComp(blk), labOfComp(pour(blk, 'r', ONE_SEC)));
+  assert.ok(d >= 10, `ΔE ${d.toFixed(1)} after ${ONE_SEC} red units`);
 });
 test('DIAGNOSIS (c): the old hard-stuck cap states are unreachable — no cap exists', () => {
   assert.strictEqual(E.MAX_DROPS, undefined, 'engine still exports a drops cap');
@@ -254,7 +256,7 @@ test('purple pot + red pours: hue strictly approaches red, every 1s step moves >
       assert.ok(step >= 0.5, `step ${s}: ΔE ${step.toFixed(2)} < 0.5 — pour feels frozen`);
     }
     prevDist = dist; prevLab = labOfComp(cur);
-    cur = pour(cur, 'r', 30);
+    cur = pour(cur, 'r', ONE_SEC);
   }
 });
 test('monotonic approach sweep: 1s of pouring ALWAYS moves toward the poured pigment', () => {
@@ -266,7 +268,7 @@ test('monotonic approach sweep: 1s of pouring ALWAYS moves toward the poured pig
     const comp = { r: raw[0] / tot * 100, y: raw[1] / tot * 100, b: raw[2] / tot * 100, k: raw[3] / tot * 100, w: raw[4] / tot * 100 };
     for (const key of ['r', 'y', 'b', 'k', 'w']) {
       const before = E.deltaE2000(labOfComp(comp), labOfComp(refs[key]));
-      const after = E.deltaE2000(labOfComp(pour(comp, key, 30)), labOfComp(refs[key]));
+      const after = E.deltaE2000(labOfComp(pour(comp, key, ONE_SEC)), labOfComp(refs[key]));
       assert.ok(after < before, `comp ${JSON.stringify(comp)} pour ${key}: ΔE ${before.toFixed(2)} -> ${after.toFixed(2)}`);
     }
   }
@@ -319,10 +321,9 @@ test('two tools only: no Spoon anywhere, no Pour-as-fixed-dose', () => {
 test('dropper doses exactly 1 unit per dose; pouring ticks whole units', () => {
   assert.ok(gameSrc.includes('E.addUnits(round.pot, selectedBucket, 1)'), 'applyUnit no longer doses exactly 1 unit');
   assert.ok(gameSrc.includes('setInterval'), 'pour is not timer-driven');
-  const m = gameSrc.match(/POUR_RATE = (\d+)/);
-  assert.ok(m, 'POUR_RATE not found');
-  const rate = parseInt(m[1], 10);
-  assert.ok(rate >= 24 && rate <= 36, `pour rate ${rate}/s outside the band 24..36`);
+  // round 62: the start rate keeps the old fine-control band; the ramp lives in engine.js
+  assert.ok(E.POUR_RATE_START >= 24 && E.POUR_RATE_START <= 36, `pour start rate ${E.POUR_RATE_START}/s outside the band 24..36`);
+  assert.ok(gameSrc.includes('E.pourUnitsAt(sec)'), 'pour loop does not follow the engine ramp');
 });
 test('tool buttons carry NO dosage numbers (dosages live in Tips only)', () => {
   for (const id of ['tool-dropper', 'tool-pour']) {
@@ -335,7 +336,7 @@ test('tips overlay explains the percentage pot and states the dosages (only ther
   assert.ok(htmlSrc.includes('id="btn-tips"'), 'no Tips button');
   assert.ok(htmlSrc.includes('id="tips-overlay"'), 'no tips overlay');
   assert.ok(htmlSrc.includes('1 drop per click'), 'dropper dosage missing from tips');
-  assert.ok(htmlSrc.includes('30 drops per second'), 'pour dosage missing from tips');
+  assert.ok(htmlSrc.includes('about 30 drops per second') && htmlSrc.includes('speeds up to about 90'), 'pour dosage/ramp missing from tips');
   assert.ok(htmlSrc.includes('always 100% full'), 'tips does not explain the percentage pot');
   assert.ok(htmlSrc.includes('pushes the other paints down'), 'tips does not explain displacement');
   assert.ok(!htmlSrc.includes('Pour out') && !htmlSrc.includes('Pour Out'), 'tips mentions the cancelled Pour Out');
@@ -496,13 +497,13 @@ const STRONG_POTS = {
   'black 87K/13': { k: 87, w: 13 },
   'parent purple 21R/31B/48W': { r: 21.3, b: 30.8, w: 47.9 }
 };
-test('white pour (1s = 30 units) moves ΔE >= 8 from every strong pot (was ~4 on saturated pots)', () => {
+test('white pour (1 s hold) moves ΔE >= 10 from every strong pot (was ~4 on saturated pots)', () => {
   for (const [name, comp] of Object.entries(STRONG_POTS)) {
-    const d = E.deltaE2000(labOfComp(comp), labOfComp(pour(comp, 'w', 30)));
+    const d = E.deltaE2000(labOfComp(comp), labOfComp(pour(comp, 'w', ONE_SEC)));
     // Round 8: the half-white parent purple (p 52% -> 39%) sits in the
     // middle of the tint curve; bar 8 -> 7 there (renders 7.4). The
     // saturated pots the producer reported keep the full bar.
-    const bar = name.startsWith('parent purple') ? 7 : 8;
+    const bar = 10; // round 62 ramp (52 units): mud 29.5, black 17.6, parent purple 11.6 (flat 30/s bars were 8 / 7)
     assert.ok(d >= bar, `${name}: white pour moved only ΔE ${d.toFixed(2)}`);
   }
 });
@@ -619,10 +620,10 @@ test('single pigment into white is a monotonic walk: never lighter, never less s
     assert.ok(at(11) < at(9) && at(10) < at(9), `${key}: 9-11% still lightens`);
   }
 });
-test('a 1 s Pour Bucket (30 units) from a fresh pot is clearly visible: ΔE >= 15 for every pigment', () => {
+test('a 1 s Pour Bucket hold from a fresh pot is clearly visible: ΔE >= 18 for every pigment', () => {
   for (const key of ['r', 'y', 'b', 'k']) {
-    const d = E.deltaE2000(labOfComp(E.FRESH_COMP), labOfComp(pour(E.FRESH_COMP, key, 30)));
-    assert.ok(d >= 15, `${key}: 1 s pour moved only ΔE ${d.toFixed(1)} (round 7: r 11.1, y 11.4, b 8.0)`);
+    const d = E.deltaE2000(labOfComp(E.FRESH_COMP), labOfComp(pour(E.FRESH_COMP, key, ONE_SEC)));
+    assert.ok(d >= 18, `${key}: 1 s pour moved only ΔE ${d.toFixed(1)} (round 62 ramp: r 26.8, y 19.2, b 26.6, k 36.5; flat 30/s bar was 15)`);
   }
 });
 test('a 1 s chromatic pour into any pale pot (>= 50% white) moves ΔE >= 5 (median >= 12)', () => {
@@ -632,7 +633,7 @@ test('a 1 s chromatic pour into any pale pot (>= 50% white) moves ΔE >= 5 (medi
     const w = 50 + rng() * 50, r = rng(), y = rng(), b = rng(), k = rng() * 0.2;
     const s = (100 - w) / (r + y + b + k);
     const c = { r: r * s, y: y * s, b: b * s, k: k * s, w };
-    for (const key of ['r', 'y', 'b']) ds.push(E.deltaE2000(labOfComp(c), labOfComp(pour(c, key, 30))));
+    for (const key of ['r', 'y', 'b']) ds.push(E.deltaE2000(labOfComp(c), labOfComp(pour(c, key, ONE_SEC))));
   }
   ds.sort((a, b) => a - b);
   assert.ok(ds[0] >= 5, `min ΔE ${ds[0].toFixed(2)}`);
@@ -1068,6 +1069,29 @@ test('Tips/Calendar entrance animates transform + backdrop only (never text opac
 console.log('— round 60: shortcut announcements —');
 test('keyboard shortcuts announce the change to screen readers', () => {
   assert.ok(gameSrc.includes("announce(`${PIG_NAMES[pig]} paint selected`)") && gameSrc.includes("announce('Dropper selected')") && gameSrc.includes("announce('Pour Bucket selected')") && gameSrc.includes("if (had) announce('Undone')"));
+});
+console.log('— round 62: faster Pour Bucket (ramp) —');
+test('pour ramp: fresh white -> 90% one pigment in 3-4 s (was 7.7 s), short taps stay fine', () => {
+  const share = sec => 100 * (1 - Math.pow(100 / 101, 1 + Math.floor(E.pourUnitsAt(sec))));
+  const tAt = target => { for (let s = 0; s < 20; s += 0.01) if (share(s) >= target) return s; return Infinity; };
+  const t90 = tAt(90), t95 = tAt(95);
+  assert.ok(t90 >= 2.6 && t90 <= 4, `90% at ${t90.toFixed(2)} s`);
+  assert.ok(t95 <= 4.5, `95% at ${t95.toFixed(2)} s`);
+  // the simulation matches the real model (addUnits), not just the closed form
+  let c = { ...E.FRESH_COMP }; const n = 1 + Math.floor(E.pourUnitsAt(t90));
+  for (let i = 0; i < n; i++) c = E.addUnits(c, 'r', 1);
+  assert.ok(c.r >= 90 && c.r < 91, `r share ${c.r.toFixed(2)} after ${n} units`);
+  assert.ok(1 + Math.floor(E.pourUnitsAt(0.15)) <= 6, 'a quick tap pours too much');
+  assert.ok(1 + Math.floor(E.pourUnitsAt(0.3)) <= 10, 'the first 0.3 s is no longer fine control');
+  assert.strictEqual(E.pourRateAt(0.1), E.POUR_RATE_START); assert.strictEqual(E.pourRateAt(5), E.POUR_RATE_MAX);
+  for (let s = 0; s < 3; s += 0.05) assert.ok(E.pourUnitsAt(s + 0.05) > E.pourUnitsAt(s), 'pour curve not increasing');
+});
+test('pour loop: catch-up capped per tick, stream width scales with rate and resets on release', () => {
+  const i = gameSrc.indexOf('function startPour()'); const f = gameSrc.slice(i, gameSrc.indexOf('function stopPour', i));
+  assert.ok(f.includes('Math.min(6, Math.floor(E.pourUnitsAt(sec)) - poured)'), 'no per-tick cap');
+  assert.ok(f.includes("$('stream-main').style.strokeWidth"), 'stream width does not follow the rate');
+  const s = gameSrc.slice(gameSrc.indexOf('function stopPour'), gameSrc.indexOf('function stopPour') + 600);
+  assert.ok(s.includes("el.style.strokeWidth = ''"), 'stream width not reset');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -116,6 +116,28 @@ const TINT_END = 1.0;     // round 8: end slope — how hard white answers on a 
  * solver-best recipe scores at least par. Single source of truth for
  * game.js, tools/solve-recipes.js and the colors.js header. */
 const PAR_PCT = 85;
+/* Round 62: Pour Bucket ramp. A press starts at POUR_RATE_START units/s (fine
+ * control for short taps), then from POUR_RAMP_FROM s to POUR_RAMP_TO s the
+ * rate climbs linearly to POUR_RATE_MAX and holds there. Measured from a fresh
+ * white pot with one pigment: 90% in about 3.0 s and 95% in about 3.8 s (was
+ * 7.7 s and 10 s at a flat 30/s). Time to units only: the mixing model, the
+ * solver and the pool work on compositions and are untouched. */
+const POUR_RATE_START = 30, POUR_RATE_MAX = 90, POUR_RAMP_FROM = 0.3, POUR_RAMP_TO = 1.0;
+/** Units poured after holding for `sec` seconds, not counting the first unit
+ *  that lands on press. This is the integral of the rate curve. */
+function pourUnitsAt(sec) {
+  const t = Math.max(0, Number(sec) || 0), a = POUR_RAMP_FROM, b = POUR_RAMP_TO, r0 = POUR_RATE_START, r1 = POUR_RATE_MAX;
+  if (t <= a) return r0 * t;
+  if (t <= b) { const x = t - a; return r0 * a + r0 * x + (r1 - r0) / (b - a) * x * x / 2; }
+  return r0 * a + (r0 + r1) / 2 * (b - a) + r1 * (t - b);
+}
+/** Instantaneous pour rate (units/s) after `sec` seconds held. */
+function pourRateAt(sec) {
+  const t = Math.max(0, Number(sec) || 0);
+  if (t <= POUR_RAMP_FROM) return POUR_RATE_START;
+  if (t >= POUR_RAMP_TO) return POUR_RATE_MAX;
+  return POUR_RATE_START + (POUR_RATE_MAX - POUR_RATE_START) * (t - POUR_RAMP_FROM) / (POUR_RAMP_TO - POUR_RAMP_FROM);
+}
 /* Public numbering (round 10, display only): internal day #656
  * (Sun 2026-10-18) is "Mixology #1". Internal day indices, the schedule,
  * saves, streaks and duel links (d=) are untouched. Days before launch
@@ -519,7 +541,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName

@@ -73,7 +73,7 @@ Consequences that are **invariants**, not implementation details:
   Share text and duel links must stay spoiler-safe (a duel link carries the
   *player's* mix, never the answer).
 - Two dosing tools: **Dropper** (1 unit/click, falling-drop animation) and
-  **Pour Bucket** (hold to pour ~30 units/sec, pouring animation). The Pour
+  **Pour Bucket** (hold to pour: starts ~30 units/sec, ramps to ~90/sec after ~1 s, per `E.pourUnitsAt`, round 62; pouring animation). The Pour
   Bucket is the default tool. Pigment selectors are unlabeled full-color
   discs in a ring around a central circular pot; dosing happens on the pot.
 - Buckets are R / Y / B / K / W (white is a full pigment). Known gamut hole:

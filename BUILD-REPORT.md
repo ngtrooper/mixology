@@ -2,6 +2,28 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 62 (2026-10-18, Grok Bot): FASTER POUR BUCKET (Franklin request)
+- **Problem:** at a flat 30 drops/s, holding the Pour Bucket on a fresh white pot took 7.6 s to reach 90% of one pigment and 10.0 s to reach 95%. Measured in the browser on the live site before the change.
+- **Change:** a ramp, defined in `engine.js` (`POUR_RATE_START 30`, `POUR_RATE_MAX 90`, ramp from 0.3 s to 1.0 s, with `pourUnitsAt(sec)` and `pourRateAt(sec)`).
+  - The first unit still lands on press, and the first 0.3 s stays at 30/s for fine control.
+  - The game loop still ticks 30×/s and lands whole units to follow the curve, at most 6 per tick so a stalled tab can't dump paint.
+  - The whole hold is still one undo step.
+  - The Dropper is unchanged (1 per tap).
+- **Measured (Playwright, real mouse hold, local):**
+  - 120 ms tap: 3 units (2.9%).
+  - 90% at 3.1 s, 95% at 3.8 s (was 7.6 s / 10.0 s).
+  - 1 s hold: about 52 units (was 30).
+  - One Undo after the hold returns to 0.
+  - Recovering from mistakes is about as fast as filling.
+- **Visuals:** the stream thickens with the rate (core 8 to 13 px, outline 10 to 16) and resets on release. Shots: `r62-before-pour-stream.png` and `r62-after-pour-stream.png` (1.5 s into a hold), composite `r62-compare-pour-1.5s.png`.
+- **Tips:** "starts at about 30 drops per second for fine control and speeds up to about 90 if you keep holding (a full pot of one paint in about 3 seconds)".
+- **Tests:**
+  - The "1 s pour" engine tests now use `ONE_SEC = 1 + floor(pourUnitsAt(1))` (52 units). Re-measured, with the bars raised: fresh 1 s ΔE ≥ 18 (r 26.8, y 19.2, b 26.6, k 36.5; was ≥ 15), and a 1 s white pour on strong pots ≥ 10 (was 8 / 7).
+  - New tests: 90% lands within 3–4 s, cross-checked against `addUnits`; quick taps stay ≤ 6 units; the curve is monotonic; per-tick cap; stream reset.
+  - The start-rate band 24..36 is kept.
+- **Solver and pool unaffected:** they work on compositions, not time. Re-running `tools/solve-recipes.js` leaves `colors.js` and the recipe report byte-identical, the frozen-schedule hash test passes, and `schedule.js` is untouched.
+- Version 1.11.0. Also: the box restarted mid-session and restored a 22:58 snapshot, so local r59–r61 were re-synced from origin (nothing was lost on the remote).
+
 ## Round 61 (2026-10-18, Grok Bot): README LOCKS FOR ROUNDS 40–60
 - README design locks now cover keyboard shortcuts (no seal key), forced colors, contrast and motion preferences, and spoiler-free install screenshots.
 - A stray round-51 note that had landed under "Run it" moved into the locks list. Docs only.

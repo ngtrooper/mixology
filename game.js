@@ -46,7 +46,7 @@ function scoredAttempt(rec) {
   return rec.attempts.find(a => a.hex === rec.hex && a.pct === rec.pct) || bestAttempt(rec.attempts);
 }
 const TOOLS = { dropper: 1, pour: 1 }; // every dose is one unit; pouring repeats on a timer
-const POUR_RATE = 30; // units (drops) per second while held with the Pour Bucket
+const POUR_TICK_HZ = 30; // pour timer ticks per second; how many units land per tick follows E.pourUnitsAt (round 62 ramp)
 const PIGMENT_HEX = { r: '#D6282E', y: '#FFCD00', b: '#1C4096', k: '#141416', w: '#FFFFFF' };
 const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const BUCKET_KEYS = ['r', 'y', 'b', 'k', 'w']; // 'w' is the white bucket
@@ -384,17 +384,27 @@ function startPour() {
   // paint reaches the pot once the bucket has tilted (~120 ms); the
   // first unit lands immediately so a quick tap still doses
   applyUnit();
-  let ticks = 0;
+  let ticks = 0, poured = 0; const t0 = performance.now();
   const streamDelay = REDUCED_MOTION ? 0 : 110;
   stage._streamT = setTimeout(() => { if (pourTimer) stage.classList.add('streaming'); }, streamDelay);
   sfx.pour();
   pourTimer = setInterval(() => {
     if (!round || round.finished) { stopPour(); return; }
-    applyUnit(true); // no cap exists — a pour can only be stopped by release
+    // round 62: the rate ramps from 30/s to 90/s. Whole units land to catch up
+    // with the curve, at most 6 per tick so a stalled tab can't dump a bucket.
+    const sec = (performance.now() - t0) / 1000;
+    const n = Math.min(6, Math.floor(E.pourUnitsAt(sec)) - poured);
+    if (n > 0) { // no cap exists: a pour can only be stopped by release
+      for (let i = 0; i < n; i++) round.pot = E.addUnits(round.pot, selectedBucket, 1);
+      poured += n; renderAll(); persistWip();
+    }
+    // the stream thickens with the rate (8 to 13 px core)
+    const k = (E.pourRateAt(sec) - E.POUR_RATE_START) / (E.POUR_RATE_MAX - E.POUR_RATE_START);
+    $('stream-main').style.strokeWidth = (8 + 5 * k).toFixed(2); $('stream-outline').style.strokeWidth = (10 + 6 * k).toFixed(2);
     ticks++;
     if (stage.classList.contains('streaming')) pourFx(ticks);
     if (ticks % 5 === 0) sfx.pour();
-  }, 1000 / POUR_RATE);
+  }, 1000 / POUR_TICK_HZ);
 }
 function stopPour() {
   if (pourTimer) { clearInterval(pourTimer); pourTimer = null; }
@@ -406,6 +416,7 @@ function stopPour() {
   }
   streamOn = false;
   cancelAnimationFrame(streamRaf);
+  for (const id of ['stream-main', 'stream-outline']) { const el = $(id); if (el) el.style.strokeWidth = ''; }
 }
 
 function seal() {
@@ -1307,7 +1318,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.17',
+  version: '1.11.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
