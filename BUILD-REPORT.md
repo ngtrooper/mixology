@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 64 (2026-10-18, Grok Bot): POUR SOUND FOLLOWS THE RAMP
+- The pour glug rises in pitch (+50 Hz at full speed) and shortens, and once past half speed it comes every 3 ticks instead of 5. You can hear the bucket speed up. Respects mute.
+- Version 1.11.2. Test added.
+
 ## Round 63 (2026-10-18, Grok Bot): KEYBOARD POUR PARITY
 - With the Pour Bucket selected, holding Enter or Space on the focused pot now runs the real pour: the same round-62 ramp, and one undo step for the whole hold. Release or blur stops it.
   - Before, OS key auto-repeat dosed about 30 separate drops per second, each its own undo step, with no ramp.

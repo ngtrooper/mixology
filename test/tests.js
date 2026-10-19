@@ -1099,5 +1099,8 @@ test('holding Enter/Space on the pot with the Pour Bucket runs the real pour (ra
   assert.ok(f.includes("if (!e.repeat) startPour();") && f.includes("selectedTool !== 'pour'") && f.includes("potEl.addEventListener('blur', stopPour);") && f.includes('stopPour(); }'));
   assert.ok(gameSrc.indexOf('/* Round 63: keyboard parity') < gameSrc.indexOf("potEl.addEventListener('click', e => {"));
 });
+test('pour sound follows the ramp (higher, quicker glugs at speed)', () => {
+  assert.ok(gameSrc.includes('pour(k = 0) { beep(110 + 50 * k') && gameSrc.includes('if (ticks % (k > 0.5 ? 3 : 5) === 0) sfx.pour(k);'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

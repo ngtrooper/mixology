@@ -135,7 +135,7 @@ function beep(freq, dur, type, vol, when) {
 }
 const sfx = {
   dose() { beep(220 + Math.random() * 60, 0.05, 'square', 0.025); },
-  pour() { beep(110 + Math.random() * 40, 0.12, 'sine', 0.03); }, // soft glug while pouring
+  pour(k = 0) { beep(110 + 50 * k + Math.random() * 40, 0.12 - 0.04 * k, 'sine', 0.03); }, // soft glug while pouring; r64: quicker and higher as the pour speeds up
   seal() { beep(150, 0.09, 'triangle', 0.06); },
   pick() { beep(660, 0.035, 'sine', 0.025); }, // round 27: soft tick on pigment/tool change
   undo() { beep(440, 0.05, 'sine', 0.03); beep(330, 0.06, 'sine', 0.025, 0.045); }, // round 44: a small falling two-note
@@ -403,7 +403,7 @@ function startPour() {
     $('stream-main').style.strokeWidth = (8 + 5 * k).toFixed(2); $('stream-outline').style.strokeWidth = (10 + 6 * k).toFixed(2);
     ticks++;
     if (stage.classList.contains('streaming')) pourFx(ticks);
-    if (ticks % 5 === 0) sfx.pour();
+    if (ticks % (k > 0.5 ? 3 : 5) === 0) sfx.pour(k);
   }, 1000 / POUR_TICK_HZ);
 }
 function stopPour() {
@@ -1333,7 +1333,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.11.1',
+  version: '1.11.2',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
