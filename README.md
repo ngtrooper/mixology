@@ -82,6 +82,9 @@ Consequences that are **invariants**, not implementation details:
   the solver's best recipe scores ≥ par** (`engine.isDailyEligible`,
   `PAR_PCT = 85`, ≈ ΔE ≤ 11.25) — one shared rule for game.js, the solver
   and the colors.js header; no day can be unwinnable at par.
+- **Header and panels** (round 71, Franklin):
+  - Calendar, Stats and Collection each have their own icon button with an aria-label, and their own dialog with a title (no sub-tabs). The header's right side is two rows (four icons, then Tips and Practice) and fits at 320px.
+  - User-facing copy says **Submit** ("Submit attempt 1", "Submit final attempt", "submitted"), never "Seal"; internal names may stay.
 - **No selection/callout in the play area** (round 70): play-area elements are user-select/touch-callout none and cancel contextmenu and selectstart. The pot and badges also cancel touchstart. Reading text (Tips, reveal, calendar) stays selectable.
 - **Collection** (round 69, Franklin): a third Calendar overlay tab with every daily-eligible, non-retired color (853).
   - A seal discovers the nearest one within ΔE00 3, or the round's own target if it is within reach. Hard colors use their solver best + 1.

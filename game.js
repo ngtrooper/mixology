@@ -400,7 +400,7 @@ function seal() {
   round.attempts.push(att);
   justSealed = round.attempts.length - 1;
   sfx.seal();
-  announce(`Attempt ${round.attempts.length} sealed: ${att.pct}% accuracy.`);
+  announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.`);
   if (round.attempts.length >= MAX_ATTEMPTS) finish(); // finish() has its own tiered haptic
   else { buzz(18); renderAll(); persistWip(); } // round 56: a firm tap for a non-final seal
   return att;
@@ -801,14 +801,14 @@ function renderAll() {
   $('last-result').innerHTML = round.finished
     ? ''
     : last
-      ? `Attempt ${round.attempts.length} sealed: <b>${last.pct}% accuracy</b>`
-      : 'Dose the pot, then seal an attempt. Two per round — your best one counts.';
+      ? `Attempt ${round.attempts.length} submitted: <b>${last.pct}% accuracy</b>`
+      : 'Dose the pot, then submit an attempt. Two per round — your best one counts.';
 
   const sealBtn = $('btn-seal');
   sealBtn.disabled = round.finished || round.attempts.length >= MAX_ATTEMPTS;
   sealBtn.classList.toggle('done', !!round.finished); // round 31: calm finished state
   sealBtn.textContent = round.finished ? 'Round complete ✓'
-    : round.attempts.length === MAX_ATTEMPTS - 1 ? `Seal final attempt` : `Seal attempt ${round.attempts.length + 1}`;
+    : round.attempts.length === MAX_ATTEMPTS - 1 ? `Submit final attempt` : `Submit attempt ${round.attempts.length + 1}`;
 
   const locked = round.finished;
   for (const id of ['btn-undo', 'btn-reset']) $(id).disabled = locked;
@@ -919,25 +919,21 @@ function openCalendar() {
   calMonth = new Date(t.getFullYear(), t.getMonth(), 1);
   renderCalendar();
   showCalDetail(DAY);
-  setCalTab('cal');
+  closeOverlay('stats-overlay'); closeOverlay('col-overlay');
   openOverlay('cal-overlay');
 }
 function closeCalendar() { closeOverlay('cal-overlay'); }
 
-/* Round 16: Stats tab inside the calendar overlay (no counts on the main
- * screen; design lock). Everything is computed from local day records. */
-let calTab = 'cal';
-function setCalTab(t) {
-  calTab = t;
-  for (const id of ['cal-head', 'cal-week', 'cal-grid', 'cal-detail']) $(id).style.display = t === 'cal' ? '' : 'none';
-  $('cal-stats').style.display = t === 'stats' ? 'block' : 'none';
-  $('cal-col').style.display = t === 'col' ? 'block' : 'none';
-  $('tab-cal').setAttribute('aria-selected', String(t === 'cal'));
-  $('tab-stats').setAttribute('aria-selected', String(t === 'stats'));
-  $('tab-col').setAttribute('aria-selected', String(t === 'col'));
-  if (t === 'stats') renderStats();
-  if (t === 'col') renderCollection();
+/* Round 16: Stats (no counts on the main screen; design lock). Everything is
+ * computed from local day records. Round 71 (Franklin): Stats and Collection
+ * are their own panels with their own header buttons, not Calendar sub-tabs. */
+function openStats() {
+  stopPour(); stopRemove();
+  closeOverlay('cal-overlay'); closeOverlay('col-overlay');
+  renderStats();
+  openOverlay('stats-overlay');
 }
+function closeStats() { closeOverlay('stats-overlay'); }
 /* Round 29: "Last 14 days" sparkline. Each played day is a dot at its %,
  * missed days are gaps, and a dashed line marks par. Local data only. */
 function recentFormSVG() {
@@ -1037,8 +1033,13 @@ function renderCalendar() {
     if (day === DAY) cls += ' today';
     cell.className = cls;
     if (cls.includes(' future')) cell.disabled = true; // round 21: nothing to show, so not focusable
-    cell.setAttribute('aria-label', new Date(y, m, dd).toDateString() + (pct ? `, ${name}, best ${pct}` : ''));
-    cell.innerHTML = `<span class="cd-n">${dd}</span><span class="cd-sw ${ink}" ${sw}>${pct}</span>` +
+    // round 71: "Thursday, October 1, 2026" carries the visible day number as-is
+    // ("Thu Oct 01 2026" did not: axe label-content-name-mismatch)
+    const longDate = new Date(y, m, dd).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    // a played day is named by its content (hidden full date + day, score, name);
+    // other days by the full date
+    if (!pct) cell.setAttribute('aria-label', longDate);
+    cell.innerHTML = (pct ? `<span class="sr-only">${escapeHtml(longDate)}: </span>` : '') + `<span class="cd-n">${dd}</span><span class="cd-sw ${ink}" ${sw}>${pct}</span>` +
       `<span class="cd-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
     if (!/future/.test(cls)) cell.addEventListener('click', () => showCalDetail(day));
     else cell.disabled = true;
@@ -1160,10 +1161,13 @@ function nextToast() {
   el._t = setTimeout(() => { el.classList.remove('show'); el.hidden = true; setTimeout(nextToast, 250); }, 2600);
 }
 function openCollection(name) {
-  openCalendar();
-  setCalTab('col');
+  stopPour(); stopRemove();
+  closeOverlay('cal-overlay'); closeOverlay('stats-overlay');
+  renderCollection();
+  openOverlay('col-overlay');
   if (name) showCollectionDetail(name);
 }
+function closeCollection() { closeOverlay('col-overlay'); }
 function renderCollection() {
   const hidden = collectionHidden(), found = collection.data.found || {};
   const has = c => !!found[c.name] && !hidden.has(c.name);
@@ -1175,7 +1179,7 @@ function renderCollection() {
   const famRow = f => { const k = f.colors.filter(has).length; return `<li><span>${f.label}</span><i><b style="width:${(100 * k / Math.max(1, f.colors.length)).toFixed(1)}%"></b></i><em>${k}/${f.colors.length}</em></li>`; };
   $('cal-col').innerHTML =
     `<div class="col-count"><b>${n} / ${total}</b> discovered</div>` +
-    `<p class="col-how">Every mix you seal discovers the named color nearest to it, if it comes close enough. It does not have to be the day's color.</p>` +
+    `<p class="col-how">Every mix you submit discovers the named color nearest to it, if it comes close enough. It does not have to be the day's color.</p>` +
     `<ul class="col-fams" aria-label="Progress by color family">${fams.map(famRow).join('')}</ul>` +
     `<div id="col-detail" tabindex="-1"></div>` +
     fams.map(f => `<h2 class="col-h">${f.label} <span>${f.colors.filter(has).length}/${f.colors.length}</span></h2><div class="col-grid">` +
@@ -1355,15 +1359,20 @@ $('btn-toolbar-toggle').addEventListener('click', () => {
 function closeTips() { closeOverlay('tips-overlay'); }
 $('btn-tips').addEventListener('click', () => { stopPour(); openOverlay('tips-overlay'); });
 $('btn-calendar').addEventListener('click', openCalendar);
-$('tab-cal').addEventListener('click', () => setCalTab('cal'));
-$('tab-stats').addEventListener('click', () => setCalTab('stats'));
-$('tab-col').addEventListener('click', () => setCalTab('col'));
+$('btn-stats').addEventListener('click', openStats);
+$('btn-collection').addEventListener('click', () => openCollection());
+$('btn-stats-close').addEventListener('click', closeStats);
+$('btn-col-close').addEventListener('click', closeCollection);
+$('stats-overlay').addEventListener('click', e => { if (e.target === $('stats-overlay')) closeStats(); });
+$('col-overlay').addEventListener('click', e => { if (e.target === $('col-overlay')) closeCollection(); });
 $('col-toast').addEventListener('click', () => { const n = $('col-toast').dataset.name; openCollection(n); });
 $('cal-stats').addEventListener('click', e => {
   const dot = e.target.closest && e.target.closest('.sp-dot'); if (!dot) return;
   const day = Number(dot.dataset.day); if (!Number.isFinite(day)) return;
+  // round 71: a dot opens that day in the Calendar panel
+  openCalendar();
   const d = dateForDay(day); calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-  setCalTab('cal'); renderCalendar(); showCalDetail(day);
+  renderCalendar(); showCalDetail(day);
 });
 $('btn-cal-close').addEventListener('click', closeCalendar);
 $('cal-overlay').addEventListener('click', e => { if (e.target === $('cal-overlay')) closeCalendar(); });
@@ -1415,7 +1424,7 @@ document.addEventListener('keydown', e => {
   if (k === 'd') { $('tool-dropper').click(); announce('Dropper selected'); }
   else if (k === 'p') { $('tool-pour').click(); announce('Pour Bucket selected'); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeWelcome(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); } });
 /* Round 14: first-visit welcome. Shown once per device, only to someone
  * with no saved days. The flag lives in its own key so the save format
  * (misnomer.save.v1) is untouched. */
@@ -1486,7 +1495,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.14.1',
+  version: '1.15.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

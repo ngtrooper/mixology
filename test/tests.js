@@ -816,7 +816,7 @@ test('computeStats: played / average / par rate / best / longest streak / spread
 console.log('— round 17: a11y + SVG header icons —');
 test('a11y: live announcements, focus ring, mute toggle state, SVG header icons, muted-text contrast', () => {
   assert.ok(htmlSrc.includes('id="sr-announce" class="sr-only" aria-live="polite"'), 'no live region');
-  assert.ok(gameSrc.includes('announce(`Attempt ${round.attempts.length} sealed: ${att.pct}% accuracy.`)'), 'seal not announced');
+  assert.ok(gameSrc.includes('announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.`)'), 'submit not announced');
   assert.ok(/button:focus-visible[^{]*\{ outline: 3px solid/.test(htmlSrc), 'no global focus ring');
   assert.ok(gameSrc.includes("b.setAttribute('aria-pressed', String(!m));"), 'mute has no toggle state');
   assert.ok(!/id="btn-calendar"[^>]*>📅/.test(htmlSrc) && /id="btn-calendar"[^>]*><svg/.test(htmlSrc), 'calendar icon still emoji');
@@ -866,7 +866,7 @@ test('standalone install: safe-area padding, manifest id/orientation; Tips expla
   const m = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
   assert.strictEqual(m.id, './'); assert.strictEqual(m.display, 'standalone');
   const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-overlay"'), htmlSrc.indexOf('</div>\n</div>', htmlSrc.indexOf('<div id="tips-overlay"')));
-  assert.ok(tips.includes('without naming the color') && tips.includes('calendar and stats'), 'tips do not cover sharing/stats');
+  assert.ok(tips.includes('without naming the color') && tips.includes('opens your calendar') && tips.includes('<b>Stats</b>') && tips.includes('<b>Collection</b>'), 'tips do not cover sharing/stats/collection');
 });
 console.log('— round 25: reveal action icons —');
 test('temporary button labels restore the original markup (icons survive "Copied ✓")', () => {
@@ -922,10 +922,10 @@ test('color names display in headline case (small words lower, slashes split); s
   // saves / WIP still store the raw bank name
   assert.ok(gameSrc.includes('name: round.color.name,') && gameSrc.includes('store.data.wip = { day: round.day, name: round.color.name'));
 });
-test('sparkline dots open that day in the Calendar tab', () => {
+test('sparkline dots open that day in the Calendar panel', () => {
   assert.ok(gameSrc.includes('<g class="sp-dot" data-day="${DAY - (N - 1) + p.i}">'), 'dots carry no day');
-  const h = gameSrc.slice(gameSrc.indexOf("$('cal-stats').addEventListener('click'"), gameSrc.indexOf("$('cal-stats').addEventListener('click'") + 400);
-  assert.ok(h.includes("setCalTab('cal'); renderCalendar(); showCalDetail(day);"), 'dot tap does not open the day');
+  const h = gameSrc.slice(gameSrc.indexOf("$('cal-stats').addEventListener('click'"), gameSrc.indexOf("$('cal-stats').addEventListener('click'") + 700);
+  assert.ok(h.includes("openCalendar();") && h.includes("renderCalendar(); showCalDetail(day);"), 'dot tap does not open the day');
 });
 test('duel share line is a name-free challenge; clipboard copies only the link', () => {
   const d = gameSrc.slice(gameSrc.indexOf("$('btn-duel').addEventListener"), gameSrc.indexOf("$('btn-today').addEventListener"));
@@ -1296,9 +1296,9 @@ console.log('— round 69: Collection (Franklin) —');
     assert.ok(gameSrc.includes('New color discovered: <b>') && gameSrc.includes('sfx.discover(); buzz('), 'toast / sound / haptic');
     assert.ok(gameSrc.includes("if (!store.data.days[DAY]) h.add(colorForDay(DAY).name);") && gameSrc.includes('if (round && !round.finished) h.add(round.color.name);'), 'an open round\'s color could show in the Collection');
   });
-  test('Collection markup: third tab, undiscovered tiles are a neutral "?", discovered tiles are labelled buttons, dark-mode vars', () => {
-    assert.ok(htmlSrc.includes('<button id="tab-col" role="tab" type="button" aria-selected="false">Collection</button>'));
-    assert.ok(htmlSrc.includes('<div id="cal-col" style="display:none"></div>'));
+  test('Collection markup: own panel, undiscovered tiles are a neutral "?", discovered tiles are labelled buttons, dark-mode vars', () => {
+    assert.ok(htmlSrc.includes('id="btn-collection" type="button" aria-label="Collection"'));
+    assert.ok(htmlSrc.includes('<div id="cal-col"></div>'));
     assert.ok(gameSrc.includes('`<span class="ct q" aria-hidden="true">?</span>`'));
     assert.ok(/\.ct\.q \{ background: var\(--paper\); color: var\(--muted\)/.test(htmlSrc));
     assert.ok(gameSrc.includes('aria-label="${escapeHtml(titleCase(c.name))}"'));
@@ -1319,6 +1319,27 @@ test('play area: user-select/touch-callout none, tap highlight off, touch-action
   assert.ok(gameSrc.includes("el.addEventListener('contextmenu', e => e.preventDefault());") && gameSrc.includes("el.addEventListener('selectstart', e => e.preventDefault());"));
   assert.ok(gameSrc.includes("{ passive: false }"), 'touchstart must be non-passive to cancel the iOS callout');
   assert.ok(!/(#tips-panel|#reveal|body)[^{]*\{[^}]*user-select: none/.test(htmlSrc), 'reading text lost selection');
+});
+console.log('— round 71: own panels for Stats and Collection; "Submit" wording —');
+test('Calendar, Stats and Collection: separate header buttons (SVG + aria-label) and separate dialogs with titles; no sub-tabs', () => {
+  for (const [id, label] of [['btn-calendar', 'Calendar'], ['btn-stats', 'Stats'], ['btn-collection', 'Collection']])
+    assert.ok(new RegExp(`id="${id}" type="button" aria-label="${label}"><svg viewBox="0 0 24 24" aria-hidden="true">`).test(htmlSrc), id);
+  for (const [ov, h, title] of [['cal-overlay', 'cal-h', 'Calendar'], ['stats-overlay', 'stats-h', 'Stats'], ['col-overlay', 'col-h', 'Collection']]) {
+    assert.ok(new RegExp(`<div id="${ov}" class="modal-ov[^"]*" role="dialog" aria-modal="true" aria-labelledby="${h}">`).test(htmlSrc), ov);
+    assert.ok(htmlSrc.includes(`<h2 class="ov-title" id="${h}">${title}</h2>`), title);
+  }
+  assert.ok(!htmlSrc.includes('role="tablist"') && !gameSrc.includes('setCalTab'), 'sub-tabs still present');
+  assert.ok(gameSrc.includes("$('btn-stats').addEventListener('click', openStats);") && gameSrc.includes("$('btn-collection').addEventListener('click', () => openCollection());"));
+  assert.ok(gameSrc.includes('closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome();'), 'Escape does not close the new panels');
+  for (const id of ['btn-tips', 'btn-practice', 'btn-mute']) assert.ok(htmlSrc.includes(`id="${id}"`));
+});
+test('UI copy says "Submit", never "Seal" (internal names may stay)', () => {
+  const vis = s => s.replace(/<script[^]*?<\/script>/g, '').replace(/<style[^]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ');
+  assert.ok(!/\bseal(ed|s)?\b/i.test(vis(htmlSrc)), 'HTML text still says seal');
+  const strs = (gameSrc.match(/(['`])(?:(?!\1)[^\\\n]|\\.)*\1/g) || []).filter(s => !/^['`][\w.-]*['`]$/.test(s));
+  const bad = strs.filter(s => /\bseal(ed|s)?\b/i.test(s) && !/btn-seal|seal\(|sfx\.seal/.test(s));
+  assert.deepStrictEqual(bad, []);
+  assert.ok(gameSrc.includes('`Submit final attempt` : `Submit attempt ${round.attempts.length + 1}`') && htmlSrc.includes('>Submit attempt 1</button>'));
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

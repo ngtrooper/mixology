@@ -2,6 +2,26 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 71 (2026-10-19, Grok Bot): STATS AND COLLECTION GET THEIR OWN PANELS; "SUBMIT" (Franklin)
+- **Header buttons.** Calendar, Stats and Collection are now separate header buttons, each a clean SVG icon with an aria-label ("Calendar", "Stats", "Collection").
+  - Stats icon: bars. Collection icon: tiles.
+  - The header's right side is two compact rows: the four icons (Calendar, Stats, Collection, sound), then Tips and Practice.
+  - Playwright at 320/360/390, light and dark, daily and practice ("← Daily"): no overlaps, nothing off-screen, no horizontal scroll, every button at least 24 px. Header height is 61 px at 320/360 and 67 px at 390.
+- **Panels.** Each opens its own dialog (`#cal-overlay`, `#stats-overlay`, `#col-overlay`) with its own h2 title and close button. The sub-tabs are gone.
+  - Opening one closes the others.
+  - Kept: the sparkline dot opens that day in the Calendar (verified), the Collection tile detail, and the toast opening the Collection.
+  - Escape closes all panels, and focus returns to the button that opened the panel. The focus trap holds (30 Tabs, 0 escapes). PageUp/PageDown still change month.
+- **Submit wording.** "Seal" is now "Submit" in all user-facing text: "Submit attempt 1", "Submit final attempt", "Attempt 1 submitted: …" (status line and screen-reader announcement), the hint line, Tips, the welcome card, the footer and the Collection explainer.
+  - Internal names (`seal()`, `#btn-seal`, `sfx.seal`) stay.
+  - A test scans the visible HTML text and the game.js strings for "seal".
+- **Calendar cell a11y.** Fixed a pre-existing axe `label-content-name-mismatch` on calendar cells.
+  - "Thu Oct 01 2026" did not contain the visible "1". Unplayed days now use the long date ("Thursday, October 1, 2026").
+  - Played days are named by their content: a hidden full date, then the visible day, score and name.
+- axe is clean on home, reveal, calendar (including played days), stats, collection, tips and welcome, in light and dark.
+- Tips copy explains the three buttons.
+- Shots: `r71-header-{320,360,390}-{light,dark}.png`, `r71-header-320-*-practice.png`, `r71-stats.png`, `r71-collection.png`, plus `-live` versions.
+- Version 1.15.0. 163 tests.
+
 ## Round 70 (2026-10-18, Grok Bot): NO LONG-PRESS CALLOUT IN THE PLAY AREA (Franklin, urgent)
 - **Bug:** on phones, holding the pot or bucket brought up the OS text callout (Copy / Find Selection / Look Up).
 - **CSS:** the whole play area (#stage, #toolbar, #attempts-list, #actions and everything in them) is `-webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent`.
