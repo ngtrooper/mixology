@@ -552,6 +552,101 @@ function nearestColorName(lab, bankLabs, bank, excludeNames) {
   return best ? { name: best.name, hex: best.hex, deltaE: bestDe } : null;
 }
 
+/* ---------------- Collection (round 69, Franklin) ----------------
+ * A Pokédex of the bank. Every sealed mix (daily or practice) discovers the
+ * nearest collectible bank color when it lies within DISCOVER_DE (CIEDE2000),
+ * even if that is not the round's target. If the mix is within reach of the
+ * round's own target, the target is the one discovered (the bank has near twins,
+ * like "bright green" and "fluorescent green" at 0.05 apart, and a twin could
+ * otherwise never be found). Collectible = every color that can be a daily:
+ * not retired and daily-eligible. Retired names and the ~120 colors the five
+ * paints cannot make at par (neons, brights) are left out, so every tile can
+ * be won. A color the paints cannot reach within DISCOVER_DE is found within
+ * its own solver best + DISCOVER_HARD_MARGIN. Tuned with tools/discovery-rate.js (BUILD-REPORT round 69): the
+ * bank is dense, so even at 3 about 2 in 3 seals land near some color; what 3
+ * keeps meaningful is how many are NEW (about 35-40 after 30 days, about 300-335
+ * of 853 after a year of dailies). At 5, about 9 in 10 seals hit something. */
+const DISCOVER_DE = 3, DISCOVER_HARD_MARGIN = 1;
+const COLLECTION_KEY = 'mixology.collection.v1';
+/** The Collection: every color that can be a daily (the game's POOL). */
+function collectibleColors(bank) { return bank.filter(c => !c.retired && isDailyEligible(c.de)); }
+/** How close a mix must come to discover color c. Colors the five paints cannot
+ *  reach within DISCOVER_DE (solver de) are found within their own best + a margin,
+ *  so the whole Collection can be completed. */
+function discoverLimit(c, maxDe) {
+  const lim = maxDe == null ? DISCOVER_DE : maxDe;
+  return Math.max(lim, (Number(c.de) || 0) + DISCOVER_HARD_MARGIN);
+}
+/* Hue families by CIE LCh: low chroma = neutrals, otherwise hue bins. */
+const HUE_FAMILIES = [
+  { id: 'red', label: 'Reds & pinks' }, { id: 'orange', label: 'Oranges & browns' },
+  { id: 'yellow', label: 'Yellows' }, { id: 'green', label: 'Greens' },
+  { id: 'teal', label: 'Teals & cyans' }, { id: 'blue', label: 'Blues' },
+  { id: 'purple', label: 'Purples' }, { id: 'neutral', label: 'Neutrals' }
+];
+function hueFamily(hex) {
+  const [L, a, b] = hexToLab(hex), C = Math.hypot(a, b);
+  if (C < 8) return 'neutral';
+  const h = (Math.atan2(b, a) * 180 / Math.PI + 360) % 360;
+  if (h < 40 || h >= 350) return 'red';
+  if (h < 75) return 'orange';
+  if (h < 105) return 'yellow';
+  if (h < 175) return 'green';
+  if (h < 235) return 'teal';
+  if (h < 290) return 'blue';
+  return 'purple';
+}
+/** The collectible color a mix discovers, or null. The round's target wins when
+ *  the mix is within its discoverLimit; otherwise the nearest (CIEDE2000) of the
+ *  colors whose limit the mix is within. */
+function discoverColor(hex, collectible, labs, maxDe, targetName) {
+  const lab = hexToLab(hex);
+  let best = null, bestDe = Infinity;
+  for (let i = 0; i < collectible.length; i++) {
+    const lim = discoverLimit(collectible[i], maxDe);
+    // no CIE76 prefilter: CIE76 can be ~8x CIEDE2000 near neutrals, and ~1000
+    // CIEDE2000 evaluations per seal cost well under a millisecond
+    const de = deltaE2000(lab, labs[i]);
+    if (de > lim) continue;
+    if (targetName && collectible[i].name === targetName) return { name: collectible[i].name, hex: collectible[i].hex, deltaE: de };
+    if (de < bestDe) { bestDe = de; best = collectible[i]; }
+  }
+  return best ? { name: best.name, hex: best.hex, deltaE: bestDe } : null;
+}
+/** Fold one sealed mix into a collection object (pure: returns a new one, plus
+ *  `isNew`). The best mix for a color is the most accurate one against it. */
+function recordDiscovery(col, found, att, when) {
+  const out = { v: 1, found: { ...((col && col.found) || {}) }, backfilled: !!(col && col.backfilled) };
+  if (!found) return { col: out, isNew: false, name: null };
+  const pct = accuracyFromDeltaE(found.deltaE);
+  const prev = out.found[found.name];
+  const best = { comp: normalizeComp(att.comp), hex: att.hex, pct, de: Math.round(found.deltaE * 10) / 10 };
+  if (!prev) out.found[found.name] = { date: when, best };
+  else if (pct > prev.best.pct) out.found[found.name] = { date: prev.date, best };
+  return { col: out, isNew: !prev, name: found.name };
+}
+/** Backfill from saved daily records ({day: {date, attempts:[{comp, hex}]}}). */
+function backfillCollection(col, days, collectible, labs) {
+  let out = { v: 1, found: { ...((col && col.found) || {}) }, backfilled: true };
+  const keys = Object.keys(days || {}).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  for (const d of keys) {
+    const rec = days[d];
+    for (const att of (rec && rec.attempts) || []) {
+      if (!att || !att.hex || !att.comp) continue;
+      out = recordDiscovery(out, discoverColor(att.hex, collectible, labs, null, rec.name), att, rec.date || null).col;
+    }
+  }
+  out.backfilled = true;
+  return out;
+}
+/** Spoiler rule: the official recipe of a collected color is shown only once
+ *  that color's daily date has passed (a scheduled day before today), or when
+ *  it is today's color and today is finished. Otherwise only the player's mix. */
+function officialRecipeVisible(name, scheduleDays, today, todayName, todayFinished) {
+  if (name === todayName && todayFinished) return true;
+  return (scheduleDays || []).some(d => d < today);
+}
+
 /* ---------------- duel link payload (round 8) ----------------
  * The player's % composition (r.y.b.k.w, %x10 integers) masked with a
  * day-seeded keystream, 2 base36 chars per share. Obfuscation, not
@@ -582,7 +677,8 @@ const MisnomerEngine = {
   TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
-  hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName
+  hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName,
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

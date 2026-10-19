@@ -142,6 +142,7 @@ const sfx = {
   reveal() { [523, 659, 784].forEach((f, i) => beep(f, 0.16, 'sine', 0.05, i * 0.09)); },
   // round 15: tiered finish. Par adds a fourth note, 95%+ a sparkle run.
   par() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'sine', 0.05, i * 0.09)); },
+  discover() { [880, 1175, 1568].forEach((f, i) => beep(f, 0.12, 'triangle', 0.045, i * 0.07)); }, // round 69
   ace() { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => beep(f, 0.2, i > 3 ? 'triangle' : 'sine', 0.05, i * 0.075)); }
 };
 
@@ -445,6 +446,7 @@ function finish() {
   scrollRevealIntoView();
   revealEntrance(final.pct);
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
+  queueDiscoveryToasts(collectRound(round.attempts, round.color.name)); // round 69: announced only now, at the reveal
 }
 
 /* Round 17: screen-reader announcements (polite live region). It only
@@ -929,9 +931,12 @@ function setCalTab(t) {
   calTab = t;
   for (const id of ['cal-head', 'cal-week', 'cal-grid', 'cal-detail']) $(id).style.display = t === 'cal' ? '' : 'none';
   $('cal-stats').style.display = t === 'stats' ? 'block' : 'none';
+  $('cal-col').style.display = t === 'col' ? 'block' : 'none';
   $('tab-cal').setAttribute('aria-selected', String(t === 'cal'));
   $('tab-stats').setAttribute('aria-selected', String(t === 'stats'));
+  $('tab-col').setAttribute('aria-selected', String(t === 'col'));
   if (t === 'stats') renderStats();
+  if (t === 'col') renderCollection();
 }
 /* Round 29: "Last 14 days" sparkline. Each played day is a dot at its %,
  * missed days are gaps, and a dashed line marks par. Local data only. */
@@ -1078,6 +1083,125 @@ function showCalDetail(day) {
   }
 }
 
+/* ---------------- Collection (round 69, Franklin) ---------------------- */
+/* A Pokédex of the bank (engine: DISCOVER_DE, discoverColor, recordDiscovery,
+ * backfillCollection, officialRecipeVisible). Its own versioned key
+ * (mixology.collection.v1); the save (misnomer.save.v1) is untouched. Storage can
+ * fail (private mode, quota): the collection then lives in memory for the
+ * session. Discoveries are worked out per SEALED attempt but only announced
+ * at the reveal (finish), because naming the color nearest your mix before
+ * the reveal would tell you how close you are (design lock: no clues). */
+const COLLECTIBLE = E.collectibleColors(BANK);
+const COLLECTIBLE_LABS = COLLECTIBLE.map(c => E.hexToLab(c.hex));
+const SCHEDULE_DAYS = (() => { // name -> scheduled days, for the spoiler rule
+  const m = new Map();
+  SCHEDULE.forEach((n, d) => { if (n) { if (!m.has(n)) m.set(n, []); m.get(n).push(d); } });
+  return m;
+})();
+const collection = {
+  data: (() => {
+    try {
+      const raw = localStorage.getItem(E.COLLECTION_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && p.v === 1 && p.found && typeof p.found === 'object') return p;
+      }
+    } catch (e) { /* unreadable or blocked: start empty */ }
+    return { v: 1, found: {}, backfilled: false };
+  })(),
+  persist() {
+    try { localStorage.setItem(E.COLLECTION_KEY, JSON.stringify(this.data)); } catch (e) { /* memory only */ }
+  }
+};
+// first load: everything the player has already sealed counts
+if (!collection.data.backfilled) {
+  try { collection.data = E.backfillCollection(collection.data, store.data.days, COLLECTIBLE, COLLECTIBLE_LABS); }
+  catch (e) { collection.data.backfilled = true; }
+  collection.persist();
+}
+/** Fold a finished round's attempts in; returns the newly discovered names. */
+function collectRound(attempts, targetName) {
+  const fresh = [], when = E.dateKey(new Date());
+  for (const att of attempts || []) {
+    const found = E.discoverColor(att.hex, COLLECTIBLE, COLLECTIBLE_LABS, null, targetName);
+    const r = E.recordDiscovery(collection.data, found, att, when);
+    collection.data = r.col;
+    if (r.isNew && !fresh.includes(r.name)) fresh.push(r.name);
+  }
+  collection.persist();
+  return fresh;
+}
+/* Names that must not show while a round is open: today's daily color until
+ * today is finished, and the open round's own color. A collected one of these
+ * shows as undiscovered (and is not counted) until then. */
+function collectionHidden() {
+  const h = new Set();
+  if (!store.data.days[DAY]) h.add(colorForDay(DAY).name);
+  if (round && !round.finished) h.add(round.color.name);
+  return h;
+}
+let toastQueue = [], toastBusy = false;
+function queueDiscoveryToasts(names) {
+  if (!names.length) return;
+  toastQueue.push(...names);
+  if (!toastBusy) setTimeout(nextToast, 900); // after the reveal lands
+}
+function nextToast() {
+  const el = $('col-toast'), name = toastQueue.shift();
+  if (!el || !name) { toastBusy = false; return; }
+  toastBusy = true;
+  const c = BANK_BY_NAME.get(name);
+  el.innerHTML = `<i style="background:${c ? c.hex : '#ccc'}" aria-hidden="true"></i><span>New color discovered: <b>${escapeHtml(titleCase(name))}</b>!</span>`;
+  el.dataset.name = name;
+  el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  announce(`New color discovered: ${titleCase(name)}!`);
+  sfx.discover(); buzz([10, 40, 14]);
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.classList.remove('show'); el.hidden = true; setTimeout(nextToast, 250); }, 2600);
+}
+function openCollection(name) {
+  openCalendar();
+  setCalTab('col');
+  if (name) showCollectionDetail(name);
+}
+function renderCollection() {
+  const hidden = collectionHidden(), found = collection.data.found || {};
+  const has = c => !!found[c.name] && !hidden.has(c.name);
+  const fams = E.HUE_FAMILIES.map(f => ({ ...f, colors: [] }));
+  const byId = new Map(fams.map(f => [f.id, f]));
+  for (const c of COLLECTIBLE) byId.get(E.hueFamily(c.hex)).colors.push(c);
+  for (const f of fams) f.colors.sort((a, b) => E.hexToLab(b.hex)[0] - E.hexToLab(a.hex)[0]);
+  const total = COLLECTIBLE.length, n = COLLECTIBLE.filter(has).length;
+  const famRow = f => { const k = f.colors.filter(has).length; return `<li><span>${f.label}</span><i><b style="width:${(100 * k / Math.max(1, f.colors.length)).toFixed(1)}%"></b></i><em>${k}/${f.colors.length}</em></li>`; };
+  $('cal-col').innerHTML =
+    `<div class="col-count"><b>${n} / ${total}</b> discovered</div>` +
+    `<p class="col-how">Every mix you seal discovers the named color nearest to it, if it comes close enough. It does not have to be the day's color.</p>` +
+    `<ul class="col-fams" aria-label="Progress by color family">${fams.map(famRow).join('')}</ul>` +
+    `<div id="col-detail" tabindex="-1"></div>` +
+    fams.map(f => `<h2 class="col-h">${f.label} <span>${f.colors.filter(has).length}/${f.colors.length}</span></h2><div class="col-grid">` +
+      f.colors.map(c => has(c)
+        ? `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.hex}" aria-label="${escapeHtml(titleCase(c.name))}"></button>`
+        : `<span class="ct q" aria-hidden="true">?</span>`).join('') + `</div>`).join('');
+  $('cal-col').querySelectorAll('.ct[data-name]').forEach(b => b.addEventListener('click', () => showCollectionDetail(b.dataset.name)));
+}
+function showCollectionDetail(name) {
+  const el = $('col-detail'), rec = (collection.data.found || {})[name], c = BANK_BY_NAME.get(name);
+  if (!el || !rec || !c || collectionHidden().has(name)) return;
+  document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
+  const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
+  const todayName = colorForDay(DAY).name;
+  const showRecipe = E.officialRecipeVisible(name, SCHEDULE_DAYS.get(name), DAY, todayName, !!store.data.days[DAY]);
+  const b = rec.best;
+  const when = rec.date ? new Date(rec.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'before the Collection existed';
+  el.innerHTML = `<div class="cdt-title">“${escapeHtml(titleCase(name))}”</div>` +
+    `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${b.pct}%</div>` +
+    `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.hex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${b.pct}%</b></span></div>` +
+    recipeRowHTML('Your mix', b.pct + '%', b.comp) +
+    (showRecipe ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once this color has been a daily color.</p>`);
+  try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+  el.scrollIntoView({ block: 'nearest', behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
+}
+
 /* ---------------- practice ---------------------------------------------- */
 function startPractice() {
   selectedTool = 'pour'; // round 7: entering practice also lands on the Pour Bucket
@@ -1216,6 +1340,8 @@ $('btn-tips').addEventListener('click', () => { stopPour(); openOverlay('tips-ov
 $('btn-calendar').addEventListener('click', openCalendar);
 $('tab-cal').addEventListener('click', () => setCalTab('cal'));
 $('tab-stats').addEventListener('click', () => setCalTab('stats'));
+$('tab-col').addEventListener('click', () => setCalTab('col'));
+$('col-toast').addEventListener('click', () => { const n = $('col-toast').dataset.name; openCollection(n); });
 $('cal-stats').addEventListener('click', e => {
   const dot = e.target.closest && e.target.closest('.sp-dot'); if (!dot) return;
   const day = Number(dot.dataset.day); if (!Number.isFinite(day)) return;
@@ -1343,7 +1469,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.13.0',
+  version: '1.14.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
@@ -1358,6 +1484,8 @@ window.MISNOMER = {
   },
   selectBucket(b) { selectedBucket = b; renderAll(); },
   removePaint, // round 68
+  collection: () => JSON.parse(JSON.stringify(collection.data)), // round 69
+  openCollection,
   selectTool(t) { selectedTool = t; renderAll(); },
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,

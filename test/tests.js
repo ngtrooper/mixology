@@ -1216,5 +1216,98 @@ test('Franklin r67: nothing is drawn on/in the pot (no swirl, bloom, ripple, spl
   assert.ok(!/\$\('pot-surface'\)\.appendChild|surface\.appendChild/.test(gameSrc), 'something is still appended into the pot surface');
   assert.ok(/#pot-surface \{[^}]*transition: background-color/.test(htmlSrc), 'pot color no longer eases');
 });
+console.log('— round 69: Collection (Franklin) —');
+{
+  const COL = E.collectibleColors(bank), LABS = COL.map(c => E.hexToLab(c.hex));
+  test('collectible = every color that can be a daily (non-retired, eligible); threshold ΔE00 3 (+1 over solver best for hard colors); every tile winnable', () => {
+    assert.strictEqual(COL.length, bank.filter(c => !c.retired && E.isDailyEligible(c.de)).length);
+    assert.ok(COL.every(c => !c.retired) && gameSrc.includes('const COLLECTIBLE = E.collectibleColors(BANK);'));
+    assert.strictEqual(E.DISCOVER_DE, 3);
+    const easy = COL.find(c => c.de < 1), hard = COL.find(c => c.de > 10);
+    assert.strictEqual(E.discoverLimit(easy), 3); assert.ok(Math.abs(E.discoverLimit(hard) - (hard.de + 1)) < 1e-9);
+    // every color can be discovered: its own solver recipe discovers SOME color, and itself when nothing nearer
+    // every tile can be won: its own recipe, sealed in a round for that color, discovers it
+    for (const c of COL) { const d = E.discoverColor(E.mixColor(c.recipe), COL, LABS, null, c.name); assert.ok(d && d.name === c.name, `${c.name} cannot be won`); }
+    // twins: outside its own round a near twin may take the find instead (nearest wins)
+    const tw = COL.find(c => { const d = E.discoverColor(E.mixColor(c.recipe), COL, LABS); return d && d.name !== c.name; });
+    assert.ok(tw, 'expected at least one near-twin in the bank');
+  });
+  test('discovery: the nearest color within its limit wins, even if it is not the target; a far mix discovers nothing', () => {
+    const rose = COL.find(c => c.name === 'rose') || COL[0];
+    const d = E.discoverColor(rose.hex, COL, LABS);
+    assert.strictEqual(d.name, rose.name); assert.ok(d.deltaE < 1e-6);
+    // brute force agrees on random mixes
+    const rng = E.mulberry32(69);
+    for (let i = 0; i < 150; i++) {
+      const hex = E.mixColor(E.snapTraces({ r: rng() * 60, y: rng() * 60, b: rng() * 60, k: rng() * 20, w: rng() * 100 }));
+      const lab = E.hexToLab(hex); let best = null, bd = Infinity;
+      COL.forEach((c, j) => { const de = E.deltaE2000(lab, LABS[j]); if (de <= E.discoverLimit(c) && de < bd) { bd = de; best = c.name; } });
+      const got = E.discoverColor(hex, COL, LABS);
+      assert.strictEqual(got ? got.name : null, best, hex);
+    }
+    assert.strictEqual(E.discoverColor('#ffffff', COL.filter(c => E.deltaE2000(E.hexToLab(c.hex), E.hexToLab('#ffffff')) > 20), LABS.filter((l, j) => E.deltaE2000(LABS[j], E.hexToLab('#ffffff')) > 20)), null);
+  });
+  test('recordDiscovery: first find keeps its date; a better later mix replaces the best mix only', () => {
+    const c = COL.find(x => x.de < 1);
+    const near = { name: c.name, hex: c.hex, deltaE: 2.5 }, nearer = { name: c.name, hex: c.hex, deltaE: 0.8 };
+    let r = E.recordDiscovery(null, near, { comp: { r: 10, w: 90 }, hex: '#aa0000' }, '2026-10-18');
+    assert.ok(r.isNew); assert.strictEqual(r.col.found[c.name].date, '2026-10-18');
+    const p1 = r.col.found[c.name].best.pct;
+    r = E.recordDiscovery(r.col, nearer, { comp: { r: 12, w: 88 }, hex: '#bb0000' }, '2026-10-20');
+    assert.ok(!r.isNew); assert.strictEqual(r.col.found[c.name].date, '2026-10-18');
+    assert.ok(r.col.found[c.name].best.pct > p1 && r.col.found[c.name].best.hex === '#bb0000');
+    const r2 = E.recordDiscovery(r.col, near, { comp: { r: 1, w: 99 }, hex: '#cc0000' }, '2026-10-21');
+    assert.strictEqual(r2.col.found[c.name].best.hex, '#bb0000', 'a worse mix replaced the best');
+    assert.ok(!E.recordDiscovery(r.col, null, { comp: {}, hex: '#000' }, 'x').isNew);
+  });
+  test('backfill: every saved daily attempt is folded in once, dated by its day record; marks backfilled', () => {
+    const a = COL.find(c => c.de < 0.5), b = COL.find(c => c.de < 0.5 && E.deltaE2000(E.hexToLab(c.hex), E.hexToLab(a.hex)) > 15);
+    const days = {
+      600: { date: '2026-08-23', name: a.name, attempts: [{ comp: a.recipe, hex: E.mixColor(a.recipe), pct: 99 }, { comp: { w: 100 }, hex: '#000000', pct: 1 }] },
+      601: { date: '2026-08-24', name: b.name, attempts: [{ comp: b.recipe, hex: E.mixColor(b.recipe), pct: 99 }] },
+      602: { date: '2026-08-25', name: a.name, attempts: [{ comp: a.recipe, hex: E.mixColor(a.recipe) }] },
+      bogus: null
+    };
+    const col = E.backfillCollection(null, days, COL, LABS);
+    assert.ok(col.backfilled && col.v === 1);
+    const fa = E.discoverColor(E.mixColor(a.recipe), COL, LABS).name;
+    assert.strictEqual(col.found[fa].date, '2026-08-23', 'earliest day wins the date');
+    assert.ok(col.found[E.discoverColor(E.mixColor(b.recipe), COL, LABS).name]);
+    assert.deepStrictEqual(E.backfillCollection(null, {}, COL, LABS).found, {});
+  });
+  test('spoiler rule: official recipe only after the color\'s daily date has passed, or today\'s finished color', () => {
+    assert.strictEqual(E.officialRecipeVisible('x', [100, 700], 656, 'y', false), true);   // was a daily (day 100)
+    assert.strictEqual(E.officialRecipeVisible('x', [700], 656, 'y', true), false);        // only upcoming
+    assert.strictEqual(E.officialRecipeVisible('x', undefined, 656, 'y', true), false);    // never a daily
+    assert.strictEqual(E.officialRecipeVisible('x', [656], 656, 'x', false), false);       // today, not finished
+    assert.strictEqual(E.officialRecipeVisible('x', [656], 656, 'x', true), true);         // today, finished
+    assert.ok(gameSrc.includes("E.officialRecipeVisible(name, SCHEDULE_DAYS.get(name), DAY, todayName, !!store.data.days[DAY])"));
+    assert.ok(gameSrc.includes('The official recipe unlocks once this color has been a daily color.'), 'locked copy must not say whether it is upcoming');
+  });
+  test('game wiring: own versioned key, storage-failure safe, backfill on first load, announced only at the reveal', () => {
+    assert.strictEqual(E.COLLECTION_KEY, 'mixology.collection.v1');
+    const mod = gameSrc.slice(gameSrc.indexOf('const collection = {'), gameSrc.indexOf('function collectRound('));
+    assert.ok((mod.match(/try \{/g) || []).length >= 3, 'storage access not guarded');
+    assert.ok(mod.includes('if (!collection.data.backfilled)') && mod.includes('E.backfillCollection(collection.data, store.data.days'));
+    const sealFn = gameSrc.slice(gameSrc.indexOf('function seal() {'), gameSrc.indexOf('function finish() {'));
+    assert.ok(!/collect|discover/i.test(sealFn), 'a discovery could show before the reveal (it would be a clue)');
+    const fin = gameSrc.slice(gameSrc.indexOf('function finish() {'), gameSrc.indexOf('/* Round 17: screen-reader'));
+    assert.ok(fin.includes('queueDiscoveryToasts(collectRound(round.attempts, round.color.name))'), 'finish does not collect (daily and practice)');
+    assert.ok(gameSrc.includes('New color discovered: <b>') && gameSrc.includes('sfx.discover(); buzz('), 'toast / sound / haptic');
+    assert.ok(gameSrc.includes("if (!store.data.days[DAY]) h.add(colorForDay(DAY).name);") && gameSrc.includes('if (round && !round.finished) h.add(round.color.name);'), 'an open round\'s color could show in the Collection');
+  });
+  test('Collection markup: third tab, undiscovered tiles are a neutral "?", discovered tiles are labelled buttons, dark-mode vars', () => {
+    assert.ok(htmlSrc.includes('<button id="tab-col" role="tab" type="button" aria-selected="false">Collection</button>'));
+    assert.ok(htmlSrc.includes('<div id="cal-col" style="display:none"></div>'));
+    assert.ok(gameSrc.includes('`<span class="ct q" aria-hidden="true">?</span>`'));
+    assert.ok(/\.ct\.q \{ background: var\(--paper\); color: var\(--muted\)/.test(htmlSrc));
+    assert.ok(gameSrc.includes('aria-label="${escapeHtml(titleCase(c.name))}"'));
+    assert.ok(/#col-toast \{[^}]*background: var\(--ink\); color: var\(--paper\)/.test(htmlSrc));
+    assert.ok(/\.ct, #col-toast i, \.col-fams i \{ forced-color-adjust: none; \}/.test(htmlSrc));
+    for (const f of E.HUE_FAMILIES) assert.ok(f.label);
+    const fam = new Set(E.collectibleColors(bank).map(c => E.hueFamily(c.hex)));
+    assert.strictEqual(fam.size, E.HUE_FAMILIES.length, 'an empty family');
+  });
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

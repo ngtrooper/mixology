@@ -2,6 +2,42 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 69 (2026-10-18, Grok Bot): COLLECTION (Franklin)
+- **Where.** A third tab, "Collection", in the Calendar/Stats overlay. The calendar header button is now labelled "Calendar, stats and collection".
+- **What's in it.** 853 colors: every color that can be a daily (non-retired and daily-eligible).
+  - Left out: the 7 retired names, and the 121 colors the five paints cannot make at par (neons and brights such as cyan, ΔE 19.5). Those tiles could never be won.
+- **Layout.**
+  - "X / 853 discovered" and per-family progress bars, in 8 CIE LCh hue families.
+  - Then a grid per family. Discovered tiles are labelled buttons in the official color. Undiscovered tiles are a neutral dashed "?", hidden from screen readers; the family heading carries the count.
+- **Discovery.** Worked out on every seal (daily and practice). The mix discovers the nearest collectible color within ΔE00 ≤ `DISCOVER_DE` = 3.
+  - Colors the paints cannot reach within 3 are found within their own solver best + 1.
+  - If the mix is within reach of the round's own target, the target wins. The bank has near twins (bright green / fluorescent green are ΔE 0.05 apart) that could otherwise never be found.
+  - Test: every one of the 853 tiles can be won with its own recipe in its own round.
+- **Announced only at the reveal**, never at seal 1. Naming the color nearest your mix mid-round would tell you how close you are (no-clues lock).
+  - Toast: "New color discovered: Pale Red!" with a swatch, a three-note chime and a light haptic. One toast per new color, queued. Also announced to screen readers. Tapping the toast opens that color in the Collection.
+- **Tile detail.** Name, official swatch, the player's best mix (swatch, accuracy against that color, composition bar) and the date discovered.
+- **Spoiler rule.** The official recipe shows only if the color was a daily on a day before today, or it is today's color and today is finished. Otherwise: "The official recipe unlocks once this color has been a daily color." The same text is used whether the color is upcoming or never scheduled, so it leaks no schedule.
+  - While a round is open, today's color and the open round's color show as "?" and are not counted, even if collected earlier. Its official swatch would spoil the target.
+- **Storage.** Own key `mixology.collection.v1` (v:1); the save is untouched.
+  - Backfilled once from all saved daily attempts, dated by their day records. Practice was never saved, so it can't be backfilled.
+  - Storage-failure safe: a test with every localStorage call throwing showed no errors, "0 / 853", and a collection that lives in memory.
+- **Measured discovery rate** (`tools/discovery-rate.js`, 365 simulated daily rounds × 2 seals, three skill levels at about 82/87/91% average accuracy):
+
+  | ΔE threshold | seals finding something | seals finding the target itself | new colors after 30 / 90 / 365 days |
+  |---|---|---|---|
+  | **3 (chosen)** | 60–72% | 11–37% | about 33–41 / 85–106 / 297–336 |
+  | 5 | 83–92% | 15–53% | about 41–44 / 116–126 / 352–370 |
+
+  The bank is dense, so the threshold mainly sets how often a seal finds *something*. At 5 nearly every seal does, which is trivial. At 3 roughly 2 in 3 do, and new finds slow from about 2 in 3 seals early to about 1 in 3 later. A year of dailies collects about 35–40%, so completing it takes deliberate practice exploration.
+- a11y: tablist, labelled tiles, focusable detail, axe clean in light and dark. Forced colors keep the tile colors. Dark mode uses the theme variables.
+- Shots:
+  - `r66-collection-local-grid-{light,dark}.png`
+  - `r66-collection-local-detail-recipe.png` (past daily: recipe shown)
+  - `r66-collection-local-detail-locked.png` (future-only color: locked)
+  - `r66-collection-local-toast.png`
+  - plus `-live-` versions.
+- Version 1.14.0. 160 tests.
+
 ## Round 68 (2026-10-18, Grok Bot): NO TRACES, PLUS A REMOVE CONTROL (Franklin)
 **Problem.** With live % on the discs, dilution showed a flaw. A paint only shrinks geometrically, so 3% yellow sat at "<1%" for about 230 more white units and never reached 0.
 

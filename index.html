@@ -288,7 +288,7 @@
   .rbar span.w { box-shadow: inset 1px 0 0 var(--line); }
   .rleg { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 9px; font-size: 11px; color: var(--muted); margin-top: -4px; font-variant-numeric: tabular-nums; }
   .rleg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; vertical-align: 0; border: 1px solid rgba(28,26,23,.25); }
-  #cal-detail .rrow { margin-top: 8px; }
+  #cal-detail .rrow, #col-detail .rrow { margin-top: 8px; }
   #reveal-actions { display: flex; gap: 8px; margin-top: 14px; }
   #btn-share, #btn-duel {
     flex: 1; border-radius: 10px; padding: 12px 6px; font-size: 14.5px; font-weight: 700; cursor: pointer;
@@ -365,6 +365,30 @@
   #cal-grid.slide-r { animation: cal-in-r .26s cubic-bezier(.2,.8,.3,1); }
   @keyframes cal-in-l { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
   @keyframes cal-in-r { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+  /* Round 69: the Collection tab (a Pokédex of the bank) and its toast. */
+  #cal-col .col-count { font-size: 15px; margin: 2px 0 2px; } #cal-col .col-count b { font-size: 22px; }
+  #cal-col .col-how { margin: 2px 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .col-fams { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+  .col-fams li { display: grid; grid-template-columns: 8.5em 1fr 4.2em; align-items: center; gap: 8px; font-size: 12.5px; }
+  .col-fams i { height: 7px; border-radius: 4px; background: var(--line); overflow: hidden; display: block; }
+  .col-fams i b { display: block; height: 100%; background: var(--accent); }
+  .col-fams em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .col-h { margin: 14px 0 6px; font-weight: 600; font-size: 11.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 4px; }
+  .ct { aspect-ratio: 1; min-width: 24px; border-radius: 7px; border: 1px solid rgba(0,0,0,.14); padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .ct.q { background: var(--paper); color: var(--muted); border: 1px dashed var(--line); font: 700 12px/1 system-ui, sans-serif; cursor: default; }
+  .ct.sel { outline: 3px solid var(--ink); outline-offset: 1px; }
+  .ct:focus-visible { outline: 3px solid var(--ink); outline-offset: 1px; }
+  #col-detail:not(:empty) { margin: 6px 0 4px; padding: 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+  #col-detail:focus { outline: none; } #col-detail:focus-visible { outline: 2px solid var(--ink); }
+  .col-lock { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+  #col-toast { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; z-index: 60;
+    display: flex; align-items: center; gap: 10px; width: max-content; max-width: calc(100vw - 32px); padding: 10px 16px 10px 10px; border-radius: 999px;
+    background: var(--ink); color: var(--paper); border: none; font: 600 14px/1.25 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 6px 20px rgba(0,0,0,.28); cursor: pointer;
+    transition: opacity .2s ease, transform .25s cubic-bezier(.2,.9,.3,1.2); }
+  #col-toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #col-toast[hidden] { display: none; }
+  #col-toast i { width: 28px; height: 28px; border-radius: 50%; flex: none; border: 2px solid var(--paper); }
   #btn-cal-play { margin-top: 10px; width: 100%; padding: 11px; border-radius: 12px; border: none; background: #b3541e; color: #fff; font-size: 14.5px; font-weight: 700; cursor: pointer; }
   #cal-tabs { display: inline-flex; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin: 0 0 10px; }
   #cal-tabs button { border: none; background: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
@@ -435,12 +459,12 @@
   .cal-day.sel { box-shadow: 0 0 0 2px var(--accent); }
   .cal-day.blank { visibility: hidden; }
   #cal-detail { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; min-height: 64px; }
-  #cal-detail .cdt-title { font-weight: 800; }
-  #cal-detail .cdt-sub { color: var(--muted); font-size: 12.5px; }
-  #cal-detail .cdt-row { display: flex; gap: 10px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
-  #cal-detail .cdt-sw { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
-  #cal-detail .cdt-sw i { display: inline-block; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); }
-  #cal-detail .cdt-sw.best b { text-decoration: underline; }
+  #cal-detail .cdt-title, #col-detail .cdt-title { font-weight: 800; }
+  #cal-detail .cdt-sub, #col-detail .cdt-sub { color: var(--muted); font-size: 12.5px; }
+  #cal-detail .cdt-row, #col-detail .cdt-row { display: flex; gap: 10px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  #cal-detail .cdt-sw, #col-detail .cdt-sw { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  #cal-detail .cdt-sw i, #col-detail .cdt-sw i { display: inline-block; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); }
+  #cal-detail .cdt-sw.best b, #col-detail .cdt-sw.best b { text-decoration: underline; }
   #cal-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
   /* Round 59: Tips and Calendar ease in like the welcome card. The panel rises
    * (transform only, so text contrast is never mid-fade) and the backdrop
@@ -468,7 +492,7 @@
    * invisible (the game was unplayable). Real paint colors are content, so keep
    * them; the rest of the UI still follows the system palette. */
   @media (forced-colors: active) {
-    #stage, .asw, .vs .sw, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i { forced-color-adjust: none; }
+    #stage, .asw, .vs .sw, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i, .ct, #col-toast i, .col-fams i { forced-color-adjust: none; }
     .tool[aria-pressed="true"], #cal-tabs [aria-selected="true"] { outline: 3px solid Highlight; outline-offset: -3px; } /* selection was a fill only */
   }
   @media (prefers-reduced-motion: reduce) {
@@ -505,6 +529,7 @@
 <noscript><div id="noscript">Mixology needs JavaScript to mix paint. Please enable it and reload.</div></noscript>
 <main id="app">
   <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <button id="col-toast" type="button" hidden aria-label="New color discovered. Open the Collection"></button>
   <header>
     <div>
       <h1 translate="no">MIXOLOGY<span class="dot">.</span></h1>
@@ -512,7 +537,7 @@
       <div id="streak-display"></div>
     </div>
     <div class="hbtns">
-      <button class="hbtn" id="btn-calendar" type="button" aria-label="Calendar and stats"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg></button>
+      <button class="hbtn" id="btn-calendar" type="button" aria-label="Calendar, stats and collection"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg></button>
       <button class="hbtn" id="btn-tips" type="button">Tips</button>
       <button class="hbtn" id="btn-practice" type="button">Practice</button>
       <button class="hbtn" id="btn-mute" type="button" aria-label="Toggle sound"></button>
@@ -628,11 +653,13 @@
 <div id="cal-overlay" class="modal-ov" role="dialog" aria-modal="true" aria-label="Your calendar">
   <div id="cal-panel">
     <button id="btn-cal-close" type="button" aria-label="Close calendar">✕</button>
-    <div id="cal-tabs" role="tablist" aria-label="Calendar or stats">
+    <div id="cal-tabs" role="tablist" aria-label="Calendar, stats or collection">
       <button id="tab-cal" role="tab" type="button" aria-selected="true">Calendar</button>
       <button id="tab-stats" role="tab" type="button" aria-selected="false">Stats</button>
+      <button id="tab-col" role="tab" type="button" aria-selected="false">Collection</button>
     </div>
     <div id="cal-stats" style="display:none"></div>
+    <div id="cal-col" style="display:none"></div>
     <div id="cal-head">
       <button class="cal-nav" id="btn-cal-prev" type="button" aria-keyshortcuts="PageUp" aria-label="Previous month">‹</button>
       <div id="cal-title">—</div>
@@ -705,9 +732,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.13.0"></script>
-<script src="schedule.js?v=1.13.0"></script>
-<script src="engine.js?v=1.13.0"></script>
-<script src="game.js?v=1.13.0"></script>
+<script src="colors.js?v=1.14.0"></script>
+<script src="schedule.js?v=1.14.0"></script>
+<script src="engine.js?v=1.14.0"></script>
+<script src="game.js?v=1.14.0"></script>
 </body>
 </html>

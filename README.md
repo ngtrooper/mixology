@@ -82,6 +82,11 @@ Consequences that are **invariants**, not implementation details:
   the solver's best recipe scores ≥ par** (`engine.isDailyEligible`,
   `PAR_PCT = 85`, ≈ ΔE ≤ 11.25) — one shared rule for game.js, the solver
   and the colors.js header; no day can be unwinnable at par.
+- **Collection** (round 69, Franklin): a third Calendar overlay tab with every daily-eligible, non-retired color (853).
+  - A seal discovers the nearest one within ΔE00 3, or the round's own target if it is within reach. Hard colors use their solver best + 1.
+  - Discoveries are announced only at the reveal (no clues mid-round). Today's or the open round's color stays "?" until the round is finished.
+  - The official recipe shows only after the color's daily date has passed, or for today's color once today is finished.
+  - Own key `mixology.collection.v1`, backfilled from saved days.
 - **No traces; paint can be taken out** (round 68, Franklin): a paint under 0.5% of the pot snaps to 0 (engine `snapTraces`, also used by the solver, so every recipe has each paint at 0 or at least 0.5%). Disc numbers are whole and always sum to 100, with no "<1%". Each disc holding paint has a separate "−" badge outside it: a tap removes ~1%, a hold follows the bucket ramp, and one undo step covers a whole hold.
 - **Nothing drawn on or in the pot** (round 67, Franklin): no swirl, bloom, ripple, splash or color spot. The pot surface only eases to the mix color. Rigs, stream and falling drop may animate *toward* the pot.
 - **Family-friendly names** (round 66): gross or bodily names are BANNED (dropped) or RETIRED in `tools/build-bank.js`. Retired names stay in colors.js (`retired: true`) only so frozen past days and old saves resolve. Never schedule them or offer them in practice.
