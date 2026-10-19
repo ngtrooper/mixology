@@ -80,6 +80,12 @@
   #duel-card .swatches { display: flex; gap: 10px; margin-top: 8px; }
   #duel-card .dsw { flex: 1; text-align: center; font-size: 12px; color: var(--muted); }
   #duel-card .dsw div { height: 44px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 4px; }
+  /* round 30: duel card states */
+  #duel-card.pending { border-left: 4px solid var(--accent); }
+  #duel-card .dsw strong { color: var(--ink); }
+  #duel-card .dsw.win div { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--accent); }
+  #duel-card .dsw.win { color: var(--ink); font-weight: 700; }
+  #duel-card .dverdict { margin-top: 8px; font-weight: 600; }
   #prompt-area { text-align: center; margin: 20px 0 6px; }
   #prompt-kicker { font-size: 12px; letter-spacing: 2.5px; color: var(--muted); text-transform: uppercase; }
   #color-name, #practice-name {

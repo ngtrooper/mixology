@@ -572,14 +572,16 @@ function maybeShowDuel() {
   const theirColor = colorForDay(incomingDuel.day);
   const mine = store.data.days[incomingDuel.day];
   card.style.display = 'block';
+  card.className = mine ? 'done' : (incomingDuel.day >= DAY ? 'pending' : 'past');
   if (mine) {
+    const win = mine.pct > incomingDuel.pct ? 'you' : mine.pct < incomingDuel.pct ? 'them' : 'tie';
     card.innerHTML =
-      `<b>Duel — ${dayTag(incomingDuel.day) || shortDate(incomingDuel.day)} “${escapeHtml(theirColor.name)}”</b>` +
+      `<b>Duel · ${dayTag(incomingDuel.day) || shortDate(incomingDuel.day)} “${escapeHtml(titleCase(theirColor.name))}”</b>` +
       `<div class="swatches">` +
-      `<div class="dsw"><div style="background:${incomingDuel.hex}"></div>Them · ${incomingDuel.pct}%</div>` +
-      `<div class="dsw"><div style="background:${mine.hex}"></div>You · ${mine.pct}%</div></div>` +
-      `<div style="margin-top:6px">${mine.pct > incomingDuel.pct ? 'You take this one. 🏆'
-        : mine.pct < incomingDuel.pct ? 'They take this one — rematch tomorrow.'
+      `<div class="dsw${win === 'them' ? ' win' : ''}"><div style="background:${incomingDuel.hex}"></div>Them · <strong>${incomingDuel.pct}%</strong></div>` +
+      `<div class="dsw${win === 'you' ? ' win' : ''}"><div style="background:${mine.hex}"></div>You · <strong>${mine.pct}%</strong></div></div>` +
+      `<div class="dverdict">${win === 'you' ? 'You take this one. 🏆'
+        : win === 'them' ? 'They take this one. Rematch tomorrow.'
         : 'Dead heat. 🤝'}</div>`;
   } else if (incomingDuel.day >= DAY) { // today (or a friend a timezone ahead) — never spoil
     card.innerHTML = `<b>A friend has already mixed today's color.</b>` +

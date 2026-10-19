@@ -759,7 +759,8 @@ test('share text + PNG card never contain the color name (hook line instead), mi
   assert.ok(!/\.name\b|&n=/.test(duel), 'duel link carries the name');
   // today's incoming duel (not yet played) must not show the name
   const md = gameSrc.slice(gameSrc.indexOf('function maybeShowDuel'), gameSrc.indexOf('function escapeHtml'));
-  const todayBranch = md.slice(md.indexOf('incomingDuel.day >= DAY'), md.indexOf('} else {', md.indexOf('incomingDuel.day >= DAY')));
+  const tb0 = md.indexOf('} else if (incomingDuel.day >= DAY)'); assert.ok(tb0 > 0, 'no today branch');
+  const todayBranch = md.slice(tb0, md.indexOf('} else {', tb0 + 5));
   assert.ok(!/theirColor|\.name/.test(todayBranch), "today's duel card spoils");
   assert.ok(htmlSrc.includes('id="btn-card"') && gameSrc.includes('navigator.canShare({ files: [file] })'), 'no PNG card / file share');
 });

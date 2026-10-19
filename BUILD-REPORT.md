@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 30 (2026-10-18, Grok Bot): DUEL CARD POLISH
+- Finished duel: title-cased name ("Duel · #1 “Lipstick”"), bold scores, and the winner's swatch ringed in accent with a bold label. Verdict line is bold. "They take this one. Rematch tomorrow." fixes the dash style.
+- The pending (today, not yet played) card gets an accent left border. It is still spoiler-free: no name, no color, no score.
+- The spoiler test now targets the exact today-branch, not the first textual match.
+- Shots: `r30-before-duel-*` / `r30-after-duel-*`.
+
 ## Round 29 (2026-10-18, Grok Bot): RECENT-FORM SPARKLINE
 - The Stats tab has a "Last 14 days" SVG sparkline.
   - Dots at each day's % (accent when at par); missed days break the line; a dashed par line.
