@@ -245,15 +245,27 @@
   #cal-week, #cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   #cal-week div { text-align: center; font-size: 10.5px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; padding-bottom: 2px; }
   .cal-day {
-    aspect-ratio: 1 / 1.18; border-radius: 9px; border: 1px solid transparent; background: transparent;
+    min-height: 64px; border-radius: 9px; border: 1px solid transparent; background: transparent;
     padding: 3px 1px; font: inherit; color: var(--ink); cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; min-width: 0;
   }
   .cal-day .cd-n { font-size: 11px; color: var(--muted); line-height: 1; }
-  .cal-day .cd-sw { width: 62%; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--line); }
-  .cal-day .cd-p { font-size: 11px; font-weight: 800; line-height: 1; }
+  /* round 9b: the % sits INSIDE the swatch (ink picked by luminance);
+     the color's name sits below, clamped to 2 lines. */
+  .cal-day .cd-sw {
+    width: 78%; max-width: 38px; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-size: 10px; font-weight: 800; letter-spacing: -.3px; line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .cal-day .cd-sw.ink-light { color: #fff; text-shadow: 0 0 2px rgba(0,0,0,.45); }
+  .cal-day .cd-sw.ink-dark { color: #1c1a17; text-shadow: 0 0 2px rgba(255,255,255,.5); }
+  .cal-day .cd-name {
+    font-size: 8.5px; line-height: 1.12; color: var(--ink); text-align: center; width: 100%;
+    padding: 0 1px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow-wrap: anywhere; text-transform: lowercase;
+  }
   .cal-day.played { background: var(--paper); border-color: var(--line); }
-  .cal-day.played.par .cd-p { color: var(--accent); }
+  .cal-day.played.par { border-color: var(--accent); }
   .cal-day.missed .cd-sw { border-style: dashed; background: transparent; }
   .cal-day.future, .cal-day.before { cursor: default; opacity: .38; }
   .cal-day.future .cd-sw, .cal-day.before .cd-sw { visibility: hidden; }

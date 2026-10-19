@@ -688,5 +688,14 @@ test('calendar: header button, month nav, built from saved days, today/missed/pl
   for (const c of ["' played'", "' missed'", "' today'", "' future'"]) assert.ok(gameSrc.includes(c), `no ${c} state`);
   assert.ok(gameSrc.includes('store.data.days[day]') && gameSrc.includes('function showCalDetail'), 'calendar not built from saved days / no detail');
 });
+test('calendar cells: % inside the swatch with luminance-picked ink, color name (2-line clamp) below', () => {
+  assert.ok(gameSrc.includes('<span class="cd-sw ${ink}" ${sw}>${pct}</span>'), '% not rendered inside the swatch');
+  assert.ok(gameSrc.includes('class="cd-name"') && htmlSrc.includes('-webkit-line-clamp: 2'), 'no clamped name under the swatch');
+  const i = gameSrc.indexOf('function inkFor'); let depth = 0, j = gameSrc.indexOf('{', i);
+  for (; j < gameSrc.length; j++) { if (gameSrc[j] === '{') depth++; else if (gameSrc[j] === '}' && --depth === 0) break; }
+  const inkFor = new Function('E', gameSrc.slice(i, j + 1) + '\nreturn inkFor;')(E);
+  assert.strictEqual(inkFor('#FFFFFF'), 'ink-dark'); assert.strictEqual(inkFor('#FFCD00'), 'ink-dark');
+  assert.strictEqual(inkFor('#06172E'), 'ink-light'); assert.strictEqual(inkFor('#1C4096'), 'ink-light');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

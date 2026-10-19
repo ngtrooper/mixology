@@ -709,23 +709,34 @@ function renderCalendar() {
     cell.type = 'button';
     cell.dataset.day = day;
     let cls = 'cal-day';
-    let sw = '', pct = '';
+    let sw = '', pct = '', ink = '', name = '';
     if (rec && rec.attempts && rec.attempts.length) {
       const best = bestAttempt(rec.attempts);
       cls += ' played' + (best.pct >= E.PAR_PCT ? ' par' : '');
       sw = `style="background:${best.hex}"`;
       pct = best.pct + '%';
+      ink = inkFor(best.hex);
+      name = rec.name || '';
     } else if (day > DAY || day < 1) cls += ' future';
     else if (first != null && day >= first && day < DAY) cls += ' missed';
     else if (day < DAY) cls += ' before';
     if (day === DAY) cls += ' today';
     cell.className = cls;
-    cell.setAttribute('aria-label', new Date(y, m, dd).toDateString() + (pct ? `, best ${pct}` : ''));
-    cell.innerHTML = `<span class="cd-n">${dd}</span><span class="cd-sw" ${sw}></span><span class="cd-p">${pct}</span>`;
+    cell.setAttribute('aria-label', new Date(y, m, dd).toDateString() + (pct ? `, ${name}, best ${pct}` : ''));
+    cell.innerHTML = `<span class="cd-n">${dd}</span><span class="cd-sw ${ink}" ${sw}>${pct}</span>` +
+      `<span class="cd-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
     if (!/future/.test(cls)) cell.addEventListener('click', () => showCalDetail(day));
     else cell.disabled = true;
     grid.appendChild(cell);
   }
+}
+/* Legible % on a swatch: WCAG relative luminance picks dark or light ink
+ * (whichever contrasts more). */
+function inkFor(hex) {
+  const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const [r, g, b] = E.hexToRgb(hex);
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? 'ink-dark' : 'ink-light';
 }
 function showCalDetail(day) {
   document.querySelectorAll('.cal-day.sel').forEach(c => c.classList.remove('sel'));
