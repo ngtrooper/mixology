@@ -728,5 +728,21 @@ test('recipe bars: rendered only in the finished reveal / played-day detail, nev
   assert.ok(!/recipe/i.test(share) && !/recipe/i.test(duel), 'recipe leaks into share text / duel link');
   assert.ok(gameSrc.includes('recipesHTML(official, scoredAttempt(rec))'), 'calendar detail has no recipe bars');
 });
+console.log('— round 11: publishing basics —');
+test('icons, manifest and og:image exist, are linked, and are real PNGs of the right size', () => {
+  const R = path.join(__dirname, '..');
+  const png = f => { const b = fs.readFileSync(path.join(R, f)); assert.strictEqual(b.toString('hex', 0, 8), '89504e470d0a1a0a', f + ' not a PNG'); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
+  assert.deepStrictEqual(png('icons/og-image.png'), [1200, 630]);
+  assert.deepStrictEqual(png('icons/apple-touch-icon.png'), [180, 180]);
+  assert.deepStrictEqual(png('icons/icon-192.png'), [192, 192]);
+  assert.deepStrictEqual(png('icons/icon-512.png'), [512, 512]);
+  assert.deepStrictEqual(png('icons/icon-maskable-512.png'), [512, 512]);
+  assert.deepStrictEqual(png('icons/favicon-32.png'), [32, 32]);
+  const m = JSON.parse(fs.readFileSync(path.join(R, 'manifest.webmanifest'), 'utf8'));
+  assert.strictEqual(m.start_url, './'); assert.ok(m.icons.some(i => i.purpose === 'maskable'));
+  for (const i of m.icons) assert.ok(fs.existsSync(path.join(R, i.src)), i.src);
+  for (const s of ['rel="manifest"', 'rel="apple-touch-icon"', 'icons/icon.svg', 'og:image" content="https://ngtrooper.github.io/mixology/icons/og-image.png', 'summary_large_image', 'name="theme-color"'])
+    assert.ok(htmlSrc.includes(s), 'missing ' + s);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 11 (2026-10-18, Grok Bot, original brief priority 4): PUBLISHING BASICS
+- `icons/icon.svg` is the app mark: a pot with an R/Y/B wedge rim, a mixed center and a falling red drop. Rendered PNGs: favicon-32, apple-touch-icon (180, opaque), icon-192, icon-512, and icon-maskable-512 (with a safe-zone pad).
+- `manifest.webmanifest` sets standalone display, start_url `./` and paper theme/background colors.
+- `icons/og-image.png` is 1200×630: the wordmark, the subtitle and five paint dots. It never names a daily color. Meta tags: og:image (absolute URL), width/height/alt, and twitter `summary_large_image`.
+- The emoji data-URI favicon is replaced by the SVG and PNG icons.
+- The icons are regenerated from icon.svg with Playwright (/tmp/pw/icons.js; nothing in the repo depends on it).
+- Test: assets exist, are real PNGs of the right sizes, and are linked from the head; the manifest's icons resolve.
+
 ## Round 10 (2026-10-18, Grok Bot, Franklin's calls) — PUBLIC #1 · NEW SUBTITLE · RECIPE BARS
 - **Numbering:** today (internal #656) is publicly **Mixology #1**. This is display-only, via `E.LAUNCH_DAY = 656` and `E.publicNumber(day) = day − 655` (null when < 1).
   - Updated: header (`MIXOLOGY #1 · Sun, Oct 18`), share text, duel cards and calendar detail.
