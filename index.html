@@ -360,6 +360,8 @@
   .st-row span { color: var(--muted); text-align: right; }
   .st-row i { display: block; height: 14px; border-radius: 7px; background: var(--accent); }
   .st-row em { font-style: normal; font-weight: 700; }
+  .st-dist.has-today .st-row:not(.today) i { opacity: .38; }
+  .st-dist.has-today .st-row.today span, .st-dist.has-today .st-row.today em { color: var(--accent); font-weight: 700; }
   .st-spark { width: 100%; height: auto; display: block; }
   .st-spark path { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .55; }
   .st-spark circle { fill: var(--muted); }
@@ -637,9 +639,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.10.9"></script>
-<script src="schedule.js?v=1.10.9"></script>
-<script src="engine.js?v=1.10.9"></script>
-<script src="game.js?v=1.10.9"></script>
+<script src="colors.js?v=1.10.10"></script>
+<script src="schedule.js?v=1.10.10"></script>
+<script src="engine.js?v=1.10.10"></script>
+<script src="game.js?v=1.10.10"></script>
 </body>
 </html>

@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 42 (2026-10-18, Grok Bot): STATS POLISH
+- Score spread: once today is finished, the bucket holding today's score is highlighted (accent label and count) and the other bars dim, as in other daily games.
+  - The highlight comes from the saved daily record only. The aria-label adds ", includes today".
+- Last-14-days sparkline: the "par" label now has its own right gutter. The newest dot used to sit on top of it.
+- Version 1.10.10. Shots: `r42-after-stats-{light,dark}.png` (before: `r16-after-stats-*`). Test added. axe clean.
+
 ## Round 41 (2026-10-18, Grok Bot): REGRESSION SWEEP + QUIET HAPTICS
 - Re-ran the older Playwright suites against the current build: v3 (calendar, migration, old 3-attempt days), cal, duel, drop, pig, nostore, tab. All behave as before.
   - drop.js predates the welcome overlay, so it needs the welcomed flag seeded.

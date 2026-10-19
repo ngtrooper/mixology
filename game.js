@@ -930,19 +930,20 @@ function setCalTab(t) {
 /* Round 29: "Last 14 days" sparkline. Each played day is a dot at its %,
  * missed days are gaps, and a dashed line marks par. Local data only. */
 function recentFormSVG() {
-  const N = 14, W = 300, H = 78, P = 8, days = store.data.days || {};
+  const N = 14, W = 300, H = 78, P = 8, G = 22, days = store.data.days || {};
   const pts = [];
   for (let i = 0; i < N; i++) { const d = DAY - (N - 1) + i, r = days[d]; if (r && Number.isFinite(Number(r.pct))) pts.push({ i, pct: Number(r.pct) }); }
   if (pts.length < 2) return '';
   const lo = Math.min(40, Math.floor(Math.min(...pts.map(p => p.pct)) / 10) * 10); // zoom to where scores live
-  const x = i => P + i * (W - 2 * P) / (N - 1), y = v => H - P - ((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * (H - 2 * P);
+  const x = i => P + i * (W - 2 * P - G) / (N - 1), y = v => H - P - ((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * (H - 2 * P);
   let path = '';
   pts.forEach((p, k) => { path += (k && pts[k - 1].i === p.i - 1 ? 'L' : 'M') + x(p.i).toFixed(1) + ' ' + y(p.pct).toFixed(1); });
+  // r42: the par label sits in its own right gutter (G) so the newest dot never covers it
   // round 35: each dot (with a bigger invisible hit area) opens that day in the Calendar tab
   const dots = pts.map(p => `<g class="sp-dot" data-day="${DAY - (N - 1) + p.i}"><circle cx="${x(p.i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="11" class="hit"/><circle cx="${x(p.i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="3.2" class="${p.pct >= E.PAR_PCT ? 'par' : ''}"/></g>`).join('');
   return `<div class="st-h">Last 14 days</div><svg class="st-spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Scores over the last 14 days: ${pts.map(p => p.pct + '%').join(', ')}">` +
-    `<line x1="${P}" x2="${W - P}" y1="${y(E.PAR_PCT).toFixed(1)}" y2="${y(E.PAR_PCT).toFixed(1)}" class="parline"/>` +
-    `<text x="${W - P}" y="${(y(E.PAR_PCT) - 3).toFixed(1)}" text-anchor="end">par</text>` +
+    `<line x1="${P}" x2="${W - P - G + 4}" y1="${y(E.PAR_PCT).toFixed(1)}" y2="${y(E.PAR_PCT).toFixed(1)}" class="parline"/>` +
+    `<text x="${W - P - G + 8}" y="${y(E.PAR_PCT).toFixed(1)}" dominant-baseline="middle">par</text>` +
     `<path d="${path}"/>${dots}</svg>`;
 }
 function renderStats() {
@@ -950,13 +951,17 @@ function renderStats() {
   const tile = (v, l) => `<div class="st-tile"><b>${v}</b><span>${l}</span></div>`;
   const max = Math.max(1, ...s.dist.map(d => d.n));
   const bestLabel = s.best ? `${s.best.pct}%` : '—';
+  // Round 42: like other daily games, the bucket holding today's score stands
+  // out once today is finished (rows dim; see .st-dist.has-today).
+  const tRec = store.data.days[DAY], tPct = tRec ? Number(tRec.pct) : NaN;
+  const todayBucket = Number.isFinite(tPct) ? E.STAT_BUCKETS.findIndex(b => tPct >= b.min) : -1;
   $('cal-stats').innerHTML = s.played === 0
     ? `<p class="st-empty">No finished days yet. Your stats appear after your first daily round.</p>`
     : `<div class="st-grid">${tile(s.played, 'played')}${tile(s.avg + '%', 'average')}${tile(s.parRate + '%', `at par (${E.PAR_PCT}%+)`)}${tile(bestLabel, 'best')}</div>` +
       `<div class="st-grid trio">${tile('🔥 ' + live.streak, 'current streak')}${tile(Math.max(s.longestStreak, live.streak), 'longest streak')}${tile(live.parStreak, `par streak (${E.PAR_PCT}%+)`)}</div>` +
       recentFormSVG() +
-      `<div class="st-h">Score spread</div><div class="st-dist" role="list">` +
-      s.dist.map(d => `<div class="st-row" role="listitem" aria-label="${d.label}%: ${d.n}"><span>${d.label}</span><i style="width:${Math.max(d.n ? 8 : 0, 100 * d.n / max)}%"></i><em>${d.n}</em></div>`).join('') +
+      `<div class="st-h">Score spread</div><div class="st-dist${todayBucket >= 0 ? ' has-today' : ''}" role="list">` +
+      s.dist.map((d, i) => `<div class="st-row${i === todayBucket ? ' today' : ''}" role="listitem" aria-label="${d.label}%: ${d.n}${i === todayBucket ? ', includes today' : ''}"><span>${d.label}</span><i style="width:${Math.max(d.n ? 8 : 0, 100 * d.n / max)}%"></i><em>${d.n}</em></div>`).join('') +
       `</div>`;
 }
 
@@ -1285,7 +1290,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.9',
+  version: '1.10.10',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

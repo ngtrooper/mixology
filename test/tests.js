@@ -964,5 +964,14 @@ test('buzz() skips vibrate before any user interaction', () => {
   const i = gameSrc.indexOf('function buzz('); const f = gameSrc.slice(i, gameSrc.indexOf('/* Geometry', i));
   assert.ok(/userActivation[\s\S]*hasBeenActive[\s\S]*return;[\s\S]*navigator\.vibrate\(ms\)/.test(f), 'buzz does not check user activation first');
 });
+console.log('— round 42: stats today highlight + par label gutter —');
+test("stats: today's score bucket is highlighted once today is finished; par label has its own gutter", () => {
+  const i = gameSrc.indexOf('function renderStats('); const f = gameSrc.slice(i, gameSrc.indexOf('\n}\n', i));
+  assert.ok(f.includes('E.STAT_BUCKETS.findIndex(b => tPct >= b.min)') && f.includes("' today'") && f.includes('has-today'), 'no today bucket highlight');
+  assert.ok(f.includes('store.data.days[DAY]'), 'highlight must come from the finished daily record only');
+  assert.ok(htmlSrc.includes('.st-dist.has-today .st-row:not(.today) i'), 'missing highlight CSS');
+  const s = gameSrc.slice(gameSrc.indexOf('function recentFormSVG('), i);
+  assert.ok(s.includes('(W - 2 * P - G)') && s.includes('W - P - G + 8'), 'par label can collide with the newest dot');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
