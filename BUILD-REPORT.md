@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 36 (2026-10-18, Grok Bot): DUEL SHARE LINE · WEB SHARE PATH VERIFIED
+- On phones, Copy duel link opens the share sheet with `{ text: "Beat my 93% on Mixology #1?", url }`. It never names the color. The clipboard fallback still copies just the link.
+- Verified with a mocked `navigator.share`/`canShare`:
+  - Share result sends the spoiler-free text plus `mixology-1.png` (image/png).
+  - The duel share sends the challenge line plus the URL.
+  - Neither payload contains the color name.
+- Version 1.10.4. Test added.
+
 ## Round 35 (2026-10-18, Grok Bot): SPARKLINE → DAY
 - Tapping a dot in Stats › Last 14 days switches to Calendar, jumps to that month, and opens the day's detail (recipe vs your mix, tries). Dots have an 11 px invisible hit area. Version 1.10.3. Test added.
 

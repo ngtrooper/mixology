@@ -926,5 +926,12 @@ test('sparkline dots open that day in the Calendar tab', () => {
   const h = gameSrc.slice(gameSrc.indexOf("$('cal-stats').addEventListener('click'"), gameSrc.indexOf("$('cal-stats').addEventListener('click'") + 400);
   assert.ok(h.includes("setCalTab('cal'); renderCalendar(); showCalDetail(day);"), 'dot tap does not open the day');
 });
+test('duel share line is a name-free challenge; clipboard copies only the link', () => {
+  const d = gameSrc.slice(gameSrc.indexOf("$('btn-duel').addEventListener"), gameSrc.indexOf("$('btn-today').addEventListener"));
+  assert.ok(d.includes('const line = `Beat my ${rec.pct}% on Mixology ${dayTag(day) || shortDate(day)}?`;'));
+  assert.ok(!/\.name\b/.test(d), 'duel share mentions the name');
+  const s = gameSrc.slice(gameSrc.indexOf('async function doShare'), gameSrc.indexOf('/* Round 12: a 1080'));
+  assert.ok(s.includes('navigator.share({ text: nativeText, url: text })') && s.includes('navigator.clipboard.writeText(text)'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

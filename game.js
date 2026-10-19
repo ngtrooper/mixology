@@ -622,9 +622,13 @@ function flashLabel(btn, label) {
   clearTimeout(btn._flashT);
   btn._flashT = setTimeout(() => { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }, 1600);
 }
-async function doShare(btn, text, okLabel, file) {
+async function doShare(btn, text, okLabel, file, nativeText) {
   const done = () => flashLabel(btn, okLabel);
-  if (navigator.share) {
+  if (navigator.share && nativeText) {
+    try { await navigator.share({ text: nativeText, url: text }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  if (navigator.share && !nativeText) {
     // Round 12: attach the PNG card when the platform can share files.
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], text }); return; }
@@ -1223,7 +1227,12 @@ $('btn-card').addEventListener('click', ev => saveShareCard(ev.currentTarget));
 $('btn-duel').addEventListener('click', ev => {
   const day = round && round.mode === 'daily' ? round.day : DAY;
   const rec = store.data.days[day];
-  if (rec) doShare(ev.currentTarget, duelUrlFor(scoredAttempt(rec), day), 'Link copied ✓');
+  if (!rec) return;
+  const url = duelUrlFor(scoredAttempt(rec), day);
+  // Round 36: a native share sheet gets a one-line challenge (never the color's name).
+  // The clipboard fallback still copies just the link, as the button says.
+  const line = `Beat my ${rec.pct}% on Mixology ${dayTag(day) || shortDate(day)}?`;
+  doShare(ev.currentTarget, url, 'Link copied ✓', null, line);
 });
 $('btn-today').addEventListener('click', () => { initDaily(); window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' }); });
 $('btn-next-practice').addEventListener('click', startPractice);
@@ -1251,7 +1260,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.3',
+  version: '1.10.4',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
