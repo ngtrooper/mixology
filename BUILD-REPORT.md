@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 19 (2026-10-18, Grok Bot): NEXT-COLOR COUNTDOWN
+- A finished daily reveal ends with "Next color in 1h 41m". It counts down to local midnight via `dateForDay(DAY + 1)`, the same boundary `dayNumber()` uses, and refreshes on the existing 20 s rollover tick.
+- Hidden in practice, before finishing, and on a stale (yesterday's) round, where the "Play today's color" button shows instead.
+- Test checks the boundary maths (internal 657 starts at local Mon Oct 19 00:00) and the visibility rule.
+
 ## Round 18 (2026-10-18, Grok Bot): MICRO-ANIMATIONS · LEGEND FIX
 - **Reveal entrance**, only on a fresh finish: the card fades up, the Official and Your-mix swatches slide in from their sides, and band, bars and actions follow.
   - The % counts up with an ease-out over 0.75 s and always lands on the exact value.

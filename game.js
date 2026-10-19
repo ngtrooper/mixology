@@ -776,6 +776,7 @@ function renderAll() {
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
     $('card-row').style.display = round.mode === 'daily' ? 'block' : 'none';
+    renderNextCountdown();
   } else {
     $('reveal').style.display = 'none';
     $('reveal-recipes').innerHTML = '';
@@ -835,7 +836,20 @@ function checkDayRollover() {
   }
   renderAll();
 }
-setInterval(checkDayRollover, 20000);
+setInterval(() => { checkDayRollover(); renderNextCountdown(); }, 20000);
+/* Round 19: "Next color in 3h 12m" under a finished daily reveal. It counts
+ * down to local midnight, the same boundary dayNumber() uses. */
+function untilNextColor(now) {
+  const ms = dateForDay(DAY + 1) - (now || new Date());
+  const m = Math.max(0, Math.ceil(ms / 60000));
+  return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${Math.max(1, m)}m`;
+}
+function renderNextCountdown() {
+  const el = $('reveal-next'); if (!el) return;
+  const show = round && round.finished && round.mode === 'daily' && round.day === DAY;
+  el.style.display = show ? 'block' : 'none';
+  if (show) el.textContent = `Next color in ${untilNextColor()}`;
+}
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
 window.addEventListener('focus', checkDayRollover);
 
@@ -1170,6 +1184,6 @@ window.MISNOMER = {
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,
   newPractice: startPractice,
-  shareText, maybeWelcome, WELCOME_KEY,
+  shareText, maybeWelcome, WELCOME_KEY, untilNextColor,
   engine: E, bank: BANK, pool: POOL
 };

@@ -242,6 +242,7 @@
     flex: 1; border-radius: 10px; padding: 12px 6px; font-size: 14.5px; font-weight: 700; cursor: pointer;
   }
   #card-row { text-align: center; margin-top: 8px; }
+  #reveal-next { display: none; text-align: center; font-size: 12.5px; color: var(--muted); letter-spacing: .5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
   #btn-card { background: none; border: none; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
   #btn-share { background: var(--ink); color: var(--paper); border: none; }
   #btn-duel { background: var(--card); color: var(--ink); border: 1.5px solid var(--ink); }
@@ -492,6 +493,7 @@
     </div>
     <div id="card-row"><button id="btn-card" type="button">🖼 Save image card</button>
     </div>
+    <div id="reveal-next" aria-live="off"></div>
     <button id="btn-next-practice" type="button">Next practice color →</button>
     <button id="btn-today" type="button">Play today's color →</button>
   </section>

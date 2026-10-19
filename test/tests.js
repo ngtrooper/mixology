@@ -841,5 +841,15 @@ test('recipe legend letters are R/Y/B/K/W (black is K, not a second B)', () => {
   assert.ok(fn.includes('${k.toUpperCase()} ') && !fn.includes('PIG_NAMES[k][0]'), 'legend derives letters from names');
   assert.deepStrictEqual(['r', 'y', 'b', 'k', 'w'].map(k => k.toUpperCase()), ['R', 'Y', 'B', 'K', 'W']);
 });
+console.log('— round 19: next-color countdown —');
+test('countdown targets local midnight via dateForDay(DAY + 1); only on a finished, current daily round', () => {
+  const fn = gameSrc.slice(gameSrc.indexOf('function untilNextColor'), gameSrc.indexOf('function renderNextCountdown'));
+  assert.ok(fn.includes('dateForDay(DAY + 1)'), 'countdown not tied to the day boundary');
+  // replicate dateForDay / dayNumber agreement: start of internal day 657 is local Mon Oct 19 2026 00:00
+  const d = new Date(2025, 0, 1); d.setDate(d.getDate() + 657 - 1);
+  assert.strictEqual(E.dayNumber(d) + 1, 657); assert.strictEqual(d.getHours(), 0); assert.strictEqual(d.getDate(), 19);
+  const r = gameSrc.slice(gameSrc.indexOf('function renderNextCountdown'), gameSrc.indexOf('function renderNextCountdown') + 400);
+  assert.ok(r.includes("round.finished && round.mode === 'daily' && round.day === DAY"), 'countdown shows in practice/stale rounds');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
