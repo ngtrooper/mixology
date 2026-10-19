@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 57 (2026-10-18, Grok Bot): CALENDAR PAGEUP/PAGEDOWN
+- While the Calendar tab is open, PageUp and PageDown flip months (the date-picker convention), using the same bounds as the ‹ › buttons (no future months). Ignored on the Stats tab.
+- `aria-keyshortcuts` added on ‹ ›, and the Tips keyboard line mentions it. Version 1.10.15. Playwright-verified. Test added.
+
 ## Round 56 (2026-10-18, Grok Bot): SEAL HAPTIC + WORDMARK
 - Sealing attempt 1 now gives an 18 ms haptic tap. Before, only the final seal buzzed, through the tiered finish pattern.
 - `<h1 translate="no">` keeps the MIXOLOGY wordmark from being machine-translated. Page content is still translatable.

@@ -1047,5 +1047,11 @@ test('a non-final seal gives a haptic tap; the wordmark is translate="no"', () =
   assert.ok(gameSrc.includes('else { buzz(18); renderAll(); persistWip(); }'));
   assert.ok(htmlSrc.includes('<h1 translate="no">MIXOLOGY'));
 });
+console.log('— round 57: calendar PageUp/PageDown —');
+test('PageUp/PageDown flip calendar months only while the calendar tab is open, respecting disabled bounds', () => {
+  const i = gameSrc.indexOf('// Round 57: PageUp / PageDown'); const f = gameSrc.slice(i, i + 500);
+  assert.ok(f.includes("$('cal-overlay').classList.contains('open')") && f.includes("$('cal-grid').style.display === 'none'") && f.includes('if (!btn.disabled) btn.click()'));
+  assert.ok(htmlSrc.includes('aria-keyshortcuts="PageUp"') && htmlSrc.includes('aria-keyshortcuts="PageDown"'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

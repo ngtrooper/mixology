@@ -1210,6 +1210,12 @@ function slideCal(dir) {
 }
 $('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); slideCal(-1); });
 $('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); slideCal(1); });
+// Round 57: PageUp / PageDown flip months while the calendar is open (date-picker convention)
+document.addEventListener('keydown', e => {
+  if ((e.key !== 'PageUp' && e.key !== 'PageDown') || !$('cal-overlay').classList.contains('open') || $('cal-grid').style.display === 'none') return;
+  const btn = $(e.key === 'PageUp' ? 'btn-cal-prev' : 'btn-cal-next');
+  e.preventDefault(); if (!btn.disabled) btn.click();
+});
 $('btn-tips-close').addEventListener('click', closeTips);
 // Round 49: the welcome card can be reopened from Tips (it no longer auto-shows after the first visit)
 $('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });
@@ -1300,7 +1306,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.14',
+  version: '1.10.15',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
