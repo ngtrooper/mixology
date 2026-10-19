@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 27–28 (2026-10-18, Grok Bot): SELECT FEEL · CALENDAR SWIPE
+- Changing pigment or tool gives a soft 660 Hz tick (respects mute) and a 6 ms haptic. Re-tapping the current selection stays silent.
+- Swiping the calendar grid left/right changes month on touch.
+  - It needs ≥ 50 px and a mostly-horizontal swipe, so vertical scroll is never hijacked.
+  - It goes through the same prev/next buttons, so the future month stays locked.
+  - Listeners are passive.
+- Playwright verified: month back and forth works, and swiping into the future is blocked. Test added.
+
 ## Round 26 (2026-10-18, Grok Bot): CONTROL STATES FOR SCREEN READERS
 - Pigment discs and tool buttons expose `aria-pressed`, so the selected pigment and tool are announced, not just drawn.
 - The pot's accessible name follows the selection: "Pour blue into the pot (hold to keep pouring)" / "Add one drop of blue to the pot" / "Pot (round complete)".

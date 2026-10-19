@@ -137,6 +137,7 @@ const sfx = {
   dose() { beep(220 + Math.random() * 60, 0.05, 'square', 0.025); },
   pour() { beep(110 + Math.random() * 40, 0.12, 'sine', 0.03); }, // soft glug while pouring
   seal() { beep(150, 0.09, 'triangle', 0.06); },
+  pick() { beep(660, 0.035, 'sine', 0.025); }, // round 27: soft tick on pigment/tool change
   reveal() { [523, 659, 784].forEach((f, i) => beep(f, 0.16, 'sine', 0.05, i * 0.09)); },
   // round 15: tiered finish. Par adds a fourth note, 95%+ a sparkle run.
   par() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'sine', 0.05, i * 0.09)); },
@@ -1066,10 +1067,18 @@ function initDaily() {
 
 /* ---------------- events -------------------------------------------------- */
 document.querySelectorAll('.bucket').forEach(btn => {
-  btn.addEventListener('click', () => { stopPour(); selectedBucket = btn.dataset.bucket; renderAll(); });
+  btn.addEventListener('click', () => {
+    stopPour();
+    if (selectedBucket !== btn.dataset.bucket) { sfx.pick(); buzz(6); } // round 27: tactile select
+    selectedBucket = btn.dataset.bucket; renderAll();
+  });
 });
 document.querySelectorAll('.tool[data-tool]').forEach(btn => {
-  btn.addEventListener('click', () => { stopPour(); selectedTool = btn.dataset.tool; renderAll(); });
+  btn.addEventListener('click', () => {
+    stopPour();
+    if (selectedTool !== btn.dataset.tool) { sfx.pick(); buzz(6); }
+    selectedTool = btn.dataset.tool; renderAll();
+  });
 });
 /* The pot IS the canvas. Press = dose (Dropper: one drop; Pour Bucket:
  * starts pouring). Release / cancel / lost capture = stop pouring.
@@ -1123,6 +1132,17 @@ $('tab-cal').addEventListener('click', () => setCalTab('cal'));
 $('tab-stats').addEventListener('click', () => setCalTab('stats'));
 $('btn-cal-close').addEventListener('click', closeCalendar);
 $('cal-overlay').addEventListener('click', e => { if (e.target === $('cal-overlay')) closeCalendar(); });
+/* Round 28: swipe the calendar grid left/right to change month (touch). */
+(() => {
+  const grid = $('cal-grid'); let sx = null, sy = null;
+  grid.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  grid.addEventListener('touchend', e => {
+    if (sx == null) return; const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const btn = $(dx < 0 ? 'btn-cal-next' : 'btn-cal-prev');
+    if (!btn.disabled) { btn.click(); buzz(6); }
+  }, { passive: true });
+})();
 $('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
 $('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
 $('btn-tips-close').addEventListener('click', closeTips);

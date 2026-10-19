@@ -880,5 +880,13 @@ test('pigments/tools expose aria-pressed; the pot label names the selected pigme
   const blk = gameSrc.slice(gameSrc.indexOf('// round 26: the pot says'), gameSrc.indexOf('// round 26: the pot says') + 500);
   assert.ok(!/round\.color|mixHex|hex|pct/.test(blk), 'pot label could leak the mix or target');
 });
+console.log('— round 27/28: select feel + calendar swipe —');
+test('pigment/tool changes tick (only on an actual change); calendar swipe respects the disabled future month', () => {
+  assert.ok(gameSrc.includes("if (selectedBucket !== btn.dataset.bucket) { sfx.pick(); buzz(6); }"), 'no select feedback / fires on re-tap');
+  assert.ok(/pick\(\) \{ beep\(/.test(gameSrc), 'no pick sound (beep respects mute)');
+  const sw = gameSrc.slice(gameSrc.indexOf('/* Round 28: swipe'), gameSrc.indexOf("$('btn-cal-prev').addEventListener"));
+  assert.ok(sw.includes('if (!btn.disabled) { btn.click();') && sw.includes('Math.abs(dx) < Math.abs(dy) * 1.5'), 'swipe can bypass the future-month lock or hijack vertical scroll');
+  assert.ok(sw.includes('{ passive: true }'), 'swipe listeners block scrolling');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
