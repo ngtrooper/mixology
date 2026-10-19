@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 56 (2026-10-18, Grok Bot): SEAL HAPTIC + WORDMARK
+- Sealing attempt 1 now gives an 18 ms haptic tap. Before, only the final seal buzzed, through the tiered finish pattern.
+- `<h1 translate="no">` keeps the MIXOLOGY wordmark from being machine-translated. Page content is still translatable.
+- Version 1.10.14. Test added.
+
 ## Round 55 (2026-10-18, Grok Bot): DIALOG SCROLL LOCK
 - Before: scrolling to the end of Tips or Calendar chained into the page behind, and wheel or touch on the backdrop scrolled the board.
 - Now: `html:has(.modal-ov.open) { overflow: hidden }` plus `overscroll-behavior: contain` on overlays and panels.

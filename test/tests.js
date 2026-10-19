@@ -1042,5 +1042,10 @@ console.log('— round 55: dialog scroll lock —');
 test('open dialogs lock page scroll (CSS :has) and panels contain overscroll', () => {
   assert.ok(htmlSrc.includes('html:has(.modal-ov.open) { overflow: hidden; }') && htmlSrc.includes('.modal-ov, .modal-ov > div { overscroll-behavior: contain; }'));
 });
+console.log('— round 56: seal haptic + no-translate wordmark —');
+test('a non-final seal gives a haptic tap; the wordmark is translate="no"', () => {
+  assert.ok(gameSrc.includes('else { buzz(18); renderAll(); persistWip(); }'));
+  assert.ok(htmlSrc.includes('<h1 translate="no">MIXOLOGY'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

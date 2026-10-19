@@ -421,8 +421,8 @@ function seal() {
   justSealed = round.attempts.length - 1;
   sfx.seal();
   announce(`Attempt ${round.attempts.length} sealed: ${att.pct}% accuracy.`);
-  if (round.attempts.length >= MAX_ATTEMPTS) finish();
-  else { renderAll(); persistWip(); }
+  if (round.attempts.length >= MAX_ATTEMPTS) finish(); // finish() has its own tiered haptic
+  else { buzz(18); renderAll(); persistWip(); } // round 56: a firm tap for a non-final seal
   return att;
 }
 
@@ -1300,7 +1300,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.13',
+  version: '1.10.14',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
