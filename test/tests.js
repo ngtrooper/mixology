@@ -762,5 +762,15 @@ test('share text + PNG card never contain the color name (hook line instead), mi
   assert.ok(!/theirColor|\.name/.test(todayBranch), "today's duel card spoils");
   assert.ok(htmlSrc.includes('id="btn-card"') && gameSrc.includes('navigator.canShare({ files: [file] })'), 'no PNG card / file share');
 });
+console.log('— round 13: dark mode —');
+test('dark mode follows the system: palette vars overridden at the end of the stylesheet, paint stays true', () => {
+  const css = htmlSrc.slice(htmlSrc.indexOf('<style>'), htmlSrc.indexOf('</style>'));
+  const i = css.indexOf('@media (prefers-color-scheme: dark)');
+  assert.ok(i > css.indexOf('--paper: #f6f1e7'), 'no dark block after the base palette');
+  const blk = css.slice(i);
+  assert.ok(/--paper: #1a1815/.test(blk) && /--ink: #f1ebdf/.test(blk), 'dark palette missing');
+  assert.ok(!/#pot-surface|\.pigment\b|\.cd-sw\b/.test(blk), 'dark mode recolours paint');
+  assert.ok(htmlSrc.includes('content="#1a1815" media="(prefers-color-scheme: dark)"') && htmlSrc.includes('name="color-scheme" content="light dark"'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

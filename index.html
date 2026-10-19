@@ -15,7 +15,9 @@
 <meta property="og:image:alt" content="Mixology — How well do you know your colors?">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://ngtrooper.github.io/mixology/icons/og-image.png">
-<meta name="theme-color" content="#f6f1e7">
+<meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1815" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -311,6 +313,23 @@
   #cal-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
+  }
+  /* Round 13: dark mode follows the system setting. Only the room goes dark;
+   * the paint itself (pot surface, swatches, pigments) keeps its true colors. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1a1815; --ink: #f1ebdf; --muted: #a59d8e; --card: #24211d;
+      --line: #3d3830; --accent: #d9743a; --good: #6fbf73;
+    }
+    #pot { background: radial-gradient(circle at 35% 30%, #4a443b, #2a2621); box-shadow: 0 4px 18px rgba(0,0,0,.5); }
+    #bucket-k { border-color: rgba(241,235,223,.45); }
+    #bucket-base { border-color: #8a7d60; }
+    #stream-outline { stroke: rgba(0,0,0,.35); }
+    #tips-overlay, #cal-overlay { background: rgba(0,0,0,.6); }
+    .rbar { background: #f1ebdf; }
+    .rleg i { border-color: rgba(241,235,223,.35); }
+    /* white-on-accent buttons keep the light-mode accent for contrast (~5:1) */
+    #btn-seal, #btn-next-practice, #btn-today { background: #b3541e; }
   }
 </style>
 </head>

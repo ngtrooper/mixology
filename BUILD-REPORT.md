@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 13 (2026-10-18, Grok Bot): DARK MODE
+- `@media (prefers-color-scheme: dark)` sits at the end of the stylesheet and swaps the palette variables (paper #1a1815, card #24211d, ink #f1ebdf, accent #d9743a).
+- The paint itself is untouched: pot surface, pigments, swatches and calendar swatches keep their true colors, so judging a mix in dark mode is still honest.
+- Adjusted for dark mode: pot rim, black-pigment edge, overlay scrim, recipe bar track.
+- White-on-accent buttons keep #b3541e for contrast (about 5:1).
+- Theme-color has light and dark variants, plus `color-scheme: light dark`. Test added.
+- Before = the light shots in v4/01–04; after = `r13-after-dark-*.png`.
+
 ## Round 12 (2026-10-18, Grok Bot): SPOILER-FREE SHARING · PNG RESULT CARD
 - **Franklin's request:** shared text no longer names the color. The headline is now `🎨 MIXOLOGY #1 — How well do you know your colors?`, followed by the score/tries line, streak and duel link.
   - Duel links carry only d/p/x, never a name.
