@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 58 (2026-10-18, Grok Bot): HOT FLAME (7+ DAY STREAK)
+- With a streak of 7 or more, the header 🔥 gets a warm glow and a slow 2.4 s flicker. The bump on a streak increase still overrides it.
+  - Reduced motion keeps the glow but drops the flicker, through the global kill switch.
+- Old flame-wrapper test loosened to allow the extra class. Version 1.10.16. Shot: `r58-after-hot-flame.png`. Test added.
+
 ## Round 57 (2026-10-18, Grok Bot): CALENDAR PAGEUP/PAGEDOWN
 - While the Calendar tab is open, PageUp and PageDown flip months (the date-picker convention), using the same bounds as the ‹ › buttons (no future months). Ignored on the Stats tab.
 - `aria-keyshortcuts` added on ‹ ›, and the Tips keyboard line mentions it. Version 1.10.15. Playwright-verified. Test added.

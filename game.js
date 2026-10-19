@@ -741,7 +741,7 @@ function renderAll() {
     : 'Practice mode';
   const st = liveStreaks();
   $('streak-display').innerHTML = st.streak > 0
-    ? `<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}` + (st.parStreak > 0 ? ` · <span title="Days in a row at ${E.PAR_PCT}%+">Par streak ${Number(st.parStreak)}</span>` : '')
+    ? `<span class="flame${Number(st.streak) >= 7 ? ' hot' : ''}" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}` + (st.parStreak > 0 ? ` · <span title="Days in a row at ${E.PAR_PCT}%+">Par streak ${Number(st.parStreak)}</span>` : '')
     : '';
   const stale = daily && round.day !== DAY;
   if (stale && !round.finished) $('prompt-sub').textContent = "A new day's color is out — finish this one, then play today's.";
@@ -1306,7 +1306,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.15',
+  version: '1.10.16',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

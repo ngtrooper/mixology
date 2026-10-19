@@ -794,7 +794,7 @@ test('celebration tiers: confetti only at 95%+ and never under reduced motion; t
   const cf = gameSrc.slice(gameSrc.indexOf('function confetti'), gameSrc.indexOf('function confetti') + 400);
   assert.ok(/if \(REDUCED_MOTION \|\| !document\.body\.animate\) return;/.test(cf), 'confetti ignores reduced motion');
   assert.ok(gameSrc.includes("if (final.pct >= 95) sfx.ace(); else if (final.pct >= E.PAR_PCT) sfx.par(); else sfx.reveal();"));
-  assert.ok(gameSrc.includes('<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}'), 'streak flame not wrapped');
+  assert.ok(/<span class="flame\$\{[^}]*\}" aria-hidden="true">🔥<\/span> Streak \$\{Number\(st\.streak\)\}/.test(gameSrc), 'streak flame not wrapped'); // r58: class may add ' hot'
   assert.ok(/\.confetti \{ position: fixed; inset: 0; pointer-events: none;/.test(htmlSrc), 'confetti can block taps');
 });
 console.log('— round 16: stats —');
@@ -1052,6 +1052,12 @@ test('PageUp/PageDown flip calendar months only while the calendar tab is open, 
   const i = gameSrc.indexOf('// Round 57: PageUp / PageDown'); const f = gameSrc.slice(i, i + 500);
   assert.ok(f.includes("$('cal-overlay').classList.contains('open')") && f.includes("$('cal-grid').style.display === 'none'") && f.includes('if (!btn.disabled) btn.click()'));
   assert.ok(htmlSrc.includes('aria-keyshortcuts="PageUp"') && htmlSrc.includes('aria-keyshortcuts="PageDown"'));
+});
+console.log('— round 58: hot flame —');
+test('a 7+ day streak gives the header flame a glow/flicker (bump still wins; reduced motion stops it)', () => {
+  assert.ok(gameSrc.includes("Number(st.streak) >= 7 ? ' hot' : ''"));
+  const a = htmlSrc.indexOf('#streak-display .flame.hot'), b = htmlSrc.indexOf('#streak-display .flame.bump {');
+  assert.ok(a > 0 && b > a, 'bump rule must come after hot so the bump animation overrides the flicker');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
