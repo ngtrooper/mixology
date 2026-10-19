@@ -2,6 +2,15 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 41 (2026-10-18, Grok Bot): REGRESSION SWEEP + QUIET HAPTICS
+- Re-ran the older Playwright suites against the current build: v3 (calendar, migration, old 3-attempt days), cal, duel, drop, pig, nostore, tab. All behave as before.
+  - drop.js predates the welcome overlay, so it needs the welcomed flag seeded.
+- Fix: `buzz()` now waits for `navigator.userActivation.hasBeenActive`.
+  - Before, migrating an old save on load called vibrate before any tap. Chrome blocked it and logged a console warning. That console noise is gone.
+- Version 1.10.9. Test added.
+- Also verified (r39 follow-up): a midnight rollover simulated with `page.clock`.
+  - #1 rolls to #2 with the countdown hidden; the streak is kept; yesterday's share still reads "#1 — How well do you know your colors?"; no errors.
+
 ## Round 40 (2026-10-18, Grok Bot): KEYBOARD SHORTCUTS
 - Desktop shortcuts: `1`–`5` pick red/yellow/blue/black/white (ring order), `D` Dropper, `P` Pour Bucket, `Z` (or Ctrl/Cmd+Z) Undo. `Enter` on the focused pot already adds paint.
   - There is **no seal key**, so an attempt can't be sealed by accident.

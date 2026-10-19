@@ -959,5 +959,10 @@ test('keyboard shortcuts: 1-5 pigments, D/P tools, Z undo; no seal key; ignored 
   assert.ok(k.includes("{ 1: 'r', 2: 'y', 3: 'b', 4: 'k', 5: 'w' }"), 'pigment keys changed');
   assert.ok(htmlSrc.includes('<p class="kbd-tip">'), 'shortcuts undocumented in Tips');
 });
+console.log('— round 41: haptics wait for user activation —');
+test('buzz() skips vibrate before any user interaction', () => {
+  const i = gameSrc.indexOf('function buzz('); const f = gameSrc.slice(i, gameSrc.indexOf('/* Geometry', i));
+  assert.ok(/userActivation[\s\S]*hasBeenActive[\s\S]*return;[\s\S]*navigator\.vibrate\(ms\)/.test(f), 'buzz does not check user activation first');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

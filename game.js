@@ -221,6 +221,10 @@ let pourTimer = null;
 const FX_PIGMENT = k => PIGMENT_HEX[k] || '#FFFFFF';
 function rgba(hex, a) { const [r, g, b] = E.hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 function buzz(ms) { // ms: number or vibration pattern
+  // Round 41: skip until the player has interacted. Browsers block it anyway and
+  // log a console warning (e.g. when an old save is migrated on load).
+  const ua = navigator.userActivation;
+  if (ua && !ua.hasBeenActive) return;
   try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* optional */ } }
 /* Geometry: points in #stage px. The surface circle comes from layout. */
 function surfaceGeom() {
@@ -1281,7 +1285,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.8',
+  version: '1.10.9',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
