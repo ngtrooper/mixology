@@ -888,5 +888,12 @@ test('pigment/tool changes tick (only on an actual change); calendar swipe respe
   assert.ok(sw.includes('if (!btn.disabled) { btn.click();') && sw.includes('Math.abs(dx) < Math.abs(dy) * 1.5'), 'swipe can bypass the future-month lock or hijack vertical scroll');
   assert.ok(sw.includes('{ passive: true }'), 'swipe listeners block scrolling');
 });
+console.log('— round 29: recent-form sparkline —');
+test('stats sparkline: last 14 internal days, gaps for missed days, par line, accessible label', () => {
+  const f = gameSrc.slice(gameSrc.indexOf('function recentFormSVG'), gameSrc.indexOf('function renderStats'));
+  assert.ok(f.includes('const d = DAY - (N - 1) + i') && f.includes("pts[k - 1].i === p.i - 1 ? 'L' : 'M'"), 'missed days not drawn as gaps');
+  assert.ok(f.includes('y(E.PAR_PCT)') && f.includes('role="img" aria-label="Scores over the last 14 days'), 'no par line / label');
+  assert.ok(f.includes('if (pts.length < 2) return'), 'sparkline drawn from a single point');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 29 (2026-10-18, Grok Bot): RECENT-FORM SPARKLINE
+- The Stats tab has a "Last 14 days" SVG sparkline.
+  - Dots at each day's % (accent when at par); missed days break the line; a dashed par line.
+  - The y-range zooms to where scores live (from min(40, lowest decade) to 100).
+  - It has an `aria-label` listing the scores and needs at least 2 points.
+- Test added.
+
 ## Round 27–28 (2026-10-18, Grok Bot): SELECT FEEL · CALENDAR SWIPE
 - Changing pigment or tool gives a soft 660 Hz tick (respects mute) and a 6 ms haptic. Re-tapping the current selection stays silent.
 - Swiping the calendar grid left/right changes month on touch.
