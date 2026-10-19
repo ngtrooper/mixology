@@ -438,6 +438,14 @@
     #btn-duel:hover { background: var(--paper); }
     #btn-card:hover, #btn-replay-intro:hover { color: var(--ink); }
   }
+  /* Round 51: Windows High Contrast / forced colors. The browser strips
+   * backgrounds, which made every paint, the pot, swatches and recipe bars
+   * invisible (the game was unplayable). Real paint colors are content, so keep
+   * them; the rest of the UI still follows the system palette. */
+  @media (forced-colors: active) {
+    #stage, .asw, .vs .sw, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i { forced-color-adjust: none; }
+    .tool[aria-pressed="true"], #cal-tabs [aria-selected="true"] { outline: 3px solid Highlight; outline-offset: -3px; } /* selection was a fill only */
+  }
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }

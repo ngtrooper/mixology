@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 51 (2026-10-18, Grok Bot): A11Y: FORCED COLORS / WINDOWS HIGH CONTRAST (real bug)
+- **Found:** with `forced-colors: active` (Windows High Contrast and similar), the browser strips backgrounds. Every pigment, the pot surface, attempt swatches, the reveal swatches and the recipe bars rendered as empty outlines, so the game was unplayable. Playwright `forcedColors: 'active'`.
+- **Fix:** the paint colors are content, so `forced-color-adjust: none` keeps them on the stage, attempt swatches, reveal swatches, recipe bars and legend dots, duel swatches, calendar swatches and detail dots, and stats bars. All other UI still follows the system palette.
+  - The selected tool and the selected Calendar/Stats tab used to be fill-only. They now get a 3px `Highlight` outline in that mode.
+- CSS only. Shots: `r51-before-forced-colors-{home,reveal}.png`, `r51-after-forced-colors-{home,reveal}.png`. Test added.
+
 ## Round 50 (2026-10-18, Grok Bot): DESKTOP HOVER FEEDBACK
 - On pointer devices (`hover: hover`), header pills and unselected tools darken their border on hover. Seal and Share brighten slightly, Duel fills with paper, and the text links (Save image card, Replay the intro) go to ink.
   - Smooth 150 ms transitions, removed under reduced motion. Header pills also get a press-scale.

@@ -1017,5 +1017,10 @@ test('desktop hover feedback lives inside @media (hover: hover) and comes before
   assert.ok(i < htmlSrc.indexOf('@media (prefers-reduced-motion: reduce)'));
   assert.ok(/@media \(hover: hover\) \{\s*\.hbtn:hover/.test(htmlSrc.slice(i)));
 });
+console.log('— round 51: forced colors —');
+test('forced-colors mode keeps paint colors visible (stage, swatches, recipe bars, calendar, stats)', () => {
+  const m = htmlSrc.match(/@media \(forced-colors: active\) \{\s*([^{]+)\{ forced-color-adjust: none; \}/); assert.ok(m, 'no forced-colors block');
+  for (const sel of ['#stage', '.asw', '.vs .sw', '.rbar', '.rleg i', '.dsw div', '.cd-sw', '.cdt-sw i', '.st-row i']) assert.ok(m[1].includes(sel), sel);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

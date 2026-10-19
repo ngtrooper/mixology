@@ -118,3 +118,4 @@ Consequences that are **invariants**, not implementation details:
 
 Any static server, e.g. `python3 -m http.server` in this directory, then
 open `index.html`. No build step, no dependencies.
+- Forced colors (round 51): any new element whose *meaning* is a paint color must be added to the `@media (forced-colors: active)` `forced-color-adjust: none` list, or it vanishes in High Contrast mode.
