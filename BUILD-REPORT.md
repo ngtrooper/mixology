@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 52 (2026-10-18, Grok Bot): A11Y: INCREASE CONTRAST
+- `prefers-contrast: more` (the iOS/macOS "Increase contrast" setting) strengthens two palette variables: secondary text `--muted` and outlines `--line`. Light and dark each have their own values. Palette only, like dark mode.
+  - Light: muted 8.7:1 on paper (was 5.4:1), lines 3.3:1 (non-text AA).
+  - Dark: muted 10.8:1, lines 3.5:1.
+- CSS only. Shots: `r52-before-contrast-more.png`, `r52-after-contrast-more.png`, composite `r52-compare-contrast-more.png`. Test added.
+
 ## Round 51 (2026-10-18, Grok Bot): A11Y: FORCED COLORS / WINDOWS HIGH CONTRAST (real bug)
 - **Found:** with `forced-colors: active` (Windows High Contrast and similar), the browser strips backgrounds. Every pigment, the pot surface, attempt swatches, the reveal swatches and the recipe bars rendered as empty outlines, so the game was unplayable. Playwright `forcedColors: 'active'`.
 - **Fix:** the paint colors are content, so `forced-color-adjust: none` keeps them on the stage, attempt swatches, reveal swatches, recipe bars and legend dots, duel swatches, calendar swatches and detail dots, and stats bars. All other UI still follows the system palette.

@@ -1022,5 +1022,12 @@ test('forced-colors mode keeps paint colors visible (stage, swatches, recipe bar
   const m = htmlSrc.match(/@media \(forced-colors: active\) \{\s*([^{]+)\{ forced-color-adjust: none; \}/); assert.ok(m, 'no forced-colors block');
   for (const sel of ['#stage', '.asw', '.vs .sw', '.rbar', '.rleg i', '.dsw div', '.cd-sw', '.cdt-sw i', '.st-row i']) assert.ok(m[1].includes(sel), sel);
 });
+console.log('— round 52: prefers-contrast —');
+test('prefers-contrast: more strengthens --muted/--line for light and dark, after the dark block', () => {
+  const css = htmlSrc.slice(0, htmlSrc.indexOf('</style>'));
+  const a = css.indexOf('@media (prefers-contrast: more) {'), d = css.indexOf('@media (prefers-contrast: more) and (prefers-color-scheme: dark)');
+  assert.ok(a > css.indexOf('Round 13: dark mode') && d > a, 'contrast blocks must come after dark mode so they win');
+  assert.ok(/--muted: #4a4339; --line: #8f846f;/.test(css) && /--muted: #d2c9b9; --line: #776e60;/.test(css));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

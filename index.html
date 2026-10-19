@@ -466,6 +466,14 @@
     /* white-on-accent buttons keep the light-mode accent for contrast (~5:1) */
     #btn-seal:not(.done), #btn-next-practice, #btn-today { background: #b3541e; }
   }
+  /* Round 52: "increase contrast" (macOS/iOS setting, prefers-contrast: more).
+   * Darker secondary text and stronger outlines; palette only, like dark mode. */
+  @media (prefers-contrast: more) {
+    :root { --muted: #4a4339; --line: #8f846f; }
+  }
+  @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+    :root { --muted: #d2c9b9; --line: #776e60; }
+  }
 </style>
 </head>
 <body>
