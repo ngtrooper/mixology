@@ -857,8 +857,9 @@ test('countdown targets local midnight via dateForDay(DAY + 1); only on a finish
   // replicate dateForDay / dayNumber agreement: start of internal day 657 is local Mon Oct 19 2026 00:00
   const d = new Date(2025, 0, 1); d.setDate(d.getDate() + 657 - 1);
   assert.strictEqual(E.dayNumber(d) + 1, 657); assert.strictEqual(d.getHours(), 0); assert.strictEqual(d.getDate(), 19);
-  const r = gameSrc.slice(gameSrc.indexOf('function renderNextCountdown'), gameSrc.indexOf('function renderNextCountdown') + 400);
-  assert.ok(r.includes("round.finished && round.mode === 'daily' && round.day === DAY"), 'countdown shows in practice/stale rounds');
+  const r = gameSrc.slice(gameSrc.indexOf('function renderNextCountdown'), gameSrc.indexOf('function renderNextCountdown') + 600);
+  // round 82: only finished DAILY rounds; a finished earlier day shows "Today's new color is ready" instead of a clock
+  assert.ok(r.includes("const daily = !!round && round.mode === 'daily' && round.finished;") && r.includes("let left = daily && round.day === DAY ? untilNextColor() : '';"), 'countdown shows in practice rounds');
 });
 console.log('— round 21: axe audit fixes —');
 test('landmarks + calendar contrast (axe-core clean): <main> wraps the app, future days disabled, pre-history days readable', () => {
@@ -1724,5 +1725,64 @@ console.log('— round 81: "Hold to pour" on the empty pot for first-time player
     assert.ok(/opacity: 0; transition: opacity \.35s ease;/.test(css) && !/animation|@keyframes|transform: scale/.test(css), 'only a fade, no effect');
   });
 }
+
+console.log('— round 82: it is DAILY — countdown to local midnight —');
+test('countdown formatting: h/m/s with zero-padding, rounds up to whole seconds, empty at or after the rollover', () => {
+  const f = E.formatCountdown, H = 3600e3, M = 60e3, S = 1e3;
+  assert.strictEqual(f(6 * H + 12 * M + 8 * S), '6h 12m 08s');
+  assert.strictEqual(f(23 * H + 59 * M + 59 * S + 1), '24h 00m 00s'); // 1 ms over: rounds up
+  assert.strictEqual(f(10 * H + 5 * M), '10h 05m 00s');
+  assert.strictEqual(f(1 * H), '1h 00m 00s');
+  assert.strictEqual(f(H - 1), '1h 00m 00s');
+  assert.strictEqual(f(59 * M + 59 * S), '59m 59s');
+  assert.strictEqual(f(12 * M + 8 * S), '12m 08s');
+  assert.strictEqual(f(60 * S), '1m 00s');
+  assert.strictEqual(f(8 * S), '8s');
+  assert.strictEqual(f(1), '1s', 'never "0s" before midnight');
+  for (const v of [0, -1, -5000, NaN, undefined]) assert.strictEqual(f(v), '', String(v));
+});
+test('rollover = local midnight, matching dayNumber exactly (incl. DST days); the game counts to dateForDay(DAY + 1)', () => {
+  for (const [y, m, d] of [[2026, 9, 19], [2026, 10, 1], [2026, 2, 8], [2026, 11, 31], [2028, 1, 28]]) {
+    for (const hh of [0, 9, 23]) {
+      const t = new Date(y, m, d, hh, 30, 15), n = E.nextDayStart(t);
+      assert.strictEqual(n.getHours(), 0); assert.strictEqual(n.getMinutes(), 0);
+      assert.strictEqual(E.dayNumber(n), E.dayNumber(t) + 1, 'next start is the next day');
+      assert.strictEqual(E.dayNumber(new Date(n - 1)), E.dayNumber(t), '1 ms before is still today');
+    }
+  }
+  // the game's dateForDay(DAY + 1) is the same instant as nextDayStart(now)
+  const dateForDay = day => { const d = new Date(2025, 0, 1); d.setDate(d.getDate() + day - 1); return d; };
+  for (const t of [new Date(2026, 9, 19, 17, 13), new Date(2026, 10, 1, 1, 30), new Date(2026, 2, 8, 12)]) {
+    const DAY = E.dayNumber(t) + 1;
+    assert.strictEqual(+dateForDay(DAY + 1), +E.nextDayStart(t));
+  }
+  const fn = gameSrc.slice(gameSrc.indexOf('function untilNextColor'), gameSrc.indexOf('let countdownState'));
+  assert.ok(fn.includes('dateForDay(DAY + 1) - (now || new Date())') && fn.includes('E.formatCountdown(ms)'));
+  // ticks every second; at zero it rolls the day over; a finished round is NOT swapped, it offers today's color
+  assert.ok(gameSrc.includes('setInterval(renderNextCountdown, 1000);'));
+  assert.ok(gameSrc.includes("if (daily && round.day === DAY && !left) { checkDayRollover();"));
+  const roll = gameSrc.slice(gameSrc.indexOf('function checkDayRollover'), gameSrc.indexOf('setInterval(checkDayRollover'));
+  assert.ok(roll.includes('if (untouched && !round.finished) { stopPour(); initDaily(); return; }'));
+  assert.ok(htmlSrc.includes(`<button id="btn-today" type="button">Today's new color is ready →</button>`));
+});
+test('streak line adapts to 0 / 1 / N', () => {
+  assert.strictEqual(E.comeBackLine(5), 'New color every day — come back tomorrow to keep your 🔥 5-day streak.');
+  assert.strictEqual(E.comeBackLine(2), 'New color every day — come back tomorrow to keep your 🔥 2-day streak.');
+  assert.strictEqual(E.comeBackLine(1), 'New color every day — come back tomorrow to start a 🔥 streak.');
+  for (const v of [0, -2, null, undefined, 'x']) assert.strictEqual(E.comeBackLine(v), 'New color every day — come back tomorrow for the next one.');
+  for (const v of [0, 1, 2, 30]) assert.ok(!/undefined|NaN|null/.test(E.comeBackLine(v)));
+});
+test('placement: countdown right after the result; returning finished players get a top banner; welcome says daily; share text untouched', () => {
+  const rv = htmlSrc.slice(htmlSrc.indexOf('<section id="reveal">'), htmlSrc.indexOf('</section>'));
+  assert.ok(rv.indexOf('id="reveal-de"') < rv.indexOf('id="reveal-next"') && rv.indexOf('id="reveal-next"') < rv.indexOf('id="reveal-recipes"'), 'countdown is not right after the result');
+  assert.ok(rv.includes('role="timer"') && /\.rn-line \{ font-size: 17px; font-weight: 700;/.test(htmlSrc), 'countdown not prominent');
+  const pa = htmlSrc.slice(htmlSrc.indexOf('<div id="prompt-area">'), htmlSrc.indexOf('<div id="stage">'));
+  assert.ok(pa.includes('<div id="done-banner" hidden>') && pa.includes('id="btn-see-result"') && pa.includes('Practice (doesn\'t count)'), 'no top banner for finished players');
+  assert.ok(gameSrc.includes('banner.hidden = !show;') && gameSrc.includes("$('btn-db-practice').addEventListener('click', startPractice);"));
+  const w = htmlSrc.slice(htmlSrc.indexOf('<div id="welcome-panel">'), htmlSrc.indexOf('id="btn-welcome-go"'));
+  assert.ok(w.includes('<b>One new color every day.</b>') && w.includes('How well do you know your colors?'));
+  const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('function shareText') + 1500);
+  assert.ok(!/Next color|come back|formatCountdown/.test(share), 'share text changed');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

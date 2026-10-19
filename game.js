@@ -829,7 +829,6 @@ function renderAll() {
     : '';
   const stale = daily && round.day !== DAY;
   if (stale && !round.finished) $('prompt-sub').textContent = "A new day's color is out — finish this one, then play today's.";
-  $('btn-today').style.display = stale && round.finished ? 'block' : 'none';
 
   const hex = mixHex();
   $('pot-surface').style.background = hex;
@@ -912,11 +911,11 @@ function renderAll() {
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
     $('card-row').style.display = round.mode === 'daily' ? 'block' : 'none';
-    renderNextCountdown();
   } else {
     $('reveal').style.display = 'none';
     $('reveal-recipes').innerHTML = '';
   }
+  renderNextCountdown(); // round 82: reveal countdown + the top "done for today" banner
 }
 
 /* The attempt this round is scored on (saved day record wins for daily). */
@@ -968,24 +967,50 @@ function checkDayRollover() {
   DAY = d;
   todayColor = colorForDay(DAY);
   if (round && round.mode === 'daily') {
+    // Untouched rounds switch to the new color. Round 82: a FINISHED round
+    // stays on screen and offers "Today's new color is ready" instead of
+    // swapping under the player.
     const untouched = !round.attempts.length && !round.undo.length;
-    if (round.finished || untouched) { stopPour(); initDaily(); return; }
+    if (untouched && !round.finished) { stopPour(); initDaily(); return; }
   }
   renderAll();
 }
-setInterval(() => { checkDayRollover(); renderNextCountdown(); }, 20000);
-/* Round 19: "Next color in 3h 12m" under a finished daily reveal. It counts
- * down to local midnight, the same boundary dayNumber() uses. */
+setInterval(checkDayRollover, 20000);
+setInterval(renderNextCountdown, 1000); // round 82: the countdown ticks each second
+/* Round 19, round 82: "Next color in 6h 12m 08s". It counts down to the next
+ * local midnight, the same boundary dayNumber() uses (dateForDay(DAY + 1)
+ * is local 00:00 of the next day); '' once it is reached. */
 function untilNextColor(now) {
   const ms = dateForDay(DAY + 1) - (now || new Date());
-  const m = Math.max(0, Math.ceil(ms / 60000));
-  return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${Math.max(1, m)}m`;
+  return E.formatCountdown(ms);
 }
+let countdownState = '';
 function renderNextCountdown() {
-  const el = $('reveal-next'); if (!el) return;
-  const show = round && round.finished && round.mode === 'daily' && round.day === DAY;
+  const el = $('reveal-next'), banner = $('done-banner'); if (!el || !banner) return;
+  const daily = !!round && round.mode === 'daily' && round.finished;
+  let left = daily && round.day === DAY ? untilNextColor() : '';
+  if (daily && round.day === DAY && !left) { checkDayRollover(); left = round.day === DAY ? untilNextColor() : ''; } // midnight just passed
+  const ready = daily && round.day !== DAY; // finished an earlier day; today's color is out
+  const show = daily && (ready || !!left);
   el.style.display = show ? 'block' : 'none';
-  if (show) el.textContent = `Next color in ${untilNextColor()}`;
+  banner.hidden = !show;
+  $('btn-today').style.display = ready ? 'block' : 'none';
+  if (!show) { countdownState = ''; return; }
+  const streak = liveStreaks().streak;
+  el.classList.toggle('ready', ready);
+  $('rn-lbl').textContent = ready ? "Today's new color is ready" : 'Next color in';
+  $('rn-clock').textContent = left;
+  // the streak line and the banner only change on a state change, not every tick
+  const state = (ready ? 'r' : 'c') + streak + ':' + round.day;
+  if (state !== countdownState) {
+    countdownState = state;
+    $('rn-streak').textContent = ready
+      ? (streak >= 1 ? `Play it to keep your 🔥 ${streak}-day streak going.` : 'A new color is out. Same name for everyone.')
+      : E.comeBackLine(streak);
+    $('db-head').textContent = ready ? "✓ You finished that day's color" : "✓ You've played today's color";
+    $('btn-see-result').textContent = ready ? "Play today's color →" : 'See your result ↓';
+  }
+  $('db-next').innerHTML = ready ? "Today's new color is ready." : `Next color in <b>${left}</b>`;
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
 window.addEventListener('focus', checkDayRollover);
@@ -1591,6 +1616,12 @@ $('btn-duel').addEventListener('click', ev => {
 });
 $('btn-today').addEventListener('click', () => { initDaily(); window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' }); });
 $('btn-next-practice').addEventListener('click', startPractice);
+// Round 82: the top banner for a player who already finished today
+$('btn-see-result').addEventListener('click', () => {
+  if (round && round.mode === 'daily' && round.day !== DAY) { $('btn-today').click(); return; }
+  const r = $('reveal'); if (r) r.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'start' });
+});
+$('btn-db-practice').addEventListener('click', startPractice);
 $('btn-practice').addEventListener('click', () => {
   if (round && round.mode === 'practice') exitPractice(); else startPractice();
 });
@@ -1619,7 +1650,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.21.0',
+  version: '1.22.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

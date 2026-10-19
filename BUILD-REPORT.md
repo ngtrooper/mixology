@@ -2,6 +2,20 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 82 (2026-10-19, Grok Bot): MAKE "DAILY" OBVIOUS, COUNTDOWN TO MIDNIGHT (Franklin)
+
+- **Found:** a countdown already existed (round 19: `untilNextColor()` / `#reveal-next`). It was a small grey line at the very bottom of the reveal, showing minutes only and updating every 20s. It is now the prominent block below, not a duplicate.
+- **Rollover confirmed:** local midnight. `currentDay()` = `E.dayNumber(new Date()) + 1` counts local calendar days, and the countdown targets `dateForDay(DAY + 1)`, the next local 00:00. New `E.nextDayStart` gives the same instant, and tests prove it matches `dayNumber` across DST days.
+- **Reveal:** right after the result (score, band, ΔE line) and before the recipes, a boxed "Next color in **6h 12m 08s**" (17px bold, accent clock, tabular digits, `role="timer"`, ticking every second).
+  - Under it, `E.comeBackLine(streak)`: "New color every day — come back tomorrow to keep your 🔥 N-day streak." For a 1-day streak it reads "…to start a 🔥 streak."; for 0, "…for the next one."
+  - `E.formatCountdown` rounds up, so it never shows "0s" early.
+- **At zero:** the 1s tick calls `checkDayRollover()`. A finished round now stays on screen (it used to be swapped automatically). The block reads "Today's new color is ready" with the existing `#btn-today`, moved into the block and relabelled "Today's new color is ready →". An untouched round still switches automatically, and a round in progress keeps its day as before.
+- **Returning finished player:** a `#done-banner` under the color name reads "✓ You've played today's color · Next color in …", with "See your result ↓" (scrolls to the reveal) and "Practice (doesn't count)". After midnight it switches to "Play today's color →". The practice round keeps its "Practice round — doesn't count" bar.
+- **Welcome card:** step 1 is now "**One new color every day.** Same name for everyone…". The "How well do you know your colors?" lead is kept.
+- **Not changed:** share text, the pot, the "−" badges.
+- **Tests:** 4 new (formatting; local-midnight rollover incl. DST + game wiring + no auto-swap of finished rounds; streak line 0/1/N; placement/banner/welcome/share untouched). The round 19 test was updated. 206 pass.
+- Version 1.22.0.
+
 ## Round 81 (2026-10-19, Grok Bot): "HOLD TO POUR" ON THE EMPTY POT (Franklin)
 
 - **Why:** testers didn't know how to start; one didn't realize you press/hold the big circle to add color.

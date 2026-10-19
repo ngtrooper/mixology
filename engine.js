@@ -592,6 +592,32 @@ function dayNumber(date) {
   const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   return Math.round((a - start) / 86400000);
 }
+/* Round 82 (Franklin): the daily rollover is LOCAL midnight. dayNumber()
+ * counts local calendar days, so the next color starts at the next local
+ * 00:00 (built with the Date constructor, so DST days of 23 or 25 hours are
+ * right). formatCountdown(ms) gives "6h 12m 08s", "12m 08s" or "8s",
+ * rounding UP to whole seconds so it never reads 0s before the rollover;
+ * it returns '' once the time is up. */
+function nextDayStart(date) {
+  const d = date ? new Date(date) : new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+}
+function formatCountdown(ms) {
+  const t = Math.ceil(Number(ms) / 1000);
+  if (!(t > 0)) return '';
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  const ss = String(sec).padStart(2, '0');
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${ss}s`;
+  if (m > 0) return `${m}m ${ss}s`;
+  return `${sec}s`;
+}
+/* The line under the countdown. streak = the live streak after today's finish. */
+function comeBackLine(streak) {
+  const n = Math.max(0, Math.floor(Number(streak) || 0));
+  if (n >= 2) return `New color every day — come back tomorrow to keep your 🔥 ${n}-day streak.`;
+  if (n === 1) return 'New color every day — come back tomorrow to start a 🔥 streak.';
+  return 'New color every day — come back tomorrow for the next one.';
+}
 function dateKey(date) {
   const d = date ? new Date(date) : new Date();
   const p = n => String(n).padStart(2, '0');
@@ -853,7 +879,7 @@ const MisnomerEngine = {
   TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
-  hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName,
+  hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, nextDayStart, formatCountdown, comeBackLine, dateKey, pickDailyIndex, nearestColorName,
   DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;

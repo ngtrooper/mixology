@@ -103,6 +103,13 @@ Consequences that are **invariants**, not implementation details:
 - **No traces; paint can be taken out** (round 68, Franklin): a paint under 0.5% of the pot snaps to 0 (engine `snapTraces`, also used by the solver, so every recipe has each paint at 0 or at least 0.5%). Disc numbers are whole and always sum to 100, with no "<1%". Each disc holding paint has a separate "−" badge outside it: a tap removes ~1%, a hold follows the bucket ramp, and one undo step covers a whole hold.
 - **Dialogs never hide their close button** (round 80, iPhone tester): Calendar, Stats, Collection and Tips are `.ov-dlg` columns, with a fixed `.ov-head` row (title plus a 40px ✕, 48px tap area) above an `.ov-body` that scrolls on its own. The panel is capped by the overlay box, with a `100dvh` fallback. The overlay pads by `env(safe-area-inset-*)`. Never cap a dialog with plain `vh`: on iOS that is the large viewport and pushes the header off screen. Never put the ✕ inside the scrolling part. Escape and tapping outside close every dialog, and a dialog opens scrolled to the top. The welcome card scrolls too, so "Let's mix" is reachable in landscape. Checked at 320×568, 375×667, 390×844 and landscape.
 - **Nothing drawn on or in the pot** (round 67, Franklin): no swirl, bloom, ripple, splash or color spot. The pot surface only eases to the mix color. Rigs, stream and falling drop may animate *toward* the pot.
+- **It is DAILY, and the game says so** (round 82, Franklin).
+  - The day rolls over at **local midnight**: `dayNumber` counts local calendar days, and the countdown targets `dateForDay(DAY + 1)` (= `E.nextDayStart`, DST-safe).
+  - Right under the reveal's result, a prominent "Next color in 6h 12m 08s" ticks every second (`E.formatCountdown`). Under it is the streak line (`E.comeBackLine`: N-day streak / start a streak / plain).
+  - At zero, a finished round is **not** swapped under the player. The block turns into "Today's new color is ready" with a button. An untouched round still switches by itself.
+  - A player who reopens after finishing today gets a top banner under the color name: done, the countdown, "See your result ↓" and "Practice (doesn't count)".
+  - The welcome card's first step reads "One new color every day."
+  - Share text is unchanged.
 - **"Hold to pour" first-time label** (round 81, Franklin): the one exception to "nothing on the pot".
   - A static, dark "Hold to pour" label with a small hand icon sits centered on the empty white pot.
   - It shows only to a browser with no saved day, no day in progress, and no `mixology.poured.v1` flag.
