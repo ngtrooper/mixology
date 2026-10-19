@@ -2,6 +2,19 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 67 (2026-10-18, Grok Bot): NO EFFECTS IN THE POT (Franklin)
+- Testers found the pot effects distracting. Franklin: nothing drawn on or in the pot.
+- Removed:
+  - the rotating conic swirl overlay (`#pot-surface::before`, `@keyframes swirl`);
+  - the pour impact bloom, ripple and splash (`pourFx` now only does the light haptic);
+  - the Dropper's landing ripple, bloom and splash;
+  - the `spawnRipple`/`bloom`/`splash` functions and their CSS.
+- The pot surface now only eases to the new color: `background-color` .28s, standard ease. The static sheen highlight stays.
+- The bucket and dropper rigs, the stream and the falling drop stay.
+- Playwright mid-pour: the only animation on the pot surface is the color CSSTransition (before: swirl plus about 20 bloom/ripple animations).
+- Shots: `r67-before-swirl.png` (live, before), `r67-no-swirl.png`, composite `r67-compare-swirl.png`.
+- The old visuals test was rewritten to assert the effects are absent. Version 1.12.3.
+
 ## Round 66 (2026-10-18, Grok Bot): GROSS/BODILY NAMES RETIRED (Franklin)
 - "barf green" slipped past the family-friendly filter.
 - `tools/build-bank.js` gains whole-word `RETIRE_WORDS`: barf, bile, sick, sickly, pee, urine, phlegm, mucus, turd, dung, manure, sewage, feces/faeces, excrement, drool, spew, bruise, dried blood, pimple, zit, scab, earwax. This adds to the existing substring BANNED list (vomit, puke, poop, poo, snot, booger, diarrhea…).

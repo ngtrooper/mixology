@@ -639,10 +639,10 @@ test('a 1 s chromatic pour into any pale pot (>= 50% white) moves ΔE >= 5 (medi
   assert.ok(ds[0] >= 5, `min ΔE ${ds[0].toFixed(2)}`);
   assert.ok(ds[ds.length >> 1] >= 12, `median ΔE ${ds[ds.length >> 1].toFixed(2)}`);
 });
-test('pour/drop visuals: tinted stream, bloom, splash, swirl; reveal scrolls into view on finish', () => {
-  for (const f of ['function bloom(', 'function splash(', 'function pourFx(', 'function drawStream(', 'function scrollRevealIntoView(']) assert.ok(gameSrc.includes(f), `missing ${f}`);
+test('pour/drop visuals: tinted stream and drop rig (no pot effects since r67); reveal scrolls into view on finish', () => {
+  for (const f of ['function pourFx(', 'function drawStream(', 'function dropAnim(', 'function scrollRevealIntoView(']) assert.ok(gameSrc.includes(f), `missing ${f}`);
   assert.ok(/maybeShowDuel\(\);\s*scrollRevealIntoView\(\);/.test(gameSrc), 'finish() does not scroll the reveal into view');
-  for (const c of ['.bloom {', '.splash {', '@keyframes stream-flow', '@keyframes swirl']) assert.ok(htmlSrc.includes(c), `missing CSS ${c}`);
+  for (const c of ['@keyframes stream-flow', '.fdrop']) assert.ok(htmlSrc.includes(c), `missing CSS ${c}`);
   assert.ok(gameSrc.includes('if (REDUCED_MOTION) return;'), 'effects ignore prefers-reduced-motion');
 });
 
@@ -1146,6 +1146,14 @@ test('gross/bodily names never appear as future dailies or practice picks, yet p
   // frozen past days that named a retired color still resolve to a full entry (hex + recipe)
   for (const d of [134, 235, 266, 303, 314, 350]) { const c = byName.get(sched[d]); assert.ok(c && c.retired && /^#[0-9A-F]{6}$/.test(c.hex) && c.recipe, `day ${d}`); }
   assert.ok(gameSrc.includes('const POOL = BANK.filter(c => !c.retired && E.isDailyEligible(c.de));'), 'game pool (practice/fallback) must skip retired names');
+});
+console.log('— round 67: no swirl —');
+test('Franklin r67: nothing is drawn on/in the pot (no swirl, bloom, ripple, splash); the color just eases', () => {
+  assert.ok(!htmlSrc.includes('@keyframes swirl') && !/#pot-surface::before/.test(htmlSrc), 'swirl still present');
+  for (const c of ['.bloom {', '.splash {', '.ripple {']) assert.ok(!htmlSrc.includes(c), `${c} CSS still present`);
+  for (const f of ['function bloom(', 'function splash(', 'function spawnRipple(', "className = 'ripple'", "className = 'bloom'", "className = 'splash'"]) assert.ok(!gameSrc.includes(f), `${f} still in game.js`);
+  assert.ok(!/\$\('pot-surface'\)\.appendChild|surface\.appendChild/.test(gameSrc), 'something is still appended into the pot surface');
+  assert.ok(/#pot-surface \{[^}]*transition: background-color/.test(htmlSrc), 'pot color no longer eases');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

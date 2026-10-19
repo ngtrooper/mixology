@@ -211,14 +211,12 @@ function resetPot() {
 }
 
 /* ---------------- dosing animation + pour ------------------------------- */
-/* Round 8 visuals: the paint is visible going IN. Dropper — a pigment
- * (round 9: an SVG dropper/bucket rig — see dropAnim/drawStream) lands with a tinted ripple, a small
- * splash and a pigment "bloom" that dissolves into the mix. Pour Bucket —
- * a flowing stream in the pigment colour runs from the bucket lip to an
- * impact point on the surface, which keeps blooming / rippling /
- * splashing while held; the surface swirls and its colour eases (CSS
- * transition) instead of snapping. Transform/opacity only; all of it is
- * skipped under prefers-reduced-motion. Light haptics on phones. */
+/* Dosing visuals. The Dropper (an SVG rig, see dropAnim) squeezes and a drop
+ * falls toward the pot. The Pour Bucket tilts and a stream in the pigment
+ * color runs from the bucket lip to the pot (drawStream). Round 67 (Franklin):
+ * NOTHING is drawn on or in the pot. No swirl, bloom, ripple, splash or color
+ * spot; the pot surface only eases to the new mix color (CSS transition).
+ * Transform/opacity only, skipped under reduced motion. Light haptics on phones. */
 let pourTimer = null;
 const FX_PIGMENT = k => PIGMENT_HEX[k] || '#FFFFFF';
 function rgba(hex, a) { const [r, g, b] = E.hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
@@ -246,69 +244,8 @@ function pourImpact() {
   if (!g) return null;
   return { x: g.cx + g.r * 0.3, y: g.cy - g.r * 0.22, g };
 }
-function spawnRipple(color, x, y) { // x, y in surface % (default: centre)
-  if (REDUCED_MOTION) return;
-  const surface = $('pot-surface');
-  if (!surface) return;
-  const r = document.createElement('div');
-  r.className = 'ripple';
-  r.style.left = (x == null ? 50 : x) + '%';
-  r.style.top = (y == null ? 50 : y) + '%';
-  if (x != null) r.style.width = '40%';
-  if (color) r.style.borderColor = rgba(color, color === PIGMENT_HEX.w ? 0.95 : 0.7);
-  surface.appendChild(r);
-  try {
-    const a = r.animate([
-      { transform: 'translate(-50%,-50%) scale(.15)', opacity: .9 },
-      { transform: 'translate(-50%,-50%) scale(1.05)', opacity: 0 }
-    ], { duration: 560, easing: 'ease-out' });
-    a.onfinish = () => r.remove();
-  } catch (e) { /* animation is decorative */ }
-  setTimeout(() => r.remove(), 800);
-}
-function bloom(color, x, y, size) { // pigment dissolving into the mix
-  if (REDUCED_MOTION) return;
-  const surface = $('pot-surface');
-  if (!surface) return;
-  const d = document.createElement('div');
-  d.className = 'bloom';
-  d.style.left = x + '%'; d.style.top = y + '%';
-  d.style.width = (size || 42) + '%';
-  d.style.background = `radial-gradient(circle, ${rgba(color, .95)} 0 35%, ${rgba(color, .55)} 55%, ${rgba(color, 0)} 72%)`;
-  surface.appendChild(d);
-  try {
-    const a = d.animate([
-      { transform: 'translate(-50%,-50%) scale(.2)', opacity: .95 },
-      { transform: 'translate(-50%,-50%) scale(1)', opacity: .55, offset: .35 },
-      { transform: 'translate(-50%,-50%) scale(1.5)', opacity: 0 }
-    ], { duration: 900, easing: 'ease-out' });
-    a.onfinish = () => d.remove();
-  } catch (e) { /* decorative */ }
-  setTimeout(() => d.remove(), 1100);
-}
-function splash(color, x, y, n) { // x, y in #stage px
-  if (REDUCED_MOTION) return;
-  const fx = $('fx');
-  if (!fx) return;
-  for (let i = 0; i < (n || 4); i++) {
-    const p = document.createElement('div');
-    p.className = 'splash';
-    p.style.left = x + 'px'; p.style.top = y + 'px';
-    p.style.background = color;
-    fx.appendChild(p);
-    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, dist = 10 + Math.random() * 16;
-    const tx = Math.cos(ang) * dist, ty = Math.sin(ang) * dist;
-    try {
-      const a = p.animate([
-        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
-        { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(.9)`, opacity: 1, offset: .55 },
-        { transform: `translate(calc(-50% + ${tx * 1.3}px), calc(-50% + ${ty * 0.2 + 8}px)) scale(.4)`, opacity: 0 }
-      ], { duration: 420, easing: 'ease-out' });
-      a.onfinish = () => p.remove();
-    } catch (e) { /* decorative */ }
-    setTimeout(() => p.remove(), 600);
-  }
-}
+/* Round 67 (Franklin): nothing is drawn on or in the pot. The ripple, bloom
+ * and splash effects are removed; the pot only eases to the new color. */
 /* Round 9: the Dropper is a graphic over the pot — the bulb squeezes,
  * a drop swells at the glass tip, then falls into the pot. */
 function dropAnim() {
@@ -332,26 +269,11 @@ function dropAnim() {
       { transform: `translate(${dx * 0.25}px,${dy * 0.18}px) scale(.95,1.1)`, opacity: 1, offset: .62, easing: 'cubic-bezier(.5,0,1,.7)' },
       { transform: `translate(${dx}px,${dy}px) scale(.9,1.2)`, opacity: 1 }
     ], { duration: 460, easing: 'ease-in' });
-    a.onfinish = () => {
-      d.remove();
-      const xp = (land.x - g.left) / (g.r * 2) * 100, yp = (land.y - g.top) / (g.r * 2) * 100;
-      spawnRipple(color, xp, yp);
-      bloom(color, xp, yp, 34);
-      splash(color, land.x, land.y, 4);
-      buzz(8);
-    };
+    a.onfinish = () => { d.remove(); buzz(8); }; // the drop ends at the surface: no ripple/bloom/splash (r67)
   } catch (e) { d.remove(); }
   setTimeout(() => d.remove(), 900);
 }
-function pourFx(tick) {
-  if (REDUCED_MOTION) return;
-  const hit = pourImpact();
-  if (!hit) return;
-  const color = FX_PIGMENT(selectedBucket);
-  const xp = (hit.x - hit.g.left) / (hit.g.r * 2) * 100, yp = (hit.y - hit.g.top) / (hit.g.r * 2) * 100;
-  if (tick % 2 === 0) bloom(color, xp, yp, 46);
-  if (tick % 3 === 0) spawnRipple(color, xp, yp);
-  if (tick % 4 === 0) splash(color, hit.x, hit.y, 3);
+function pourFx(tick) { // r67: no visuals on the pot surface; keep the light haptic
   if (tick % 6 === 0) buzz(5);
 }
 let streamRaf = 0, streamOn = false;
@@ -1353,7 +1275,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.12.1',
+  version: '1.12.3',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
