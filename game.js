@@ -897,7 +897,7 @@ function renderStats() {
     ? `<p class="st-empty">No finished days yet. Your stats appear after your first daily round.</p>`
     : `<div class="st-grid">${tile(s.played, 'played')}${tile(s.avg + '%', 'average')}${tile(s.parRate + '%', `at par (${E.PAR_PCT}%+)`)}${tile(bestLabel, 'best')}</div>` +
       `<div class="st-grid trio">${tile('🔥 ' + live.streak, 'current streak')}${tile(Math.max(s.longestStreak, live.streak), 'longest streak')}${tile(live.parStreak, `par streak (${E.PAR_PCT}%+)`)}</div>` +
-      `<h4>Score spread</h4><div class="st-dist" role="list">` +
+      `<div class="st-h">Score spread</div><div class="st-dist" role="list">` +
       s.dist.map(d => `<div class="st-row" role="listitem" aria-label="${d.label}%: ${d.n}"><span>${d.label}</span><i style="width:${Math.max(d.n ? 8 : 0, 100 * d.n / max)}%"></i><em>${d.n}</em></div>`).join('') +
       `</div>`;
 }
@@ -962,6 +962,7 @@ function renderCalendar() {
     else if (day < DAY) cls += ' before';
     if (day === DAY) cls += ' today';
     cell.className = cls;
+    if (cls.includes(' future')) cell.disabled = true; // round 21: nothing to show, so not focusable
     cell.setAttribute('aria-label', new Date(y, m, dd).toDateString() + (pct ? `, ${name}, best ${pct}` : ''));
     cell.innerHTML = `<span class="cd-n">${dd}</span><span class="cd-sw ${ink}" ${sw}>${pct}</span>` +
       `<span class="cd-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>`;

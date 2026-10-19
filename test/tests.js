@@ -852,5 +852,11 @@ test('countdown targets local midnight via dateForDay(DAY + 1); only on a finish
   const r = gameSrc.slice(gameSrc.indexOf('function renderNextCountdown'), gameSrc.indexOf('function renderNextCountdown') + 400);
   assert.ok(r.includes("round.finished && round.mode === 'daily' && round.day === DAY"), 'countdown shows in practice/stale rounds');
 });
+console.log('— round 21: axe audit fixes —');
+test('landmarks + calendar contrast (axe-core clean): <main> wraps the app, future days disabled, pre-history days readable', () => {
+  assert.ok(htmlSrc.includes('<main id="app">') && htmlSrc.includes('</main>'), 'no main landmark');
+  assert.ok(gameSrc.includes("if (cls.includes(' future')) cell.disabled = true;"), 'future days focusable');
+  assert.ok(/\.cal-day\.before \{ opacity: \.62; \}/.test(htmlSrc) && htmlSrc.includes('.cal-day.before .cd-n { color: var(--ink); }'), 'pre-history days too faint');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

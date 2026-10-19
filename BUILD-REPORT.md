@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 21 (2026-10-18, Grok Bot): AXE-CORE AUDIT (WCAG 2 A/AA + best practice) → CLEAN
+- I ran axe-core 4 in Playwright across 12 states: home, reveal, calendar, stats, tips and welcome, each in light and dark. Findings and fixes:
+  - **color-contrast (serious):** day numbers before your first play were 1.7–2:1. Now opacity .62 with ink-colored numerals (AA). Future days are `disabled` (nothing to show; not focusable).
+  - **landmark-one-main / region:** `#app` is now `<main>`.
+  - **heading-order:** the stats "Score spread" `h4` is now a styled div.
+- Re-run: all 12 states clean. Script: /tmp/pw/axe.js. Static test added.
+
 ## Round 20 (2026-10-18, Grok Bot): SVG TOOL ICONS
 - The 💧 / 🪣 / ↩ emoji in the toolbar are now inline SVG icons (drop, bucket, undo arrow, reset loop) using `currentColor`. They invert correctly on the selected pill and in dark mode, and look the same on every OS.
 - The collapsed-toolbar label copies the selected tool's icon.

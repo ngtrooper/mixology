@@ -311,7 +311,7 @@
   #cal-tabs { display: inline-flex; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin: 0 0 10px; }
   #cal-tabs button { border: none; background: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
   #cal-tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
-  #cal-stats h4 { margin: 14px 0 6px; font-size: 11.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  #cal-stats .st-h { margin: 14px 0 6px; font-size: 11.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
   .st-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .st-grid.trio { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
   .st-tile { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 4px; text-align: center; min-width: 0; }
@@ -359,6 +359,9 @@
   .cal-day.played.par { border-color: var(--accent); }
   .cal-day.missed .cd-sw { border-style: dashed; background: transparent; }
   .cal-day.future, .cal-day.before { cursor: default; opacity: .38; }
+  /* round 21 (axe): pre-history days stay readable (AA); future days are disabled */
+  .cal-day.before { opacity: .62; }
+  .cal-day.before .cd-n { color: var(--ink); }
   .cal-day.future .cd-sw, .cal-day.before .cd-sw { visibility: hidden; }
   .cal-day.today { border: 2px solid var(--ink); }
   .cal-day.sel { box-shadow: 0 0 0 2px var(--accent); }
@@ -394,7 +397,7 @@
 </style>
 </head>
 <body>
-<div id="app">
+<main id="app">
   <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   <header>
     <div>
@@ -509,7 +512,7 @@
     means. Your score is % accuracy — how close your mix lands to the real
     color, measured perceptually (CIEDE2000). A fresh color arrives every day.
   </footer>
-</div>
+</main>
 
 <div id="cal-overlay" class="modal-ov" role="dialog" aria-modal="true" aria-label="Your calendar">
   <div id="cal-panel">
