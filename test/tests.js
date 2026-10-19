@@ -945,5 +945,10 @@ test('Tips use the same SVG icons as the UI (no 💧/🪣/📅 emoji left in mar
   assert.ok(!/💧|🪣|📅/.test(body), 'emoji icon left in the page');
   assert.ok(/<p><svg class="ti"[^]*?<\/svg><b>Dropper<\/b>/.test(htmlSrc), 'tips dropper icon missing');
 });
+test("calendar 'Today' (unplayed) offers Play, which closes the overlay and leaves practice", () => {
+  const i = gameSrc.indexOf("$('btn-cal-play').addEventListener"); assert.ok(i > 0);
+  const h = gameSrc.slice(i, i + 300);
+  assert.ok(h.includes('closeCalendar();') && h.includes("if (round && round.mode === 'practice') exitPractice();"));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

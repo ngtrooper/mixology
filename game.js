@@ -1049,7 +1049,13 @@ function showCalDetail(day) {
       rec.attempts.map((a, i) => `<span class="cdt-sw${a === best ? ' best' : ''}"><i style="background:${a.hex}"></i>Try ${i + 1}: <b>${a.pct}%</b></span>`).join('') +
       `</div>` + recipesHTML(official, scoredAttempt(rec));
   } else if (day === DAY) {
-    el.innerHTML = `<div class="cdt-title">Today${dayTag(day) ? ' · ' + dayTag(day) : ''}</div><div class="cdt-sub">${escapeHtml(when)} · not played yet — today's color is waiting.</div>`;
+    el.innerHTML = `<div class="cdt-title">Today${dayTag(day) ? ' · ' + dayTag(day) : ''}</div><div class="cdt-sub">${escapeHtml(when)} · not played yet — today's color is waiting.</div>` +
+      `<button type="button" id="btn-cal-play">Play today's color →</button>`; // round 39
+    $('btn-cal-play').addEventListener('click', () => {
+      closeCalendar();
+      if (round && round.mode === 'practice') exitPractice();
+      window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
+    });
   } else if (day < DAY && day >= 1) {
     el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}missed</div><div class="cdt-sub">${escapeHtml(when)} · the color was “${escapeHtml(titleCase(colorForDay(day).name))}”.</div>`;
   } else {
@@ -1260,7 +1266,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.6',
+  version: '1.10.7',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

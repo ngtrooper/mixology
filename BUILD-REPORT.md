@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 39 (2026-10-18, Grok Bot): PLAY FROM THE CALENDAR
+- The calendar's unplayed "Today" detail gets a "Play today's color →" button. It closes the overlay (focus returns to 📅), leaves practice if you were in it, and scrolls to the top.
+- Version 1.10.7. Shot `r39-after-cal-today-play`. Test added.
+
 ## Round 38 (2026-10-18, Grok Bot): TIPS ICON CONSISTENCY
 - The Tips prose now uses the same inline SVG icons as the UI for Dropper, Pour Bucket, Undo and the calendar. No 💧/🪣/📅 emoji remain in the page body. This supersedes the r20 note.
 - Version 1.10.6. Shots: `r38-before-tips-emoji` → `r38-after-tips-icons`. Test added.
