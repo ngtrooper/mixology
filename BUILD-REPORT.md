@@ -2,6 +2,20 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 10 (2026-10-18, Grok Bot, Franklin's calls) — PUBLIC #1 · NEW SUBTITLE · RECIPE BARS
+- **Numbering:** today (internal #656) is publicly **Mixology #1**. This is display-only, via `E.LAUNCH_DAY = 656` and `E.publicNumber(day) = day − 655` (null when < 1).
+  - Updated: header (`MIXOLOGY #1 · Sun, Oct 18`), share text, duel cards and calendar detail.
+  - Pre-launch days show the date only.
+  - Unchanged: schedule, saves, streaks and duel `?d=` (still internal).
+- **Subtitle** is now "How well do you know your colors?". Added meta description and og/twitter tags with the same line. The Tips copy keeps its own wording.
+- **Recipe vs your mix:** after the round ends, the reveal shows two segmented R/Y/B/K/W % bars with legends.
+  - Recipe = the official solver recipe, with its best-achievable %.
+  - Your mix = the scored best attempt.
+  - The same bars appear in the calendar detail for played days.
+  - Never shown in share text or duel links (tested).
+- Calendar names now hyphenate rather than break mid-word. Version is 1.8.0.
+- Tests: 95 pass. Added 3 round-10 tests, and the rename test now checks the dayTag form.
+
 ## Round 9 (2026-10-18, Grok Bot, Franklin's calls) — TWO ATTEMPTS · NO LOCK-IN · REAL POUR/DROPPER · CALENDAR
 
 1. **"Lock it in" removed.** It was `#btn-finish` — "Lock it in (attempt N counts)", shown after the 1st seal, which ended the round early with the last sealed attempt as the score. Button, CSS and handler are gone; the round now ends automatically on the final seal (`MISNOMER.finish()` remains as a debug/playtest hook only).

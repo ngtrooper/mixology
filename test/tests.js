@@ -361,7 +361,8 @@ test('radial stage: circular pot at center, pigment ring, collapsible toolbar', 
 test('display rename to Mixology; internal identifiers untouched', () => {
   assert.ok(htmlSrc.includes('<title>Mixology'), 'page title not renamed');
   assert.ok(htmlSrc.includes('MIXOLOGY<span'), 'header wordmark not renamed');
-  assert.ok(gameSrc.includes('MIXOLOGY #'), 'share/day label not renamed');
+  // Round 10: the number is now the public dayTag ("MIXOLOGY #1"), not the internal day.
+  assert.ok(gameSrc.includes('`🎨 MIXOLOGY ${dayTag(day)'), 'share/day label not renamed');
   assert.ok(gameSrc.includes("const SAVE_KEY = 'misnomer.save.v1'"), 'save key changed — data continuity broken');
   assert.ok(gameSrc.includes('window.MISNOMER = {'), 'debug handle renamed');
 });
@@ -696,6 +697,36 @@ test('calendar cells: % inside the swatch with luminance-picked ink, color name 
   const inkFor = new Function('E', gameSrc.slice(i, j + 1) + '\nreturn inkFor;')(E);
   assert.strictEqual(inkFor('#FFFFFF'), 'ink-dark'); assert.strictEqual(inkFor('#FFCD00'), 'ink-dark');
   assert.strictEqual(inkFor('#06172E'), 'ink-light'); assert.strictEqual(inkFor('#1C4096'), 'ink-light');
+});
+console.log('— round 10: public numbering, subtitle, recipe bars —');
+test('public numbering is display-only: internal #656 (Sun 2026-10-18) = Mixology #1; pre-launch days have no number', () => {
+  assert.strictEqual(E.LAUNCH_DAY, 656);
+  assert.strictEqual(E.publicNumber(656), 1);
+  assert.strictEqual(E.publicNumber(657), 2);
+  assert.strictEqual(E.publicNumber(1000), 345);
+  for (const d of [655, 600, 1, 0, -3, NaN]) assert.strictEqual(E.publicNumber(d), null, `day ${d}`);
+  assert.strictEqual(E.dayNumber(new Date(2026, 9, 18, 9)) + 1, 656, 'internal index moved');
+  assert.strictEqual(SCHEDULE[656], 'lipstick', 'schedule moved');
+  // internal index still drives saves / duel links; numbers only via dayTag
+  assert.ok(gameSrc.includes('?d=${day}&p=${final.pct}&x='), 'duel link no longer carries the internal day');
+  assert.ok(gameSrc.includes('store.data.days[day]') && gameSrc.includes('s.days[day] = {'), 'saves no longer keyed by internal day');
+  assert.ok(!/#\$\{(day|round\.day|incomingDuel\.day)\}/.test(gameSrc), 'an internal day number is still displayed');
+  assert.ok(/function dayTag\(day\) \{ const n = E\.publicNumber\(day\); return n \? `#\$\{n\}` : ''; \}/.test(gameSrc), 'dayTag does not fall back to no number');
+});
+test('subtitle is "How well do you know your colors?" everywhere; old line gone', () => {
+  assert.ok(!/Nobody shows you the color\. Mix what the name means\./.test(htmlSrc + gameSrc), 'old subtitle survives');
+  assert.ok(htmlSrc.includes('<p id="prompt-sub">How well do you know your colors?</p>') && gameSrc.includes("'How well do you know your colors?'"), 'new subtitle missing');
+  assert.ok(htmlSrc.includes('name="description"') && htmlSrc.includes('og:description'), 'no meta/og description');
+});
+test('recipe bars: rendered only in the finished reveal / played-day detail, never in share text or duel links', () => {
+  assert.ok(gameSrc.includes("$('reveal-recipes').innerHTML = recipesHTML(round.color, fin);"), 'reveal does not show recipe vs mix');
+  const reveal = gameSrc.slice(gameSrc.indexOf('  if (round.finished) {\n    const fin = scored;'), gameSrc.indexOf("    $('reveal').style.display = 'none';"));
+  assert.ok(reveal.includes('recipesHTML'), 'recipe bars not inside the finished branch');
+  assert.ok(gameSrc.includes("$('reveal-recipes').innerHTML = '';"), 'recipe bars not cleared on a live round');
+  const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('async function doShare'));
+  const duel = gameSrc.slice(gameSrc.indexOf('function duelUrlFor'), gameSrc.indexOf('function parseDuel'));
+  assert.ok(!/recipe/i.test(share) && !/recipe/i.test(duel), 'recipe leaks into share text / duel link');
+  assert.ok(gameSrc.includes('recipesHTML(official, scoredAttempt(rec))'), 'calendar detail has no recipe bars');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mixology — the daily color-mixing game</title>
+<meta name="description" content="Mixology — one color name a day. Mix it from red, yellow, blue, black and white paint. How well do you know your colors?">
+<meta property="og:title" content="Mixology — the daily color-mixing game">
+<meta property="og:description" content="One color name a day — mix it in two tries. How well do you know your colors?">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ngtrooper.github.io/mixology/">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f6f1e7">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
 <style>
   :root {
@@ -187,6 +194,17 @@
   #reveal-pct { text-align: center; font-size: 52px; font-weight: 800; margin: 12px 0 0; line-height: 1; }
   #reveal-band { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; margin-top: 4px; }
   #reveal-de { text-align: center; color: var(--muted); font-size: 13px; margin-top: 4px; }
+  /* round 10: recipe vs your mix — segmented R/Y/B/K/W bars (post-reveal only) */
+  #reveal-recipes { margin-top: 14px; display: grid; gap: 8px; }
+  .rrow { display: grid; grid-template-columns: 66px 1fr; gap: 8px; align-items: center; }
+  .rrow .rl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); line-height: 1.2; }
+  .rrow .rl b { display: block; color: var(--ink); letter-spacing: 0; text-transform: none; font-size: 11.5px; }
+  .rbar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+  .rbar span { display: block; height: 100%; min-width: 2px; }
+  .rbar span.w { box-shadow: inset 1px 0 0 var(--line); }
+  .rleg { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 9px; font-size: 11px; color: var(--muted); margin-top: -4px; font-variant-numeric: tabular-nums; }
+  .rleg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; vertical-align: 0; border: 1px solid rgba(28,26,23,.25); }
+  #cal-detail .rrow { margin-top: 8px; }
   #reveal-actions { display: flex; gap: 8px; margin-top: 14px; }
   #btn-share, #btn-duel {
     flex: 1; border-radius: 10px; padding: 12px 6px; font-size: 14.5px; font-weight: 700; cursor: pointer;
@@ -262,7 +280,7 @@
   .cal-day .cd-name {
     font-size: 8.5px; line-height: 1.12; color: var(--ink); text-align: center; width: 100%;
     padding: 0 1px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow-wrap: anywhere; text-transform: lowercase;
+    overflow-wrap: anywhere; -webkit-hyphens: auto; hyphens: auto; text-transform: lowercase;
   }
   .cal-day.played { background: var(--paper); border-color: var(--line); }
   .cal-day.played.par { border-color: var(--accent); }
@@ -306,7 +324,7 @@
   <div id="prompt-area">
     <div id="prompt-kicker">Today's color is called</div>
     <div id="color-name">…</div>
-    <p id="prompt-sub">Nobody shows you the color. Mix what the name means.</p>
+    <p id="prompt-sub">How well do you know your colors?</p>
     <div id="practice-bar"><span>Practice round — doesn't count</span></div>
   </div>
 
@@ -382,6 +400,7 @@
     <div id="reveal-pct">—</div>
     <div id="reveal-band">—</div>
     <div id="reveal-de"></div>
+    <div id="reveal-recipes"></div>
     <div id="reveal-actions">
       <button id="btn-share" type="button">Share result</button>
       <button id="btn-duel" type="button">Copy duel link</button>

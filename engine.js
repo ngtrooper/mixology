@@ -116,6 +116,15 @@ const TINT_END = 1.0;     // round 8: end slope — how hard white answers on a 
  * solver-best recipe scores at least par. Single source of truth for
  * game.js, tools/solve-recipes.js and the colors.js header. */
 const PAR_PCT = 85;
+/* Public numbering (round 10, display only): internal day #656
+ * (Sun 2026-10-18) is "Mixology #1". Internal day indices, the schedule,
+ * saves, streaks and duel links (d=) are untouched. Days before launch
+ * have no public number (null) — show the date only. */
+const LAUNCH_DAY = 656;
+function publicNumber(day) {
+  const n = day - (LAUNCH_DAY - 1);
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
 
 const COMP_KEYS = ['r', 'y', 'b', 'k', 'w'];
 const FRESH_COMP = { r: 0, y: 0, b: 0, k: 0, w: 100 };
@@ -483,7 +492,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, LAUNCH_DAY, publicNumber,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName

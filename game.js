@@ -505,7 +505,7 @@ function maybeShowDuel() {
   card.style.display = 'block';
   if (mine) {
     card.innerHTML =
-      `<b>Duel — #${incomingDuel.day} “${escapeHtml(theirColor.name)}”</b>` +
+      `<b>Duel — ${dayTag(incomingDuel.day) || shortDate(incomingDuel.day)} “${escapeHtml(theirColor.name)}”</b>` +
       `<div class="swatches">` +
       `<div class="dsw"><div style="background:${incomingDuel.hex}"></div>Them · ${incomingDuel.pct}%</div>` +
       `<div class="dsw"><div style="background:${mine.hex}"></div>You · ${mine.pct}%</div></div>` +
@@ -517,7 +517,7 @@ function maybeShowDuel() {
       `<div>Finish your round to see how you stack up — no spoilers until then.</div>`;
   } else {
     card.innerHTML =
-      `<b>A duel from #${incomingDuel.day} — “${escapeHtml(theirColor.name)}”</b>` +
+      `<b>A duel from ${dayTag(incomingDuel.day) || shortDate(incomingDuel.day)} — “${escapeHtml(theirColor.name)}”</b>` +
       `<div class="swatches"><div class="dsw"><div style="background:${incomingDuel.hex}"></div>Their mix · ${incomingDuel.pct}%</div></div>` +
       `<div style="margin-top:6px">You didn't play that day — today's color is up top.</div>`;
   }
@@ -534,7 +534,7 @@ function shareText(day) {
   const final = scoredAttempt(rec);
   const s = store.data;
   const lines = [
-    `🎨 MIXOLOGY #${day} — "${rec.name.toUpperCase()}"`,
+    `🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — "${rec.name.toUpperCase()}"`,
     'My mix: ██████',
     `${rec.pct}% accuracy — ${rec.band} · Tries: ${rec.attempts.map(a => a.pct + '%').join(' · ')}`,
     `🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? ` · Par streak ${s.parStreak}` : ''),
@@ -560,12 +560,12 @@ function renderAll() {
   $('color-name').textContent = round.color.name;
   $('prompt-kicker').textContent = daily ? "Today's color is called" : 'Practice color';
   $('prompt-sub').textContent = daily
-    ? 'Nobody shows you the color. Mix what the name means.'
+    ? 'How well do you know your colors?'
     : 'Free round — the reveal is instant, the streak is safe.';
   $('practice-bar').style.display = daily ? 'none' : 'block';
   $('btn-practice').textContent = daily ? 'Practice' : '← Daily';
   $('day-label').textContent = daily
-    ? `MIXOLOGY #${round.day} · ${dateForDay(round.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`
+    ? [dayTag(round.day) ? `MIXOLOGY ${dayTag(round.day)}` : 'MIXOLOGY', dateForDay(round.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })].join(' · ')
     : 'Practice mode';
   const st = liveStreaks();
   $('streak-display').textContent = st.streak > 0
@@ -630,10 +630,12 @@ function renderAll() {
     $('reveal-pct').textContent = fin.pct + '%';
     $('reveal-band').textContent = E.bandForDeltaE(fin.de);
     $('reveal-de').textContent = `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
+    $('reveal-recipes').innerHTML = recipesHTML(round.color, fin);
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
   } else {
     $('reveal').style.display = 'none';
+    $('reveal-recipes').innerHTML = '';
   }
 }
 
@@ -650,6 +652,29 @@ function liveStreaks() {
   const alive = s.lastDay != null && s.lastDay >= DAY - 1;
   return { streak: alive ? s.streak : 0, parStreak: alive ? s.parStreak : 0 };
 }
+/* Round 10: official recipe vs the player's mix, as segmented bars. Only
+ * ever rendered after a round is finished (reveal, calendar detail of a
+ * played day) — never in share text or duel links. */
+const PIG_NAMES = { r: 'Red', y: 'Yellow', b: 'Blue', k: 'Black', w: 'White' };
+function recipeRowHTML(label, sub, comp) {
+  if (!comp) return '';
+  const c = E.normalizeComp(comp);
+  const keys = BUCKET_KEYS.filter(k => c[k] >= 0.5);
+  const bar = keys.map(k => `<span class="${k}" style="width:${c[k].toFixed(2)}%;background:${PIGMENT_HEX[k]}" title="${PIG_NAMES[k]} ${Math.round(c[k])}%"></span>`).join('');
+  const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${PIG_NAMES[k][0]} ${c[k] >= 9.95 ? Math.round(c[k]) : c[k].toFixed(1)}%</span>`).join('');
+  return `<div class="rrow"><div class="rl">${label}${sub ? `<b>${sub}</b>` : ''}</div><div class="rbar" role="img" aria-label="${label}: ${keys.map(k => PIG_NAMES[k] + ' ' + Math.round(c[k]) + '%').join(', ')}">${bar}</div><div class="rleg">${leg}</div></div>`;
+}
+function recipesHTML(color, att) {
+  if (!color || !color.recipe) return '';
+  const best = E.accuracyFromDeltaE(color.de);
+  return recipeRowHTML('Recipe', `best ${best}%`, color.recipe) +
+    (att && att.comp ? recipeRowHTML('Your mix', `${att.pct}%`, att.comp) : '');
+}
+
+/* Round 10: public label for a day — "#1" from launch (internal 656), or
+ * '' before launch (date only, never #0 / negatives). */
+function shortDate(day) { return dateForDay(day).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+function dayTag(day) { const n = E.publicNumber(day); return n ? `#${n}` : ''; }
 function dateForDay(day) { const d = new Date(2025, 0, 1); d.setDate(d.getDate() + day - 1); return d; }
 
 /* Round 8: the day rolls over in an open tab. An untouched or finished
@@ -748,15 +773,15 @@ function showCalDetail(day) {
   if (rec && rec.attempts && rec.attempts.length) {
     const best = bestAttempt(rec.attempts);
     const official = BANK_BY_NAME.get(rec.name) || colorForDay(day);
-    el.innerHTML = `<div class="cdt-title">#${day} · “${escapeHtml(titleCase(rec.name))}”</div>` +
+    el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}“${escapeHtml(titleCase(rec.name))}”</div>` +
       `<div class="cdt-sub">${escapeHtml(when)} · best ${best.pct}% · ${E.bandForDeltaE(best.de)}</div>` +
       `<div class="cdt-row"><span class="cdt-sw"><i style="background:${official.hex}"></i>Official</span>` +
       rec.attempts.map((a, i) => `<span class="cdt-sw${a === best ? ' best' : ''}"><i style="background:${a.hex}"></i>Try ${i + 1}: <b>${a.pct}%</b></span>`).join('') +
-      `</div>`;
+      `</div>` + recipesHTML(official, scoredAttempt(rec));
   } else if (day === DAY) {
-    el.innerHTML = `<div class="cdt-title">Today · #${day}</div><div class="cdt-sub">${escapeHtml(when)} · not played yet — today's color is waiting.</div>`;
+    el.innerHTML = `<div class="cdt-title">Today${dayTag(day) ? ' · ' + dayTag(day) : ''}</div><div class="cdt-sub">${escapeHtml(when)} · not played yet — today's color is waiting.</div>`;
   } else if (day < DAY && day >= 1) {
-    el.innerHTML = `<div class="cdt-title">#${day} · missed</div><div class="cdt-sub">${escapeHtml(when)} · the color was “${escapeHtml(titleCase(colorForDay(day).name))}”.</div>`;
+    el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}missed</div><div class="cdt-sub">${escapeHtml(when)} · the color was “${escapeHtml(titleCase(colorForDay(day).name))}”.</div>`;
   } else {
     el.innerHTML = '';
   }
@@ -893,7 +918,7 @@ initDaily();
 
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
-  version: '1.7.0',
+  version: '1.8.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

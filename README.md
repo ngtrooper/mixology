@@ -37,6 +37,18 @@ Consequences that are **invariants**, not implementation details:
   from its measured lip (`#bucket-lip`); the dropper forms the drop at
   `#dropper-tip`. Both are tinted with the selected pigment.
 - **Calendar** (round 9) reads `store.data.days` (local to the device).
+  Each day shows the % inside its swatch and the name below.
+- **Public numbering is display-only** (round 10): `E.publicNumber(day)` gives
+  `day − 655`, so internal day #656 (Sun 2026-10-18) is **Mixology #1**. Days
+  before launch show only a date, never #0 or negatives. The internal index
+  still drives the schedule, saves, streaks and duel links (`?d=` stays
+  internal so old links keep working). In game.js, always show numbers via
+  `dayTag(day)`.
+- **Recipes appear only after the round** (round 10): the reveal and the
+  played-day calendar detail show "Recipe" (official solver recipe) vs "Your
+  mix" (scored attempt) bars. They are **never** included in share text or
+  duel links, and a test enforces this.
+- Subtitle: "How well do you know your colors?"
 - **No hints** on attempts (just %), **no live caption** naming the mix,
   **no counts/tallies** on the main screen. Tool dosages live only in the
   Tips overlay. The game is meant to be hard: some people can't visualize
