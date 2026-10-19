@@ -1038,5 +1038,9 @@ console.log('— round 54: noscript —');
 test('a <noscript> notice explains that JavaScript is needed (before <main>)', () => {
   const n = htmlSrc.indexOf('<noscript><div id="noscript">'); assert.ok(n > 0 && n < htmlSrc.indexOf('<main id="app"'));
 });
+console.log('— round 55: dialog scroll lock —');
+test('open dialogs lock page scroll (CSS :has) and panels contain overscroll', () => {
+  assert.ok(htmlSrc.includes('html:has(.modal-ov.open) { overflow: hidden; }') && htmlSrc.includes('.modal-ov, .modal-ov > div { overscroll-behavior: contain; }'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

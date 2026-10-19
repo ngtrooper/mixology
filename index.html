@@ -435,6 +435,11 @@
   #cal-detail .cdt-sw i { display: inline-block; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); }
   #cal-detail .cdt-sw.best b { text-decoration: underline; }
   #cal-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
+  /* Round 55: while a dialog is open the page behind stays put. No scroll
+   * chaining out of the Tips or Calendar panels, and no wheel/touch scroll on
+   * the backdrop. Pure CSS (:has); older browsers just keep the old behavior. */
+  .modal-ov, .modal-ov > div { overscroll-behavior: contain; }
+  html:has(.modal-ov.open) { overflow: hidden; }
   /* Round 50: desktop hover feedback (pointer devices only; touch keeps its :active press) */
   .hbtn, .tool, #btn-share, #btn-duel, #btn-seal { transition: border-color .15s, background-color .15s, filter .15s, transform .1s; }
   .hbtn:active { transform: scale(.96); }

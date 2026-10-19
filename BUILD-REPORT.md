@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 55 (2026-10-18, Grok Bot): DIALOG SCROLL LOCK
+- Before: scrolling to the end of Tips or Calendar chained into the page behind, and wheel or touch on the backdrop scrolled the board.
+- Now: `html:has(.modal-ov.open) { overflow: hidden }` plus `overscroll-behavior: contain` on overlays and panels.
+- Playwright: page stayed at y=120 through 15 wheel ticks while the Tips panel scrolled to its end. The position was preserved on close, and the page scrolls normally afterwards.
+- CSS only (older browsers keep the old behavior). Test added.
+
 ## Round 54 (2026-10-18, Grok Bot): NOSCRIPT NOTICE
 - With JavaScript disabled, a small card above the board now says "Mixology needs JavaScript to mix paint. Please enable it and reload." Before, the page showed a dead board with "…" as the name.
 - Markup and CSS only. Shot: `r54-after-noscript.png`. Test added.
