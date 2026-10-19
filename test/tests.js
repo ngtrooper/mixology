@@ -1065,5 +1065,9 @@ test('Tips/Calendar entrance animates transform + backdrop only (never text opac
   assert.ok(s.includes('@keyframes ov-rise') && s.includes('@keyframes ov-dim'));
   assert.ok(!/opacity/.test(s.replace(/^.*\*\/\n/s, '')), 'entrance must not fade panel opacity');
 });
+console.log('— round 60: shortcut announcements —');
+test('keyboard shortcuts announce the change to screen readers', () => {
+  assert.ok(gameSrc.includes("announce(`${PIG_NAMES[pig]} paint selected`)") && gameSrc.includes("announce('Dropper selected')") && gameSrc.includes("announce('Pour Bucket selected')") && gameSrc.includes("if (had) announce('Undone')"));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

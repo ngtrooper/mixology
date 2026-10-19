@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 60 (2026-10-18, Grok Bot): A11Y: SHORTCUT ANNOUNCEMENTS
+- Keyboard shortcuts change controls without moving focus, so the change was silent for screen readers.
+  - They now announce through the existing polite live region: "Blue paint selected", "Dropper selected", "Pour Bucket selected", and "Undone" (only if something was actually undone).
+  - These name the control, never the mix.
+- Version 1.10.17. Playwright-verified. Test added.
+
 ## Round 59 (2026-10-18, Grok Bot): TIPS/CALENDAR ENTRANCE
 - Tips and Calendar now ease in like the welcome card: the backdrop darkens over 0.2 s and the panel rises 14 px with a slight spring over 0.24 s.
   - The animation is transform-only, so text is never semi-transparent and contrast stays valid mid-animation (axe re-run: 12/12 clean).

@@ -1228,12 +1228,13 @@ document.addEventListener('keydown', e => {
   if (e.defaultPrevented || e.altKey || document.querySelector('.modal-ov.open')) return;
   const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
-  if (k === 'z' && !e.shiftKey) { if (round && !round.finished) { e.preventDefault(); undo(); } return; }
+  if (k === 'z' && !e.shiftKey) { if (round && !round.finished) { e.preventDefault(); const had = round.undo.length; undo(); if (had) announce('Undone'); } return; }
   if (mod) return;
   const pig = { 1: 'r', 2: 'y', 3: 'b', 4: 'k', 5: 'w' }[e.key];
-  if (pig) { const btn = $(BUCKET_EL[pig]); if (btn) btn.click(); return; }
-  if (k === 'd') $('tool-dropper').click();
-  else if (k === 'p') $('tool-pour').click();
+  // round 60: focus stays where it was, so say what changed for screen readers
+  if (pig) { const btn = $(BUCKET_EL[pig]); if (btn) { btn.click(); announce(`${PIG_NAMES[pig]} paint selected`); } return; }
+  if (k === 'd') { $('tool-dropper').click(); announce('Dropper selected'); }
+  else if (k === 'p') { $('tool-pour').click(); announce('Pour Bucket selected'); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeWelcome(); } });
 /* Round 14: first-visit welcome. Shown once per device, only to someone
@@ -1306,7 +1307,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.16',
+  version: '1.10.17',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
