@@ -900,5 +900,13 @@ test('finished seal button is a calm "Round complete ✓" (not a washed-out call
   assert.ok(gameSrc.includes("sealBtn.classList.toggle('done', !!round.finished);") && htmlSrc.includes('#btn-seal.done, #btn-seal.done:disabled { opacity: 1;'));
   assert.ok(htmlSrc.includes('#btn-seal:not(.done), #btn-next-practice, #btn-today { background: #b3541e; }'), 'dark mode repaints the finished button');
 });
+console.log('— round 32: deploy cache safety —');
+test('script tags are cache-busted with the game version (no new-JS/old-HTML mismatch after a deploy)', () => {
+  const v = (gameSrc.match(/version: '([\d.]+)'/) || [])[1];
+  assert.ok(v, 'no version');
+  const tags = [...htmlSrc.matchAll(/<script src="([a-z]+)\.js(\?v=[\d.]+)?"><\/script>/g)];
+  assert.deepStrictEqual(tags.map(m => m[1]), ['colors', 'schedule', 'engine', 'game']);
+  for (const m of tags) assert.strictEqual(m[2], '?v=' + v, `${m[1]}.js not stamped with ?v=${v} (bump both together)`);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

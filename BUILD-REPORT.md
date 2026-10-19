@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 32 (2026-10-18, Grok Bot): DEPLOY CACHE SAFETY
+- GitHub Pages serves with `max-age=600`, so for about 10 minutes after a deploy a browser can pair a cached old `game.js` with the new `index.html`, or the reverse.
+  - New JS + old HTML is a real crash: for example, `$('btn-card')` would be null and `addEventListener` would throw, killing the game.
+- All four scripts now load as `*.js?v=<version>`. Version bumped to 1.10.0. A test enforces that the stamp equals `MISNOMER.version`. The README tells Muse to bump both together.
+
 ## Round 31 (2026-10-18, Grok Bot): CALM FINISHED STATE
 - After the round, the big seal button no longer looks like a faded call to action. It becomes "Round complete ✓": a dashed outline with muted text at full opacity, in both light and dark.
 - The best attempt keeps its ink ring. Shots: `r31-after-finished-actions-{light,dark}`. Test added.

@@ -57,6 +57,7 @@ Consequences that are **invariants**, not implementation details:
 - **Assets** (round 11): `icons/icon.svg` is the source. The PNGs (favicon-32, apple-touch 180, 192, 512, maskable 512) and `icons/og-image.png` (1200×630) were rendered from it with Playwright. The og image never names a daily color.
 - **Share card** (round 12): `drawShareCard(day)` draws a 1080² canvas with no name, no colors and no recipe. Share attaches it through Web Share when the platform can share files.
 - **Buttons with icons** (round 25): use `flashLabel(btn, text)` for temporary labels. Setting `textContent` directly would wipe the SVG.
+- **Shipping UI changes** (round 32): bump `version` in game.js and the `?v=` on all four `<script>` tags together (a test enforces the match). Pages caches for about 10 min, so without this a returning visitor can get new game.js with old index.html, or the reverse.
 - **a11y baseline** (rounds 17, 21, 26): axe-core is clean in 12 states (light/dark × home, reveal, calendar, stats, tips, welcome). Keep `<main id="app">`, the `#sr-announce` live region, `aria-pressed` on pigments and tools, and `--muted` at ≥ 4.5:1.
 - **Sharing never names the color** (round 12): the share text and PNG card use the hook
   line instead of the name and show no colors or recipes. The card is drawn by `drawShareCard`.
