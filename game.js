@@ -5,6 +5,11 @@
 
 const E = window.MisnomerEngine;
 const BANK = window.MISNOMER_COLORS;
+// Round 77 (Franklin): every color's scoring target is the color its whole-drop
+// recipe renders (thex), so matching the official recipe scores 100%. `hex`
+// stays the raw named value (it still decides how well a recipe represents
+// the name); everything the player sees as "the official color" uses thex.
+for (const c of BANK) c.thex = E.recipeHex(c.recipe);
 // Round 8: daily-eligible = the solver's best recipe scores >= par
 // (engine.isDailyEligible / PAR_PCT) — no hard-coded ΔE threshold.
 const POOL = BANK.filter(c => !c.retired && E.isDailyEligible(c.de)); // round 66: retired names stay resolvable (BANK_BY_NAME) but never play again
@@ -158,7 +163,7 @@ function newRound(mode, color) {
   renderAll();
 }
 function mixHex() { return E.mixColor(round.pot); }
-function targetLab() { return E.hexToLab(round.color.hex); }
+function targetLab() { return E.hexToLab(round.color.thex); } // round 77: the recipe color
 
 /* Undo is GESTURE-based (round 6): one snapshot per press or hold, so a
  * whole pour — however many units — is a single Undo step. (The old
@@ -391,19 +396,26 @@ function removePaint(key) {
 function seal() {
   stopPour(); stopRemove();
   if (!round || round.finished || round.attempts.length >= MAX_ATTEMPTS) return null;
-  const hex = mixHex();
-  const de = E.deltaE2000(E.hexToLab(hex), targetLab());
-  const att = {
-    comp: { ...round.pot }, hex,
-    pct: E.accuracyFromDeltaE(de), de: Math.round(de * 10) / 10
-  };
+  // round 77: scored against the official recipe; an exact recipe match
+  // (disc numbers equal to the recipe's) is 100%
+  const sc = E.scoreMix(round.pot, round.color.recipe);
+  const att = { comp: { ...round.pot }, hex: sc.hex, pct: sc.pct, de: sc.de };
+  if (sc.exact) att.exact = true;
   round.attempts.push(att);
   justSealed = round.attempts.length - 1;
   sfx.seal();
-  announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.`);
+  announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.` + (round.attempts.length === 1 && round.attempts.length < MAX_ATTEMPTS ? ` Hint: ${hintText(att)}.` : ''));
   if (round.attempts.length >= MAX_ATTEMPTS) finish(); // finish() has its own tiered haptic
   else { buzz(18); renderAll(); persistWip(); } // round 56: a firm tap for a non-final seal
   return att;
+}
+
+/* Round 77 (Franklin): one plain-words hint after attempt 1, until attempt 2
+ * is submitted (engine.mixHint). Never in share text, duel links or the card. */
+function hintText(att) { return att && att.hex ? E.mixHint(E.hexToLab(att.hex), targetLab(), att.pct) : ''; }
+function hintHTML(att) {
+  const t = hintText(att);
+  return t ? `<span id="hint" class="hint"><span class="hint-k">Hint</span> ${escapeHtml(t)}</span>` : '';
 }
 
 function finish() {
@@ -487,7 +499,7 @@ function confetti() {
   if (REDUCED_MOTION || !document.body.animate) return;
   const layer = document.createElement('div');
   layer.className = 'confetti'; layer.setAttribute('aria-hidden', 'true');
-  const cols = [round && round.color.hex, '#D6282E', '#FFCD00', '#1C4096', '#ffffff', '#b3541e'].filter(Boolean);
+  const cols = [round && round.color.thex, '#D6282E', '#FFCD00', '#1C4096', '#ffffff', '#b3541e'].filter(Boolean);
   const W = window.innerWidth, H = window.innerHeight;
   for (let i = 0; i < 80; i++) {
     const s = document.createElement('i');
@@ -530,7 +542,8 @@ function persistWip() {
  * Legacy links (?m=<hex>&q=a.b.c.d.e) still parse. */
 function duelUrlFor(final, day) {
   const base = location.href.split(/[?#]/)[0];
-  return `${base}?d=${day}&p=${final.pct}&x=${E.encodeDuelComp(final.comp, day)}`;
+  // round 77: s=2 marks a score made against the new 100%-reachable target
+  return `${base}?d=${day}&p=${final.pct}&x=${E.encodeDuelComp(final.comp, day)}&s=2`;
 }
 function parseDuel() {
   const p = new URLSearchParams(location.search);
@@ -547,9 +560,14 @@ function parseDuel() {
   // Legacy links keep showing the hex the friend actually saw (the
   // mixing model has changed since); new links render from the recipe.
   hex = legacyHex || (comp ? E.mixColor(comp) : null);
-  const pct = parseInt(p.get('p'), 10);
+  let pct = parseInt(p.get('p'), 10);
   if (!hex || !isFinite(day) || !isFinite(pct)) return null;
-  return { day, hex, pct: clamp01(pct), comp };
+  // round 77: links made before the recipe-color target (no s=2) scored against
+  // the raw named color. When the friend's mix is in the link, rescore it the
+  // way the visitor is scored now, so the duel compares like with like.
+  const rescored = p.get('s') !== '2' && !!comp && !legacyHex;
+  if (rescored) { const c = colorForDay(day); if (c) pct = E.scoreMix(comp, c.recipe).pct; }
+  return { day, hex, pct: clamp01(pct), comp, rescored };
 }
 function clamp01(v) { return Math.max(0, Math.min(100, v)); }
 const incomingDuel = parseDuel();
@@ -812,7 +830,7 @@ function renderAll() {
   $('last-result').innerHTML = round.finished
     ? ''
     : last
-      ? `Attempt ${round.attempts.length} submitted: <b>${last.pct}% accuracy</b>`
+      ? `Attempt ${round.attempts.length} submitted: <b>${last.pct}% accuracy</b>` + (round.attempts.length === 1 ? hintHTML(last) : '')
       : 'Dose the pot, then submit an attempt. Two per round — your best one counts.';
 
   const sealBtn = $('btn-seal');
@@ -828,7 +846,7 @@ function renderAll() {
   if (round.finished) {
     const fin = scored;
     $('reveal').style.display = 'block';
-    $('reveal-official').style.background = round.color.hex;
+    $('reveal-official').style.background = round.color.thex;
     $('reveal-mine').style.background = fin.hex;
     const rStar = E.starTier(fin.pct); // round 74: star on your mix at the reveal
     $('reveal-mine').innerHTML = starBadge(rStar, 'big');
@@ -836,7 +854,9 @@ function renderAll() {
     if (rStar) $('reveal-mine').setAttribute('role', 'img'); else $('reveal-mine').removeAttribute('role');
     $('reveal-pct').textContent = fin.pct + '%';
     $('reveal-band').textContent = E.bandForDeltaE(fin.de);
-    $('reveal-de').textContent = `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
+    $('reveal-de').textContent = fin.exact || (fin.pct === 100 && fin.de === 0)
+      ? `you matched the official ${titleCase(round.color.name)} recipe exactly`
+      : `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
     $('reveal-recipes').innerHTML = recipesHTML(round.color, fin);
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
@@ -870,13 +890,14 @@ function recipeRowHTML(label, sub, comp) {
   const c = E.normalizeComp(comp);
   const keys = BUCKET_KEYS.filter(k => c[k] >= 0.5);
   const bar = keys.map(k => `<span class="${k}" style="width:${c[k].toFixed(2)}%;background:${PIGMENT_HEX[k]}" title="${PIG_NAMES[k]} ${Math.round(c[k])}%"></span>`).join('');
-  const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${k.toUpperCase()} ${c[k] >= 9.95 ? Math.round(c[k]) : c[k].toFixed(1)}%</span>`).join('');
+  const dp = E.displayPercents(c); // round 77: whole numbers, exactly as the discs show them
+  const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${k.toUpperCase()} ${dp[k]}</span>`).join('');
   return `<div class="rrow"><div class="rl">${label}${sub ? `<b>${sub}</b>` : ''}</div><div class="rbar" role="img" aria-label="${label}: ${keys.map(k => PIG_NAMES[k] + ' ' + Math.round(c[k]) + '%').join(', ')}">${bar}</div><div class="rleg">${leg}</div></div>`;
 }
 function recipesHTML(color, att) {
   if (!color || !color.recipe) return '';
-  const best = E.accuracyFromDeltaE(color.de);
-  return recipeRowHTML('Recipe', `best ${best}%`, color.recipe) +
+  // round 77: the recipe IS the target (100%); whole-number legend like the discs
+  return recipeRowHTML('Recipe', '100%', color.recipe) +
     (att && att.comp ? recipeRowHTML('Your mix', `${att.pct}%`, att.comp) : '');
 }
 
@@ -1102,7 +1123,7 @@ function showCalDetail(day) {
     const official = BANK_BY_NAME.get(rec.name) || colorForDay(day);
     el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}“${escapeHtml(titleCase(rec.name))}”</div>` +
       `<div class="cdt-sub">${escapeHtml(when)} · best ${best.pct}% · ${E.bandForDeltaE(best.de)}</div>` +
-      `<div class="cdt-row"><span class="cdt-sw"><i style="background:${official.hex}"></i>Official</span>` +
+      `<div class="cdt-row"><span class="cdt-sw"><i style="background:${official.thex}"></i>Official</span>` +
       rec.attempts.map((a, i) => `<span class="cdt-sw${a === best ? ' best' : ''}"><i style="background:${a.hex}"></i>Try ${i + 1}: <b>${a.pct}%</b></span>`).join('') +
       `</div>` + recipesHTML(official, scoredAttempt(rec));
   } else if (day === DAY) {
@@ -1131,7 +1152,11 @@ function showCalDetail(day) {
  * at the reveal (finish), because naming the color nearest your mix before
  * the reveal would tell you how close you are (design lock: no clues). */
 const COLLECTIBLE = E.collectibleColors(BANK);
-const COLLECTIBLE_LABS = COLLECTIBLE.map(c => E.hexToLab(c.hex));
+// round 77: discovery is measured against each color's recipe color (thex), the same
+// target the daily scores against; names that share one recipe color are twins
+const COLLECTIBLE_LABS = COLLECTIBLE.map(c => E.hexToLab(c.thex));
+const TWINS = new Map();
+for (const c of COLLECTIBLE) TWINS.set(c.thex, (TWINS.get(c.thex) || []).concat(c.name));
 const collection = {
   data: (() => {
     try {
@@ -1158,9 +1183,15 @@ function collectRound(attempts, targetName) {
   const fresh = [], when = E.dateKey(new Date());
   for (const att of attempts || []) {
     const found = E.discoverColor(att.hex, COLLECTIBLE, COLLECTIBLE_LABS, null, targetName);
-    const r = E.recordDiscovery(collection.data, found, att, when);
-    collection.data = r.col;
-    if (r.isNew && !fresh.includes(r.name)) fresh.push(r.name);
+    // round 77: an exact match of the day's recipe discovers the day's color even
+    // if the disc numbers hide tiny fractions; twins (same recipe color) come along
+    const hit = att.exact && targetName && BANK_BY_NAME.get(targetName) ? { name: targetName, hex: BANK_BY_NAME.get(targetName).thex, deltaE: 0 } : found;
+    const names = hit ? [hit.name, ...(TWINS.get(BANK_BY_NAME.get(hit.name).thex) || []).filter(n => n !== hit.name)] : [];
+    for (const n of names) {
+      const r = E.recordDiscovery(collection.data, { ...hit, name: n }, att, when);
+      collection.data = r.col;
+      if (r.isNew && !fresh.includes(r.name)) fresh.push(r.name);
+    }
   }
   collection.persist();
   return fresh;
@@ -1185,8 +1216,9 @@ function nextToast() {
   if (!el || !name) { toastBusy = false; return; }
   toastBusy = true;
   const c = BANK_BY_NAME.get(name);
-  el.innerHTML = `<i style="background:${c ? c.hex : '#ccc'}" aria-hidden="true"></i><span>New color discovered: <b>${escapeHtml(titleCase(name))}</b>!</span>`;
+  el.innerHTML = `<i style="background:${c ? c.thex : '#ccc'}" aria-hidden="true"></i><span>New color discovered: <b>${escapeHtml(titleCase(name))}</b>!</span>`;
   el.dataset.name = name;
+  el.setAttribute('aria-label', `New color discovered: ${titleCase(name)}! Open the Collection`); // r77 axe: name contains the visible text
   el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   announce(`New color discovered: ${titleCase(name)}!`);
   sfx.discover(); buzz([10, 40, 14]);
@@ -1206,8 +1238,8 @@ function renderCollection() {
   const has = c => !!found[c.name] && !hidden.has(c.name);
   const fams = E.HUE_FAMILIES.map(f => ({ ...f, colors: [] }));
   const byId = new Map(fams.map(f => [f.id, f]));
-  for (const c of COLLECTIBLE) byId.get(E.hueFamily(c.hex)).colors.push(c);
-  for (const f of fams) f.colors.sort((a, b) => E.hexToLab(b.hex)[0] - E.hexToLab(a.hex)[0]);
+  for (const c of COLLECTIBLE) byId.get(E.hueFamily(c.thex)).colors.push(c);
+  for (const f of fams) f.colors.sort((a, b) => E.hexToLab(b.thex)[0] - E.hexToLab(a.thex)[0]);
   const total = COLLECTIBLE.length, n = COLLECTIBLE.filter(has).length;
   const famRow = f => { const k = f.colors.filter(has).length; return `<li><span>${f.label}</span><i><b style="width:${(100 * k / Math.max(1, f.colors.length)).toFixed(1)}%"></b></i><em>${k}/${f.colors.length}</em></li>`; };
   $('cal-col').innerHTML =
@@ -1217,7 +1249,7 @@ function renderCollection() {
     `<div id="col-detail" tabindex="-1"></div>` +
     fams.map(f => `<h2 class="col-h">${f.label} <span>${f.colors.filter(has).length}/${f.colors.length}</span></h2><div class="col-grid">` +
       f.colors.map(c => has(c)
-        ? (st => `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.hex}" aria-label="${escapeHtml(titleCase(c.name))}${st ? ', ' + st.label : ''}">${starBadge(st)}</button>`)(E.starTier(E.collectedBestPct(found[c.name], c.hex)))
+        ? (st => `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.thex}" aria-label="${escapeHtml(titleCase(c.name))}${st ? ', ' + st.label : ''}">${starBadge(st)}</button>`)(E.starTier(E.collectedBestPct(found[c.name], c.thex)))
         : `<span class="ct q" aria-hidden="true">?</span>`).join('') + `</div>`).join('');
   $('cal-col').querySelectorAll('.ct[data-name]').forEach(b => b.addEventListener('click', () => showCollectionDetail(b.dataset.name)));
 }
@@ -1227,11 +1259,11 @@ function showCollectionDetail(name) {
   document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
   const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
   const showRecipe = E.officialRecipeVisible(name, store.data.days); // round 73: only colors you finished as a daily
-  const b = rec.best, bPct = E.collectedBestPct(rec, c.hex), bStar = E.starTier(bPct);
+  const b = rec.best, bPct = E.collectedBestPct(rec, c.thex), bStar = E.starTier(bPct);
   const when = rec.date ? new Date(rec.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'before the Collection existed';
   el.innerHTML = `<div class="cdt-title">“${escapeHtml(titleCase(name))}”</div>` +
     `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${bPct}%${bStar ? ` · <span class="star-word">${starBadge(bStar, 'inline')}${bStar.id} star</span>` : ''}</div>` +
-    `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.hex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${bPct}%</b></span></div>` +
+    `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.thex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${bPct}%</b></span></div>` +
     recipeRowHTML('Your mix', bPct + '%', b.comp) +
     (showRecipe ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>`);
   try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
@@ -1527,14 +1559,14 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.18.1',
+  version: '1.19.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
   state() {
     return JSON.parse(JSON.stringify({
       mode: round.mode, finished: round.finished, colorName: round.color.name,
-      targetHex: round.color.hex, // debug only — never rendered pre-reveal in the UI
+      targetHex: round.color.thex, // debug only (round 77: the recipe color) — never rendered pre-reveal in the UI
       pot: round.pot, attempts: round.attempts,
       selectedBucket, selectedTool,
       day: round.day, streak: liveStreaks().streak, parStreak: liveStreaks().parStreak

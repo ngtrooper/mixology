@@ -1,4 +1,4 @@
-# Mixology — the daily color-mixing game
+# Mixology: Daily Color Mix
 
 One color name a day, the same for everyone. You're told what today's color is
 *called* — never shown it. Dose paint into the pot, guess what the name looks
@@ -65,7 +65,14 @@ Consequences that are **invariants**, not implementation details:
 - **Install screenshots** (round 45): `icons/screenshot-*.png` must show an unmixed board, with no mix and no recipe. Re-shoot them if the layout changes a lot.
 - **Sharing never names the color** (round 12): the share text and PNG card use the hook
   line instead of the name and show no colors or recipes. The card is drawn by `drawShareCard`.
-- **No hints** on attempts (just %), **no live caption** naming the mix,
+- **100% is reachable** (round 77, Franklin): recipes are whole percents (`tools/whole-drop-recipes.js`), and a color's scoring target is the color its recipe renders (`E.recipeHex`, `c.thex` in game.js), not the raw XKCD/CSS hex. The raw hex only decides how well a recipe represents the name (`de`, eligibility).
+  - An attempt whose disc numbers equal the recipe's numbers is an exact match: 100%, ΔE 0, DEAD ON (`E.scoreMix`).
+  - Every pool recipe is reachable with whole drops and '−' taps from a fresh pot (`E.wholeDropPath`, tested).
+  - The official color shown at the reveal, in the calendar and in the Collection is the recipe color. Collection discovery is ΔE00 3 from recipe colors, with no hard-color margin. Names sharing one recipe color are discovered together.
+  - Saved history is never rescored. Duel links carry `s=2`; older links with a mix are rescored on open.
+- **One hint after attempt 1** (round 77, Franklin, overriding the "no hints" lock below for that moment only): `E.mixHint` gives the 1–2 biggest issues in plain words (lightness, muted/strong, which hue to lean toward). 97–99 gets "So close!" and 100 gets "Perfect match!". There are never amounts, numbers or the recipe. It shows under attempt 1's result until attempt 2, and is never in share text, duel links or the card.
+- **Title** (round 77): "Mixology: Daily Color Mix" in `<title>`, og/twitter titles and the manifest `name` (`short_name` stays "Mixology"). The header wordmark stays "MIXOLOGY." with a small "Daily Color Mix" line under it. Share text keeps "MIXOLOGY #N — How well do you know your colors?".
+- **No hints** on attempts (just %; see round 77 above for the single post-attempt-1 hint), **no live caption** naming the mix,
   **no counts/tallies** on the main screen, **except** (round 65, Franklin, 2026-10-18, overriding the earlier lock) each paint disc shows the pot's live % of that paint (`E.displayPercents`: whole numbers, largest-remainder so they sum to 100, `<1%` for a trace). The pot itself stays number-free, and there are still no attempt feedback or recipe readouts before the reveal. Tool dosages live only in the
   Tips overlay. The game is meant to be hard: some people can't visualize
   the color, and that's the game.
@@ -89,7 +96,7 @@ Consequences that are **invariants**, not implementation details:
   - User-facing copy says **Submit** ("Submit attempt 1", "Submit final attempt", "submitted"), never "Seal"; internal names may stay.
 - **No selection/callout in the play area** (round 70): play-area elements are user-select/touch-callout none and cancel contextmenu and selectstart. The pot and badges also cancel touchstart. Reading text (Tips, reveal, calendar) stays selectable.
 - **Collection** (round 69, Franklin): a third Calendar overlay tab with every daily-eligible, non-retired color (853).
-  - A seal discovers the nearest one within ΔE00 3, or the round's own target if it is within reach. Hard colors use their solver best + 1.
+  - A seal discovers the nearest one within ΔE00 3 of its recipe color (round 77; before that, of the named hex with a hard-color margin), or the round's own target if it is within reach.
   - Discoveries are announced only at the reveal (no clues mid-round). Today's or the open round's color stays "?" until the round is finished.
   - The official recipe shows only for colors the player has **finished as a daily** (round 73). Pre-launch days, missed days and upcoming colors never reveal a recipe, because colors recur in the schedule.
   - Own key `mixology.collection.v1`, backfilled from saved days.
@@ -126,7 +133,8 @@ Consequences that are **invariants**, not implementation details:
 ## Changing the model or the pool (round 8)
 
 1. Edit `engine.js` → `node tools/solve-recipes.js` (re-solves recipes,
-   rewrites `colors.js` + `tools/recipe-report.json`).
+   rewrites `colors.js` + `tools/recipe-report.json`), then
+   `node tools/whole-drop-recipes.js` (round 77: whole-percent recipes; run last).
 2. `node tools/build-schedule.js` — keeps every day through tomorrow
    verbatim, keeps still-eligible future days, replaces only future days
    that fell out of the pool.

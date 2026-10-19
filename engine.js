@@ -483,6 +483,88 @@ function hueAngle(r, g, b) {
   return (h + 360) % 360;
 }
 
+/* ---------------- Round 77 (Franklin): 100% is reachable ----------------
+ * Recipes are whole percents (tools/whole-drop-recipes.js) and a color's
+ * scoring target is the color its recipe renders, not the raw XKCD/CSS hex
+ * (which the five paints often cannot make, so 100% was impossible). The
+ * player sees whole-number disc percents (displayPercents); if the pot shows
+ * exactly the official recipe's numbers, the attempt is an exact recipe
+ * match and scores 100% (ΔE 0, DEAD ON) even if the hidden fractions differ
+ * a little. Every pool recipe is reachable with whole drops from a fresh pot
+ * (test: whole-drop reachability). */
+function recipeHex(recipe) { return mixColor(recipe); }
+function recipeMatch(comp, recipe) {
+  if (!comp || !recipe) return false;
+  const a = displayPercents(comp), b = displayPercents(recipe);
+  return COMP_KEYS.every(k => a[k] === b[k]);
+}
+/** Score a pot against a color's official recipe -> {hex, pct, de, exact}. */
+function scoreMix(comp, recipe) {
+  const hex = mixColor(comp);
+  if (recipeMatch(comp, recipe)) return { hex, pct: 100, de: 0, exact: true };
+  const de = deltaE2000(hexToLab(hex), hexToLab(recipeHex(recipe)));
+  return { hex, pct: accuracyFromDeltaE(de), de: Math.round(de * 10) / 10, exact: false };
+}
+
+/** Whole-drop route to a recipe (tests and tools only; the game never shows it).
+ *  From a fresh pot, ops are exactly what the player can do: +1 unit of a paint
+ *  (a dropper tap; a pour is a run of these) or -1 unit (a tap on its '-'
+ *  badge). A small beam search returns ops like ['+b', '+y', '-w'] that end
+ *  with the discs showing the recipe's numbers, or null. */
+function wholeDropPath(recipe, maxSteps, beamWidth) {
+  const R = {}; const d = displayPercents(recipe); for (const k of COMP_KEYS) R[k] = parseInt(d[k], 10);
+  const far = c => COMP_KEYS.reduce((s, k) => s + Math.abs(c[k] - R[k]), 0);
+  let beam = [{ x: { ...FRESH_COMP }, path: [] }]; const seen = new Set();
+  for (let step = 0; step < (maxSteps || 400); step++) {
+    const next = [];
+    for (const st of beam) {
+      if (recipeMatch(st.x, recipe)) return st.path;
+      for (const k of COMP_KEYS) for (const n of [1, -1]) {
+        if (n < 0 && !(st.x[k] > 0)) continue;
+        const y = addUnits(st.x, k, n), key = COMP_KEYS.map(q => y[q].toFixed(3)).join();
+        if (seen.has(key)) continue; seen.add(key);
+        next.push({ x: y, path: st.path.concat((n > 0 ? '+' : '-') + k), d: far(y) });
+      }
+    }
+    if (!next.length) return null;
+    next.sort((a, b) => a.d - b.d); beam = next.slice(0, beamWidth || 8);
+  }
+  return null;
+}
+
+/* Round 77 (Franklin): ONE short hint after attempt 1, before attempt 2.
+ * Words only, from the CIE LCh difference between the submitted mix and the
+ * target: lightness (dark/light), chroma (muted/strong) and hue (which way
+ * to lean, named by the hue family next door in that direction). The 1-2
+ * biggest issues are kept, weighted like CIEDE2000 (chroma and hue shrink
+ * for vivid colors). Never a paint amount or the recipe. 97%+ gets
+ * 'So close!' and nothing else. */
+const HINT_HUES = [[0, 'pink'], [20, 'red'], [50, 'orange'], [85, 'yellow'], [125, 'green'], [190, 'teal'], [240, 'blue'], [290, 'purple'], [335, 'pink']];
+function hueWord(h) { let w = HINT_HUES[0][1]; for (const [a, n] of HINT_HUES) if (h >= a) w = n; return w; }
+function lch(lab) { const C = Math.hypot(lab[1], lab[2]); return [lab[0], C, (Math.atan2(lab[2], lab[1]) * 180 / Math.PI + 360) % 360]; }
+function mixHint(mineLab, targetLab, pct) {
+  if (Number(pct) >= 100) return 'Perfect match!';
+  if (Number(pct) >= 97) return 'So close!';
+  const [Lm, Cm, hm] = lch(mineLab), [Lt, Ct, ht] = lch(targetLab);
+  const Cbar = (Cm + Ct) / 2, issues = [];
+  const dL = Lt - Lm;
+  issues.push({ w: Math.abs(dL), text: dL > 0 ? (Math.abs(dL) > 10 ? 'Too dark' : 'A bit too dark') : (Math.abs(dL) > 10 ? 'Too light' : 'A bit too light') });
+  const dC = Ct - Cm;
+  issues.push({ w: Math.abs(dC) / (1 + 0.045 * Cbar), text: dC > 0 ? (Ct < 12 ? 'Needs a touch more color' : 'Too muted, make it brighter') : (Ct < 6 ? 'Too colorful, tone it toward grey' : 'Too strong, tone it down') });
+  if (Cm > 5 && Ct > 5) {
+    let dh = ht - hm; if (dh > 180) dh -= 360; if (dh < -180) dh += 360;
+    const dH = 2 * Math.sqrt(Cm * Ct) * Math.sin(Math.abs(dh) * Math.PI / 360);
+    let word = hueWord(ht);
+    if (word === hueWord(hm)) word = hueWord((hm + Math.sign(dh) * 35 + 360) % 360);
+    if (word === hueWord(hm)) word = hueWord(ht);
+    issues.push({ w: dH / (1 + 0.015 * Cbar), text: `Shift it toward ${word}` });
+  }
+  const big = issues.filter(i => i.w >= 2.5).sort((a, b) => b.w - a.w);
+  if (!big.length) return 'Close! Fine-tune it';
+  const keep = big.slice(0, big[1] && big[1].w >= 0.5 * big[0].w ? 2 : 1);
+  return keep.map((x, i) => i ? x.text.charAt(0).toLowerCase() + x.text.slice(1) : x.text).join(' and ');
+}
+
 /* ---------------- seeded RNG + daily picker ---------------- */
 
 function hashSeed(str) {
@@ -574,8 +656,10 @@ function collectibleColors(bank) { return bank.filter(c => !c.retired && isDaily
  *  reach within DISCOVER_DE (solver de) are found within their own best + a margin,
  *  so the whole Collection can be completed. */
 function discoverLimit(c, maxDe) {
-  const lim = maxDe == null ? DISCOVER_DE : maxDe;
-  return Math.max(lim, (Number(c.de) || 0) + DISCOVER_HARD_MARGIN);
+  // round 77: discovery is measured against each color's RECIPE color (game.js
+  // passes recipe-color labs), which every pool recipe can hit exactly, so the
+  // old hard-color margin (solver de + 1) is no longer needed
+  return maxDe == null ? DISCOVER_DE : maxDe;
 }
 /* Hue families by CIE LCh: low chroma = neutrals, otherwise hue bins. */
 const HUE_FAMILIES = [
@@ -770,7 +854,7 @@ const MisnomerEngine = {
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName,
-  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible, STAR_TIERS, starTier, collectedBestPct
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

@@ -347,9 +347,15 @@ test('no recipe readout or per-bucket drop tallies on the main screen (round-65 
   assert.ok(!gameSrc.includes("$('recipe')"), 'game.js still writes the recipe readout');
   assert.ok(!gameSrc.includes('count-'), 'game.js still writes per-bucket counts');
 });
-test('no directional feedback: game.js never computes or renders attempt feedback text', () => {
-  assert.ok(!gameSrc.includes('hintFor'), 'game.js still calls hintFor');
-  assert.ok(!gameSrc.toLowerCase().includes('hint'), 'game.js still contains feedback-hint code');
+test('feedback (round 77, Franklin override of the r3 no-hint lock): one hint after attempt 1 only; never hintFor, share, duel or card', () => {
+  assert.ok(!gameSrc.includes('hintFor'), 'game.js still calls the old hintFor');
+  assert.ok(gameSrc.includes("+ (round.attempts.length === 1 ? hintHTML(last) : '')"), 'hint not tied to attempt 1');
+  const lr = gameSrc.slice(gameSrc.indexOf("$('last-result').innerHTML = round.finished"), gameSrc.indexOf("const sealBtn = $('btn-seal');"));
+  assert.ok(/round\.finished\s*\?\s*''/.test(lr), 'hint must disappear once the round is finished');
+  for (const fn of ['function shareText(', 'function duelUrlFor(', 'function drawShareCard(']) {
+    const i = gameSrc.indexOf(fn), body = gameSrc.slice(i, gameSrc.indexOf('\n}\n', i));
+    assert.ok(!/hint/i.test(body), fn + ' mentions the hint');
+  }
 });
 test('radial stage: circular pot at center, pigment ring, collapsible toolbar', () => {
   assert.ok(htmlSrc.includes('id="stage"'), 'no #stage');
@@ -816,7 +822,7 @@ test('computeStats: played / average / par rate / best / longest streak / spread
 console.log('— round 17: a11y + SVG header icons —');
 test('a11y: live announcements, focus ring, mute toggle state, SVG header icons, muted-text contrast', () => {
   assert.ok(htmlSrc.includes('id="sr-announce" class="sr-only" aria-live="polite"'), 'no live region');
-  assert.ok(gameSrc.includes('announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.`)'), 'submit not announced');
+  assert.ok(gameSrc.includes('announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.` +'), 'submit not announced');
   assert.ok(/button:focus-visible[^{]*\{ outline: 3px solid/.test(htmlSrc), 'no global focus ring');
   assert.ok(gameSrc.includes("b.setAttribute('aria-pressed', String(!m));"), 'mute has no toggle state');
   assert.ok(!/id="btn-calendar"[^>]*>📅/.test(htmlSrc) && /id="btn-calendar"[^>]*><svg/.test(htmlSrc), 'calendar icon still emoji');
@@ -1032,7 +1038,7 @@ test('prefers-contrast: more strengthens --muted/--line for light and dark, afte
 });
 console.log('— round 53: link-preview metadata —');
 test('head has canonical, og:site_name, og:image:type and twitter:image:alt (no color names)', () => {
-  for (const s of ['<link rel="canonical" href="https://ngtrooper.github.io/mixology/">', '<meta property="og:site_name" content="Mixology">', '<meta property="og:image:type" content="image/png">', '<meta name="twitter:image:alt" content="Mixology — How well do you know your colors?">'])
+  for (const s of ['<link rel="canonical" href="https://ngtrooper.github.io/mixology/">', '<meta property="og:site_name" content="Mixology">', '<meta property="og:image:type" content="image/png">', '<meta name="twitter:image:alt" content="Mixology: Daily Color Mix — How well do you know your colors?">'])
     assert.ok(htmlSrc.includes(s), s);
 });
 console.log('— round 54: noscript —');
@@ -1218,13 +1224,15 @@ test('Franklin r67: nothing is drawn on/in the pot (no swirl, bloom, ripple, spl
 });
 console.log('— round 69: Collection (Franklin) —');
 {
-  const COL = E.collectibleColors(bank), LABS = COL.map(c => E.hexToLab(c.hex));
-  test('collectible = every color that can be a daily (non-retired, eligible); threshold ΔE00 3 (+1 over solver best for hard colors); every tile winnable', () => {
+  // round 77: discovery is measured against each color's recipe color (game.js COLLECTIBLE_LABS)
+  const COL = E.collectibleColors(bank), LABS = COL.map(c => E.hexToLab(E.recipeHex(c.recipe)));
+  test('collectible = every color that can be a daily (non-retired, eligible); threshold ΔE00 3 vs recipe colors for every color; every tile winnable', () => {
     assert.strictEqual(COL.length, bank.filter(c => !c.retired && E.isDailyEligible(c.de)).length);
     assert.ok(COL.every(c => !c.retired) && gameSrc.includes('const COLLECTIBLE = E.collectibleColors(BANK);'));
     assert.strictEqual(E.DISCOVER_DE, 3);
     const easy = COL.find(c => c.de < 1), hard = COL.find(c => c.de > 10);
-    assert.strictEqual(E.discoverLimit(easy), 3); assert.ok(Math.abs(E.discoverLimit(hard) - (hard.de + 1)) < 1e-9);
+    assert.strictEqual(E.discoverLimit(easy), 3); assert.strictEqual(E.discoverLimit(hard), 3, 'round 77: no hard-color margin, every recipe color is reachable');
+    assert.ok(gameSrc.includes('const COLLECTIBLE_LABS = COLLECTIBLE.map(c => E.hexToLab(c.thex));'));
     // every color can be discovered: its own solver recipe discovers SOME color, and itself when nothing nearer
     // every tile can be won: its own recipe, sealed in a round for that color, discovers it
     for (const c of COL) { const d = E.discoverColor(E.mixColor(c.recipe), COL, LABS, null, c.name); assert.ok(d && d.name === c.name, `${c.name} cannot be won`); }
@@ -1234,7 +1242,7 @@ console.log('— round 69: Collection (Franklin) —');
   });
   test('discovery: the nearest color within its limit wins, even if it is not the target; a far mix discovers nothing', () => {
     const rose = COL.find(c => c.name === 'rose') || COL[0];
-    const d = E.discoverColor(rose.hex, COL, LABS);
+    const d = E.discoverColor(E.recipeHex(rose.recipe), COL, LABS, null, rose.name);
     assert.strictEqual(d.name, rose.name); assert.ok(d.deltaE < 1e-6);
     // brute force agrees on random mixes
     const rng = E.mulberry32(69);
@@ -1245,7 +1253,7 @@ console.log('— round 69: Collection (Franklin) —');
       const got = E.discoverColor(hex, COL, LABS);
       assert.strictEqual(got ? got.name : null, best, hex);
     }
-    assert.strictEqual(E.discoverColor('#ffffff', COL.filter(c => E.deltaE2000(E.hexToLab(c.hex), E.hexToLab('#ffffff')) > 20), LABS.filter((l, j) => E.deltaE2000(LABS[j], E.hexToLab('#ffffff')) > 20)), null);
+    assert.strictEqual(E.discoverColor('#ffffff', COL.filter((c, j) => E.deltaE2000(LABS[j], E.hexToLab('#ffffff')) > 20), LABS.filter((l, j) => E.deltaE2000(LABS[j], E.hexToLab('#ffffff')) > 20)), null);
   });
   test('recordDiscovery: first find keeps its date; a better later mix replaces the best mix only', () => {
     const c = COL.find(x => x.de < 1);
@@ -1480,6 +1488,98 @@ console.log('— star badges (round 74) —');
     const fn = gSrc.slice(gSrc.indexOf('function shareText('), gSrc.indexOf('function flashLabel('));
     assert.ok(!/star/i.test(fn.replace(/Streak|streak/g, '')));
     assert.ok(!/rec\.name|color\.name/.test(fn));
+  });
+}
+console.log('— round 77: 100% reachable, hint after attempt 1, title —');
+{
+  const gSrc = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
+  const hSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const POOL77 = bank.filter(c => !c.retired && E.isDailyEligible(c.de));
+  const S77 = require('../schedule.js'), SCHED = Array.isArray(S77) ? S77 : String(S77).split('|');
+  const byN = new Map(bank.map(c => [c.name, c]));
+  test('every recipe is whole percents summing to 100 (each paint 0 or >= 1%); pool size unchanged (853)', () => {
+    for (const c of bank) {
+      const v = Object.values(c.recipe); assert.ok(v.every(x => Number.isInteger(x) && x >= 0), c.name);
+      assert.strictEqual(v.reduce((a, b) => a + b, 0), 100, c.name);
+    }
+    assert.strictEqual(POOL77.length, 853);
+  });
+  test('the official recipe scores exactly 100% (diamond) against its own target, for every color', () => {
+    for (const c of bank) { const sc = E.scoreMix(c.recipe, c.recipe); assert.ok(sc.exact && sc.pct === 100 && sc.de === 0, c.name); }
+    assert.strictEqual(E.starTier(100).id, 'diamond');
+  });
+  test('pouring the recipe with whole drops (+1 taps, - badge taps) from a fresh pot scores 100%: today, the next 45 days and a pool sample', () => {
+    const today = 657, names = new Set();
+    for (let d = today; d < today + 46; d++) names.add(SCHED[d]);
+    const rng = E.mulberry32(77); for (let i = 0; i < 30; i++) names.add(POOL77[Math.floor(rng() * POOL77.length)].name);
+    for (const n of names) {
+      const c = byN.get(n), ops = E.wholeDropPath(c.recipe, 300, 4);
+      assert.ok(ops && ops.length < 300, `${n}: no whole-drop route`);
+      let pot = { ...E.FRESH_COMP };
+      for (const op of ops) pot = op[0] === '+' ? E.addUnits(pot, op[1], 1) : E.removeUnits(pot, op[1], 1);
+      const sc = E.scoreMix(pot, c.recipe); assert.strictEqual(sc.pct, 100, `${n}: ${sc.pct}%`);
+    }
+  });
+  test('recipe match is on the whole numbers the discs show; numbers off means no exact match', () => {
+    const c = byN.get('dark forest green');
+    // hidden fractions differ (one more drop of black) but the discs still read 0/30/29/41/0
+    const near = E.addUnits(c.recipe, 'k', 1);
+    assert.deepStrictEqual(E.displayPercents(near), E.displayPercents(c.recipe));
+    assert.ok(E.recipeMatch(near, c.recipe) && E.scoreMix(near, c.recipe).pct === 100);
+    let off = c.recipe; for (let i = 0; i < 4; i++) off = E.addUnits(off, 'k', 1);
+    assert.ok(!E.recipeMatch(off, c.recipe));
+    const sc = E.scoreMix(off, c.recipe); assert.ok(sc.pct < 100 && sc.pct >= 85, String(sc.pct));
+  });
+  test('target = recipe color everywhere the official color is shown or scored; schedule untouched', () => {
+    assert.ok(gSrc.includes('for (const c of BANK) c.thex = E.recipeHex(c.recipe);'));
+    assert.ok(gSrc.includes('function targetLab() { return E.hexToLab(round.color.thex); }'));
+    assert.ok(gSrc.includes('const sc = E.scoreMix(round.pot, round.color.recipe);'));
+    assert.ok(gSrc.includes("$('reveal-official').style.background = round.color.thex;"));
+    assert.ok(gSrc.includes('<i style="background:${official.thex}"></i>Official'));
+    assert.ok(gSrc.includes('<i style="background:${c.thex}"></i>Official'));
+    assert.ok(!/round\.color\.hex\b/.test(gSrc), 'round.color.hex still used');
+    assert.strictEqual(SCHED[656], 'lipstick'); assert.strictEqual(SCHED[657], 'dark forest green');
+  });
+  test('saved history is not rescored: calendar and stats read the stored pct', () => {
+    assert.ok(gSrc.includes('const best = bestAttempt(rec.attempts);') && gSrc.includes("pct = best.pct + '%';"));
+    assert.ok(!/rescore/i.test(gSrc.slice(gSrc.indexOf('function renderCalendar'), gSrc.indexOf('function inkFor'))));
+  });
+  test('duel links: new ones carry s=2; older ones with a mix are rescored against the new target', () => {
+    assert.ok(gSrc.includes('&x=${E.encodeDuelComp(final.comp, day)}&s=2`'));
+    assert.ok(gSrc.includes("const rescored = p.get('s') !== '2' && !!comp && !legacyHex;"));
+    assert.ok(gSrc.includes('if (rescored) { const c = colorForDay(day); if (c) pct = E.scoreMix(comp, c.recipe).pct; }'));
+  });
+  test('collection: exact recipe match discovers the day color; twins sharing a recipe color are found together', () => {
+    assert.ok(gSrc.includes('const hit = att.exact && targetName'));
+    assert.ok(gSrc.includes('TWINS.set(c.thex'));
+  });
+  const L = h => E.hexToLab(h);
+  test('hint thresholds: 100 "Perfect match!", 97-99 "So close!", lower gets 1-2 short issues', () => {
+    assert.strictEqual(E.mixHint(L('#336633'), L('#336633'), 100), 'Perfect match!');
+    assert.strictEqual(E.mixHint(L('#336633'), L('#3a6b2f'), 97), 'So close!');
+    assert.strictEqual(E.mixHint(L('#336633'), L('#3a6b2f'), 99), 'So close!');
+    const h = E.mixHint(L('#1f3a19'), L('#3a6b2f'), 80); assert.ok(/dark/i.test(h), h);
+    assert.ok(/light/i.test(E.mixHint(L('#a3c799'), L('#3a6b2f'), 70)));
+    assert.ok(/muted|brighter/i.test(E.mixHint(L('#6b6b5a'), L('#3a6b2f'), 80)));
+    assert.ok(/toward (blue|teal|purple)/i.test(E.mixHint(L('#3a8a3a'), L('#2a5a9a'), 60)));
+    assert.ok(/strong|tone/i.test(E.mixHint(L('#ff2020'), L('#b07070'), 60)));
+  });
+  test('hints never name amounts, numbers or the recipe, and stay short (random mixes)', () => {
+    const rng = E.mulberry32(7);
+    for (let i = 0; i < 300; i++) {
+      const a = E.mixColor({ r: rng() * 50, y: rng() * 50, b: rng() * 50, k: rng() * 20, w: rng() * 80 });
+      const b = E.mixColor({ r: rng() * 50, y: rng() * 50, b: rng() * 50, k: rng() * 20, w: rng() * 80 });
+      const pct = E.accuracyFromDeltaE(E.deltaE2000(L(a), L(b))), h = E.mixHint(L(a), L(b), pct);
+      assert.ok(h && !/\d|%|recipe|drop/i.test(h) && h.length <= 60 && h.split(' and ').length <= 2, h);
+    }
+  });
+  test('title: "Mixology: Daily Color Mix" in <title>, og/twitter title, manifest name; short_name stays; header subtitle', () => {
+    assert.ok(hSrc.includes('<title>Mixology: Daily Color Mix</title>'));
+    assert.ok(hSrc.includes('<meta property="og:title" content="Mixology: Daily Color Mix">') && hSrc.includes('<meta name="twitter:title" content="Mixology: Daily Color Mix">'));
+    const m = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+    assert.strictEqual(m.name, 'Mixology: Daily Color Mix'); assert.strictEqual(m.short_name, 'Mixology');
+    assert.ok(hSrc.includes('<span class="h1-sub">Daily Color Mix</span></h1>'));
+    assert.ok(gSrc.includes('How well do you know your colors?'));
   });
 }
 console.log(`\n${pass} passed, ${fail} failed`);

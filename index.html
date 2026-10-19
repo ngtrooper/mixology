@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Mixology — the daily color-mixing game</title>
-<meta name="description" content="Mixology — one color name a day. Mix it from red, yellow, blue, black and white paint. How well do you know your colors?">
-<meta property="og:title" content="Mixology — the daily color-mixing game">
+<title>Mixology: Daily Color Mix</title>
+<meta name="description" content="Mixology: Daily Color Mix — one color name a day. Mix it from red, yellow, blue, black and white paint. How well do you know your colors?">
+<meta property="og:title" content="Mixology: Daily Color Mix">
 <meta property="og:description" content="One color name a day — mix it in two tries. How well do you know your colors?">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Mixology">
@@ -16,10 +16,11 @@
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Mixology — How well do you know your colors?">
+<meta property="og:image:alt" content="Mixology: Daily Color Mix — How well do you know your colors?">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mixology: Daily Color Mix">
 <meta name="twitter:image" content="https://ngtrooper.github.io/mixology/icons/og-image.png">
-<meta name="twitter:image:alt" content="Mixology — How well do you know your colors?">
+<meta name="twitter:image:alt" content="Mixology: Daily Color Mix — How well do you know your colors?">
 <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a1815" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
@@ -50,6 +51,9 @@
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   h1 { font-size: 22px; letter-spacing: 3px; margin: 4px 0; font-weight: 800; }
   h1 .dot { color: var(--accent); }
+  /* round 77 (Franklin): "Mixology: Daily Color Mix". The wordmark stays compact;
+     the subtitle is a small line under it (fits at 320px) */
+  h1 .h1-sub { display: block; font-size: 10.5px; letter-spacing: 1.6px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-top: 1px; white-space: nowrap; }
   /* Round 71: Calendar, Stats and Collection each have their own header button.
    * Two compact rows on the right: four icon buttons (Calendar, Stats,
    * Collection, sound), then Tips and Practice. Fits 320px without overlap. */
@@ -65,6 +69,7 @@
      wordmark and the four header buttons from overlapping */
   @media (max-width: 360px) {
     h1 { font-size: 17px; letter-spacing: 1.5px; }
+    h1 .h1-sub { font-size: 9.5px; letter-spacing: 1.1px; }
     .hbtns, .hrow { gap: 4px; }
     .hbtn { padding: 5px 7px; font-size: 12px; }
     .hicon { padding: 4px 6px; }
@@ -264,6 +269,9 @@
   .attempt-slot .asw { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); }
   .attempt-slot .apct { font-weight: 800; font-size: 15px; }
   #last-result { text-align: center; font-size: 14.5px; min-height: 21px; margin: 10px 0 0; }
+  /* round 77 (Franklin): one hint after attempt 1 */
+  #last-result .hint { display: block; width: fit-content; max-width: 100%; margin: 8px auto 0; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 14px; text-wrap: balance; }
+  #last-result .hint-k { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent); margin-right: 4px; }
   #actions { display: flex; gap: 8px; margin: 12px 0 0; }
   #btn-seal {
     flex: 1; border-radius: 12px; padding: 14px 8px; font-size: 16px; font-weight: 700; cursor: pointer;
@@ -584,7 +592,7 @@
   <button id="col-toast" type="button" hidden aria-label="New color discovered. Open the Collection"></button>
   <header>
     <div>
-      <h1 translate="no">MIXOLOGY<span class="dot">.</span></h1>
+      <h1 translate="no">MIXOLOGY<span class="dot">.</span><span class="h1-sub">Daily Color Mix</span></h1>
       <p id="day-label">Today's color</p>
       <p id="holiday-tag" hidden></p>
       <div id="streak-display"></div>
@@ -802,9 +810,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.18.1"></script>
-<script src="schedule.js?v=1.18.1"></script>
-<script src="engine.js?v=1.18.1"></script>
-<script src="game.js?v=1.18.1"></script>
+<script src="colors.js?v=1.19.0"></script>
+<script src="schedule.js?v=1.19.0"></script>
+<script src="engine.js?v=1.19.0"></script>
+<script src="game.js?v=1.19.0"></script>
 </body>
 </html>

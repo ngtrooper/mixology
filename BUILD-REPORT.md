@@ -2,6 +2,52 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 77 (2026-10-19, Grok Bot): 100% REACHABLE, HINT AFTER ATTEMPT 1, "MIXOLOGY: DAILY COLOR MIX" (Franklin)
+Context: /workspace/research/mixology_competitors.md found that players hate "looks perfect but can't hit 100%", and that similar games build targets from whole drops.
+
+**A) 100% is reachable**
+- **Whole-drop recipes** (`tools/whole-drop-recipes.js`, run after the solver; it converges and a rerun changes 0 recipes):
+  - Every recipe is now whole percents summing to 100, and each paint is 0 or at least 1%. 707 of 981 recipes changed, by ±1–2% per paint.
+  - `de` (recipe vs the named XKCD/CSS hex) was recomputed: it rose by at most 0.84, and 14 colors rose by more than 0.5. 0 colors changed eligibility, so the pool is still 853.
+  - schedule.js is untouched (the frozen sha test is green).
+- **Target:** a color's scoring target is now the color its recipe renders (`E.recipeHex`, `c.thex`), not the raw hex the paints often can't make.
+  - `E.scoreMix(pot, recipe)`: if the discs show exactly the recipe's whole numbers (`E.recipeMatch`), the attempt scores 100%, ΔE 0, DEAD ON, a diamond star. Otherwise it is the normal accuracy formula vs the recipe color.
+  - The reveal says "you matched the official X recipe exactly". The recipe row reads "Recipe 100%", and both legends show whole numbers like the discs.
+- **Reachability:** `E.wholeDropPath` does a beam search over exactly the player's actions (+1 unit, as with a dropper tap or one unit of a pour; −1, as with a '−' tap).
+  - All 853 pool recipes are reachable: median 127 actions, max 169, 0 failures.
+  - Tests cover today, the next 45 days and 30 random pool colors.
+  - In the live browser check, the real UI (dropper taps + '−' taps, 169 actions) reached 0/30/29/41/0 for Dark Forest Green and scored 100% with a diamond.
+- **Display:** the official color shown everywhere (reveal, calendar detail, Collection tile/detail/toast, confetti) is the recipe color.
+- **History:** past saved scores are kept as recorded and never rescored (calendar, stats, stars read the stored pct). A mid-day save keeps its submitted attempt 1 as scored (checked live: a 91% WIP restores as 91% and shows its hint).
+- **Collection:**
+  - Discovery is now ΔE00 3 from each color's recipe color. That is the same target the daily scores against, so the hard-color margin (solver de + 1) is gone, because every recipe color is exactly makeable.
+  - An exact recipe match always discovers the day's color.
+  - 53 groups of names share one recipe color (e.g. baby blue / light blue grey / powder blue). A mix that discovers one of them discovers all of its twins too, since nothing could ever tell them apart.
+  - Old entries keep their stored best.
+- **Duels:** new links carry `&s=2`. An older link (no `s`) that has the friend's mix is rescored against the new target on open, so the duel compares like with like. Hex-only legacy links keep their p.
+
+**C) Hint after attempt 1**
+- `E.mixHint(mineLab, targetLab, pct)`, from CIE LCh differences weighted like CIEDE2000:
+  - Lightness: "A bit too dark" / "Too dark" / "Too light".
+  - Chroma: "Too muted, make it brighter" / "Too strong, tone it down" / "Needs a touch more color".
+  - Hue: "Shift it toward <family>", naming the next hue family in that direction.
+  - It keeps the 1–2 biggest issues (≥ 2.5, and a second one only if it is at least half the first), joined by "and".
+  - 97–99 gives "So close!", 100 gives "Perfect match!", and anything tiny gives "Close! Fine-tune it".
+- It never gives numbers, amounts, drops or the recipe (tested on 300 random pairs).
+- It shows as a small "HINT" pill under "Attempt 1 submitted: N% accuracy" until attempt 2, and is also read by the screen-reader announcement. It is not in share text, duel links or the image card (tested).
+
+**E) Title**
+- `<title>`, og:title, the new twitter:title and the og/twitter image alt now read "Mixology: Daily Color Mix". The manifest `name` matches and `short_name` stays "Mixology".
+- The header is "MIXOLOGY." with a small uppercase "Daily Color Mix" line under it. At 320px it ends 8px before the header buttons, with no horizontal scroll.
+- README retitled. The share text header ("MIXOLOGY #N — How well do you know your colors?") and the in-game hook line are unchanged.
+
+**Also**
+- The Collection toast's aria-label now contains its visible text, which fixes an axe label-content-name-mismatch that dated from r69.
+- Old tests updated: the no-hint lock (now "hint after attempt 1 only"), announce text, Collection hard margin and recipe-color labs, and twitter alt text.
+- 11 new tests. 188 tests total.
+- Shots: `r77-header-{320,390}-live.png`, `r77-hint-after-attempt1-live.png`, `r77-pot-matches-recipe-live.png`, `r77-reveal-diamond-from-pouring-live.png`.
+- Version 1.19.0.
+
 ## Round 76 (2026-10-19, Grok Bot): DIAMOND GLOW + TWINKLE (Franklin)
 - **Diamond badge only** (never the pot):
   - A soft blue/white halo (`::before`, radial gradient) pulses over 2.6s (`dia-halo`).
