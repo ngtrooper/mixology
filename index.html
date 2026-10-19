@@ -338,7 +338,8 @@
   .rn-lbl { color: var(--ink); }
   .rn-clock { font-variant-numeric: tabular-nums; color: var(--accent); white-space: nowrap; }
   .rn-streak { margin: 4px 0 0; font-size: 13px; color: var(--muted); line-height: 1.4; text-wrap: balance; }
-  #reveal-next.ready .rn-clock { display: none; }
+  #reveal-next.ready .rn-line { display: none; } /* the button says it: "Today's new color is ready →" */
+  #reveal-next.ready .rn-streak { margin: 0; }
   /* Round 82: a returning player who already finished today sees this at the top. */
   #done-banner { margin: 12px auto 0; max-width: 360px; padding: 10px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
   #done-banner[hidden] { display: none; }
@@ -883,10 +884,10 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.22.0"></script>
-<script src="schedule.js?v=1.22.0"></script>
-<script src="engine.js?v=1.22.0"></script>
-<script src="analytics.js?v=1.22.0"></script>
-<script src="game.js?v=1.22.0"></script>
+<script src="colors.js?v=1.22.1"></script>
+<script src="schedule.js?v=1.22.1"></script>
+<script src="engine.js?v=1.22.1"></script>
+<script src="analytics.js?v=1.22.1"></script>
+<script src="game.js?v=1.22.1"></script>
 </body>
 </html>

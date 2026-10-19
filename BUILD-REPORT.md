@@ -14,7 +14,7 @@ Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothin
 - **Welcome card:** step 1 is now "**One new color every day.** Same name for everyone…". The "How well do you know your colors?" lead is kept.
 - **Not changed:** share text, the pot, the "−" badges.
 - **Tests:** 4 new (formatting; local-midnight rollover incl. DST + game wiring + no auto-swap of finished rounds; streak line 0/1/N; placement/banner/welcome/share untouched). The round 19 test was updated. 206 pass.
-- Version 1.22.0.
+- Version 1.22.0. 1.22.1 follow-up: in the ready state the heading is hidden, so "Today's new color is ready" isn't shown twice (the button says it).
 
 ## Round 81 (2026-10-19, Grok Bot): "HOLD TO POUR" ON THE EMPTY POT (Franklin)
 
