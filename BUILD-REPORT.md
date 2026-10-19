@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 50 (2026-10-18, Grok Bot): DESKTOP HOVER FEEDBACK
+- On pointer devices (`hover: hover`), header pills and unselected tools darken their border on hover. Seal and Share brighten slightly, Duel fills with paper, and the text links (Save image card, Replay the intro) go to ink.
+  - Smooth 150 ms transitions, removed under reduced motion. Header pills also get a press-scale.
+  - Touch devices are unchanged.
+- CSS only. Shots: `r50-after-hover-{light,dark}.png` (Tips pill hovered). Test added.
+
 ## Round 49 (2026-10-18, Grok Bot): REPLAY THE INTRO
 - Tips ends with a quiet "Replay the intro" link. It closes Tips and opens the welcome card. Esc or "Let's mix" closes it, and focus returns to the Tips button.
   - The welcome still auto-shows only on a true first visit (`mixology.welcomed.v1`).

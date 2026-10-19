@@ -1011,5 +1011,11 @@ test('Tips offers "Replay the intro", which swaps Tips for the welcome card', ()
   assert.ok(htmlSrc.includes('<button id="btn-replay-intro" type="button">Replay the intro</button>'));
   assert.ok(gameSrc.includes("$('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });"));
 });
+console.log('— round 50: hover feedback —');
+test('desktop hover feedback lives inside @media (hover: hover) and comes before the reduced-motion kill switch', () => {
+  const i = htmlSrc.indexOf('/* Round 50: desktop hover feedback'); assert.ok(i > 0);
+  assert.ok(i < htmlSrc.indexOf('@media (prefers-reduced-motion: reduce)'));
+  assert.ok(/@media \(hover: hover\) \{\s*\.hbtn:hover/.test(htmlSrc.slice(i)));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
