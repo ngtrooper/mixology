@@ -132,10 +132,15 @@
     border-radius: 50%; border: 2px solid rgba(28,26,23,.22);
     padding: 0; cursor: pointer; z-index: 2;
     box-shadow: inset 0 -6px 10px rgba(0,0,0,.14), inset 0 4px 6px rgba(255,255,255,.25);
-    transition: border-color .12s ease, box-shadow .12s ease;
+    transition: border-color .12s ease, box-shadow .12s ease, transform .14s cubic-bezier(.3,1.5,.5,1);
   }
   #bucket-base { border-color: #a2936f; } /* white disc needs a real edge on cream */
-  .pigment.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4.5px var(--ink); }
+  .pigment.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4.5px var(--ink), inset 0 -6px 10px rgba(0,0,0,.14), inset 0 4px 6px rgba(255,255,255,.25); }
+  /* round 22: tactile pigment discs (press squish, selected pop, hover lift) */
+  .pigment:active { transform: translate(-50%, -50%) scale(.9); }
+  .pigment.sel { animation: pig-pop .28s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes pig-pop { 0% { transform: translate(-50%, -50%) scale(.9); } 100% { transform: translate(-50%, -50%) scale(1); } }
+  @media (hover: hover) { .pigment:not(.sel):hover { transform: translate(-50%, -50%) scale(1.05); } }
   #fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
   /* ---- round 9: tool rigs. The Pour Bucket and the Dropper are SVG
      graphics tinted with the selected pigment; the stream is an SVG path

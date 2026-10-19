@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 22 (2026-10-18, Grok Bot): TACTILE PIGMENTS
+- Pigment discs press-squish (scale .9 on `:active`), spring back with a pop when selected, and lift slightly on hover (pointer devices only).
+- The selected ring keeps the glossy inset shading it used to lose.
+- All transforms keep the `translate(-50%,-50%)` positioning; selection was verified not to move the disc. The global reduced-motion rule disables these animations.
+
 ## Round 21 (2026-10-18, Grok Bot): AXE-CORE AUDIT (WCAG 2 A/AA + best practice) → CLEAN
 - I ran axe-core 4 in Playwright across 12 states: home, reveal, calendar, stats, tips and welcome, each in light and dark. Findings and fixes:
   - **color-contrast (serious):** day numbers before your first play were 1.7–2:1. Now opacity .62 with ink-colored numerals (AA). Future days are `disabled` (nothing to show; not focusable).
