@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 46 (2026-10-18, Grok Bot): TOUCH-AWARE TIPS + DARK CHECK
+- The Tips keyboard-shortcut line is hidden on touch-only devices (`hover: none` and `pointer: coarse`). Phones and tablets with a keyboard or trackpad still see it.
+- Dark-mode check of the new `<kbd>` chips: legible. Shot: `r46-check-tips-dark.png`, taken with a fine pointer. Test added.
+
 ## Round 45 (2026-10-18, Grok Bot): RICHER INSTALL (MANIFEST SCREENSHOTS)
 - manifest.webmanifest gains `lang: en`, `dir: ltr` and two `screenshots` (`icons/screenshot-narrow.png` 780×1688 and `icons/screenshot-wide.png` 1280×800), each with a form_factor and a label.
   - Chrome on Android and desktop uses these for the richer install sheet.

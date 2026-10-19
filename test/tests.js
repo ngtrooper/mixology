@@ -996,5 +996,8 @@ test('manifest lists narrow + wide install screenshots that exist with the decla
     assert.ok(s.label && s.type === 'image/png');
   }
 });
+test('keyboard tip is hidden on touch-only devices', () => {
+  assert.ok(/@media \(hover: none\) and \(pointer: coarse\) \{ \.kbd-tip \{ display: none; \} \}/.test(htmlSrc));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

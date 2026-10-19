@@ -326,6 +326,7 @@
     font-size: 14.5px; line-height: 1.55;
   }
   .kbd-tip { font-size: 13px; color: var(--muted); }
+  @media (hover: none) and (pointer: coarse) { .kbd-tip { display: none; } } /* r46: touch-only devices have no keyboard */
   kbd { font: 600 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--paper); color: var(--ink); }
   #tips-panel h2 { margin: 0 24px 8px 0; font-size: 17px; letter-spacing: 1px; }
   #tips-panel h3 { margin: 14px 0 4px; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
