@@ -651,6 +651,29 @@ function officialRecipeVisible(name, finishedDays) {
   return Object.values(finishedDays || {}).some(r => !!r && r.name === name);
 }
 
+/* ---------------- Star badges (round 74, Franklin) ----------------
+ * A small star in the corner of a swatch for a high score, using the same
+ * rounded % the player sees: 90-96 bronze, 97-99 silver, 100 gold (gold
+ * replaces silver replaces bronze). Shown on Calendar day circles (that day's
+ * best attempt), Collection tiles (best mix against that color) and the reveal.
+ * Purely derived from saved scores: nothing new is stored, so old saves work. */
+const STAR_TIERS = [{ id: 'gold', min: 100, label: 'gold star: 100%' }, { id: 'silver', min: 97, label: 'silver star: 97%+' }, { id: 'bronze', min: 90, label: 'bronze star: 90%+' }];
+function starTier(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n)) return null;
+  return STAR_TIERS.find(t => Math.round(n) >= t.min) || null;
+}
+/** The % a Collection entry's best mix scored against its color. Older or
+ *  partial entries may lack pct: fall back to the stored ΔE, then to the mix
+ *  hex vs the color's hex (normal accuracy formula). */
+function collectedBestPct(entry, colorHex) {
+  const b = entry && entry.best; if (!b) return null;
+  if (Number.isFinite(Number(b.pct))) return Number(b.pct);
+  if (Number.isFinite(Number(b.de))) return accuracyFromDeltaE(Number(b.de));
+  if (b.hex && colorHex) return accuracyFromDeltaE(deltaE2000(hexToLab(b.hex), hexToLab(colorHex)));
+  return null;
+}
+
 /* ---------------- Holidays (round 72, Franklin) ----------------
  * Holiday days get a themed daily color (tools/build-schedule.js) and a small
  * tag under the header. Pure date math plus fixed tables for the lunar dates
@@ -746,7 +769,7 @@ const MisnomerEngine = {
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, dateKey, pickDailyIndex, nearestColorName,
-  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible, STAR_TIERS, starTier, collectedBestPct
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

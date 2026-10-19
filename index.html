@@ -472,6 +472,22 @@
   .cal-day.today { border: 2px solid var(--ink); }
   .cal-day.sel { box-shadow: 0 0 0 2px var(--accent); }
   .cal-day.blank { visibility: hidden; }
+  /* round 74 (Franklin): star badges, 90-96 bronze, 97-99 silver, 100 gold.
+     Sits in the swatch's top-right corner (outside a circle's centered %),
+     thin dark outline + shadow so it reads on light and dark swatches. */
+  .cd-sw, .ct, .vs .sw { position: relative; }
+  .star { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; pointer-events: none; line-height: 0;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,.45)); }
+  .star svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .star path { stroke: rgba(30,24,16,.75); stroke-width: 1.6; stroke-linejoin: round; paint-order: stroke; }
+  .star-gold path { fill: #ffc928; }
+  .star-silver path { fill: #dfe4ea; }
+  .star-bronze path { fill: #d08a4c; }
+  .cd-sw .star { top: -7px; right: -6px; width: 10px; height: 10px; } /* above the centered %, even at 320px */
+  .ct .star { top: -3px; right: -3px; width: 11px; height: 11px; }
+  .vs .sw .star.big { top: 6px; right: 6px; width: 22px; height: 22px; }
+  .star.inline { position: relative; top: 2px; right: auto; display: inline-block; margin-right: 3px; width: 13px; height: 13px; }
+  .star-word { white-space: nowrap; }
   #cal-detail { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; min-height: 64px; }
   #cal-detail .cdt-title, #col-detail .cdt-title { font-weight: 800; }
   #cal-detail .cdt-sub, #col-detail .cdt-sub { color: var(--muted); font-size: 12.5px; }
@@ -506,7 +522,7 @@
    * invisible (the game was unplayable). Real paint colors are content, so keep
    * them; the rest of the UI still follows the system palette. */
   @media (forced-colors: active) {
-    #stage, .asw, .vs .sw, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i, .ct, #col-toast i, .col-fams i { forced-color-adjust: none; }
+    #stage, .asw, .vs .sw, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i, .ct, #col-toast i, .col-fams i, .star { forced-color-adjust: none; }
     .tool[aria-pressed="true"] { outline: 3px solid Highlight; outline-offset: -3px; } /* selection was a fill only */
   }
   @media (prefers-reduced-motion: reduce) {
@@ -764,9 +780,9 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.16.1"></script>
-<script src="schedule.js?v=1.16.1"></script>
-<script src="engine.js?v=1.16.1"></script>
-<script src="game.js?v=1.16.1"></script>
+<script src="colors.js?v=1.17.0"></script>
+<script src="schedule.js?v=1.17.0"></script>
+<script src="engine.js?v=1.17.0"></script>
+<script src="game.js?v=1.17.0"></script>
 </body>
 </html>

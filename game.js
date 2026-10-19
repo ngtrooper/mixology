@@ -830,6 +830,10 @@ function renderAll() {
     $('reveal').style.display = 'block';
     $('reveal-official').style.background = round.color.hex;
     $('reveal-mine').style.background = fin.hex;
+    const rStar = E.starTier(fin.pct); // round 74: star on your mix at the reveal
+    $('reveal-mine').innerHTML = starBadge(rStar, 'big');
+    $('reveal-mine').setAttribute('aria-label', rStar ? 'Your mix earned a ' + rStar.label : '');
+    if (rStar) $('reveal-mine').setAttribute('role', 'img'); else $('reveal-mine').removeAttribute('role');
     $('reveal-pct').textContent = fin.pct + '%';
     $('reveal-band').textContent = E.bandForDeltaE(fin.de);
     $('reveal-de').textContent = `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
@@ -1011,6 +1015,13 @@ document.addEventListener('keydown', e => {
   if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
   else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
 });
+/* Round 74 (Franklin): star badge markup. The SVG is decorative (aria-hidden);
+ * each caller adds the tier's words to its own accessible name. */
+const STAR_PATH = 'M12 2.6l2.8 6.1 6.6.7-4.9 4.5 1.4 6.6L12 17.2l-5.9 3.3 1.4-6.6-4.9-4.5 6.6-.7z';
+function starBadge(tier, extra) {
+  if (!tier) return '';
+  return `<span class="star star-${tier.id}${extra ? ' ' + extra : ''}" data-star="${tier.id}" title="${tier.label}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${STAR_PATH}"/></svg></span>`;
+}
 function renderCalendar() {
   const grid = $('cal-grid');
   grid.innerHTML = '';
@@ -1030,7 +1041,7 @@ function renderCalendar() {
     cell.type = 'button';
     cell.dataset.day = day;
     let cls = 'cal-day';
-    let sw = '', pct = '', ink = '', name = '';
+    let sw = '', pct = '', ink = '', name = '', star = null;
     if (rec && rec.attempts && rec.attempts.length) {
       const best = bestAttempt(rec.attempts);
       cls += ' played' + (best.pct >= E.PAR_PCT ? ' par' : '');
@@ -1038,6 +1049,7 @@ function renderCalendar() {
       pct = best.pct + '%';
       ink = inkFor(best.hex);
       name = rec.name || '';
+      star = E.starTier(best.pct); // round 74
     } else if (day > DAY || day < 1) cls += ' future';
     else if (first != null && day >= first && day < DAY) cls += ' missed';
     else if (day < DAY) cls += ' before';
@@ -1050,7 +1062,8 @@ function renderCalendar() {
     // a played day is named by its content (hidden full date + day, score, name);
     // other days by the full date
     if (!pct) cell.setAttribute('aria-label', longDate);
-    cell.innerHTML = (pct ? `<span class="sr-only">${escapeHtml(longDate)}: </span>` : '') + `<span class="cd-n">${dd}</span><span class="cd-sw ${ink}" ${sw}>${pct}</span>` +
+    cell.innerHTML = (pct ? `<span class="sr-only">${escapeHtml(longDate)}: </span>` : '') + `<span class="cd-n">${dd}</span><span class="cd-sw ${ink}" ${sw}>${pct}${starBadge(star)}</span>` +
+      (star ? `<span class="sr-only">, ${star.label}, </span>` : '') +
       `<span class="cd-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
     if (!/future/.test(cls)) cell.addEventListener('click', () => showCalDetail(day));
     else cell.disabled = true;
@@ -1192,7 +1205,7 @@ function renderCollection() {
     `<div id="col-detail" tabindex="-1"></div>` +
     fams.map(f => `<h2 class="col-h">${f.label} <span>${f.colors.filter(has).length}/${f.colors.length}</span></h2><div class="col-grid">` +
       f.colors.map(c => has(c)
-        ? `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.hex}" aria-label="${escapeHtml(titleCase(c.name))}"></button>`
+        ? (st => `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.hex}" aria-label="${escapeHtml(titleCase(c.name))}${st ? ', ' + st.label : ''}">${starBadge(st)}</button>`)(E.starTier(E.collectedBestPct(found[c.name], c.hex)))
         : `<span class="ct q" aria-hidden="true">?</span>`).join('') + `</div>`).join('');
   $('cal-col').querySelectorAll('.ct[data-name]').forEach(b => b.addEventListener('click', () => showCollectionDetail(b.dataset.name)));
 }
@@ -1202,12 +1215,12 @@ function showCollectionDetail(name) {
   document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
   const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
   const showRecipe = E.officialRecipeVisible(name, store.data.days); // round 73: only colors you finished as a daily
-  const b = rec.best;
+  const b = rec.best, bPct = E.collectedBestPct(rec, c.hex), bStar = E.starTier(bPct);
   const when = rec.date ? new Date(rec.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'before the Collection existed';
   el.innerHTML = `<div class="cdt-title">“${escapeHtml(titleCase(name))}”</div>` +
-    `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${b.pct}%</div>` +
-    `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.hex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${b.pct}%</b></span></div>` +
-    recipeRowHTML('Your mix', b.pct + '%', b.comp) +
+    `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${bPct}%${bStar ? ` · <span class="star-word">${starBadge(bStar, 'inline')}${bStar.id} star</span>` : ''}</div>` +
+    `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.hex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${bPct}%</b></span></div>` +
+    recipeRowHTML('Your mix', bPct + '%', b.comp) +
     (showRecipe ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>`);
   try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
   el.scrollIntoView({ block: 'nearest', behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
@@ -1502,7 +1515,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.16.1',
+  version: '1.17.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

@@ -692,7 +692,7 @@ test('calendar: header button, month nav, built from saved days, today/missed/pl
   assert.ok(gameSrc.includes('store.data.days[day]') && gameSrc.includes('function showCalDetail'), 'calendar not built from saved days / no detail');
 });
 test('calendar cells: % inside the swatch with luminance-picked ink, color name (2-line clamp) below', () => {
-  assert.ok(gameSrc.includes('<span class="cd-sw ${ink}" ${sw}>${pct}</span>'), '% not rendered inside the swatch');
+  assert.ok(gameSrc.includes('<span class="cd-sw ${ink}" ${sw}>${pct}${starBadge(star)}</span>'), '% not rendered inside the swatch');
   assert.ok(gameSrc.includes('class="cd-name"') && htmlSrc.includes('-webkit-line-clamp: 2'), 'no clamped name under the swatch');
   const i = gameSrc.indexOf('function inkFor'); let depth = 0, j = gameSrc.indexOf('{', i);
   for (; j < gameSrc.length; j++) { if (gameSrc[j] === '{') depth++; else if (gameSrc[j] === '}' && --depth === 0) break; }
@@ -1326,9 +1326,9 @@ console.log('— round 69: Collection (Franklin) —');
     assert.ok(htmlSrc.includes('<div id="cal-col"></div>'));
     assert.ok(gameSrc.includes('`<span class="ct q" aria-hidden="true">?</span>`'));
     assert.ok(/\.ct\.q \{ background: var\(--paper\); color: var\(--muted\)/.test(htmlSrc));
-    assert.ok(gameSrc.includes('aria-label="${escapeHtml(titleCase(c.name))}"'));
+    assert.ok(gameSrc.includes('aria-label="${escapeHtml(titleCase(c.name))}${st ? \', \' + st.label : \'\'}"'));
     assert.ok(/#col-toast \{[^}]*background: var\(--ink\); color: var\(--paper\)/.test(htmlSrc));
-    assert.ok(/\.ct, #col-toast i, \.col-fams i \{ forced-color-adjust: none; \}/.test(htmlSrc));
+    assert.ok(/\.ct, #col-toast i, \.col-fams i, \.star \{ forced-color-adjust: none; \}/.test(htmlSrc));
     for (const f of E.HUE_FAMILIES) assert.ok(f.label);
     const fam = new Set(E.collectibleColors(bank).map(c => E.hueFamily(c.hex)));
     assert.strictEqual(fam.size, E.HUE_FAMILIES.length, 'an empty family');
@@ -1411,6 +1411,59 @@ console.log('— round 72: holiday colors —');
     assert.ok(htmlSrc.includes('<p id="holiday-tag" hidden></p>'));
     assert.ok(gameSrc.includes("const hol = daily ? E.holidayOn(dateForDay(round.day)) : null"));
     assert.ok(gameSrc.includes('<span aria-hidden="true">${hol.emoji}</span> ${escapeHtml(hol.label)}'));
+  });
+}
+console.log('— star badges (round 74) —');
+{
+  const gSrc = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
+  const hSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const tid = p => (E.starTier(p) || { id: null }).id;
+  test('star thresholds: 89 none, 90 bronze, 96 bronze, 97 silver, 99 silver, 100 gold', () => {
+    assert.deepStrictEqual([89, 90, 96, 97, 99, 100].map(tid), [null, 'bronze', 'bronze', 'silver', 'silver', 'gold']);
+  });
+  test('star tiers use the displayed (rounded) %; junk gets none', () => {
+    assert.strictEqual(tid(96.6), 'silver'); assert.strictEqual(tid(89.4), null); assert.strictEqual(tid(99.5), 'gold');
+    for (const v of [undefined, null, NaN, 'x', 0, 50]) assert.strictEqual(tid(v), null);
+  });
+  test('star labels are accessible words (bronze 90%+, silver 97%+, gold 100%)', () => {
+    assert.strictEqual(E.starTier(90).label, 'bronze star: 90%+');
+    assert.strictEqual(E.starTier(97).label, 'silver star: 97%+');
+    assert.strictEqual(E.starTier(100).label, 'gold star: 100%');
+  });
+  test('star tiers line up with the accuracy formula (dE 0 gold, dE 2 silver+, par-ish none)', () => {
+    assert.strictEqual(tid(E.accuracyFromDeltaE(0)), 'gold');
+    assert.ok(['silver', 'gold'].includes(tid(E.accuracyFromDeltaE(2))));
+    assert.strictEqual(tid(E.accuracyFromDeltaE(11.25)), null);
+  });
+  test('existing saves: collected best % read as stored, legacy entries fall back to dE, then hex', () => {
+    assert.strictEqual(E.collectedBestPct({ best: { pct: 97, de: 2.9, hex: '#123456' } }, '#000000'), 97);
+    assert.strictEqual(E.collectedBestPct({ best: { de: 0 } }, '#000000'), 100);
+    assert.strictEqual(E.collectedBestPct({ best: { hex: '#2a5c3e' } }, '#2a5c3e'), 100);
+    assert.strictEqual(E.collectedBestPct({}, '#000'), null); assert.strictEqual(E.collectedBestPct(null, '#000'), null);
+    assert.strictEqual(E.starTier(E.collectedBestPct({ best: { comp: {} } })), null);
+  });
+  test('a v1 collection with no star data works untouched (stars are derived, nothing stored)', () => {
+    const col = { v: 1, backfilled: true, found: { evergreen: { date: '2026-10-18', best: { comp: { r: 0, y: 30, b: 40, k: 30, w: 0 }, hex: '#05472a', pct: 97, de: 2.8 } } } };
+    const before = JSON.stringify(col);
+    assert.strictEqual(E.starTier(E.collectedBestPct(col.found.evergreen, '#05472a')).id, 'silver');
+    assert.strictEqual(JSON.stringify(col), before);
+    const r = E.recordDiscovery(col, { name: 'evergreen', hex: '#05472a', deltaE: 0 }, { comp: { r: 0, y: 30, b: 40, k: 30, w: 0 }, hex: '#05472a' }, '2026-10-19');
+    assert.strictEqual(tid(r.col.found.evergreen.best.pct), 'gold');
+    assert.strictEqual(r.col.found.evergreen.date, '2026-10-18');
+  });
+  test('stars drawn on calendar circles, collection tiles and the reveal; decorative SVG + spoken label', () => {
+    assert.ok(gSrc.includes('${pct}${starBadge(star)}</span>'));
+    assert.ok(gSrc.includes("(star ? `<span class=\"sr-only\">, ${star.label}, </span>` : '')"));
+    assert.ok(gSrc.includes("${st ? ', ' + st.label : ''}\">${starBadge(st)}</button>"));
+    assert.ok(gSrc.includes("$('reveal-mine').innerHTML = starBadge(rStar, 'big');"));
+    assert.ok(/class="star star-\$\{tier.id\}[^`]*aria-hidden="true"/.test(gSrc));
+    assert.ok(hSrc.includes('.star-gold path') && hSrc.includes('.star-silver path') && hSrc.includes('.star-bronze path'));
+    assert.ok(/\.star \{ position: absolute; top: -4px; right: -4px;/.test(hSrc), 'star sits in the corner, not over the % ');
+  });
+  test('share text never mentions a star or the color (unchanged)', () => {
+    const fn = gSrc.slice(gSrc.indexOf('function shareText('), gSrc.indexOf('function flashLabel('));
+    assert.ok(!/star/i.test(fn.replace(/Streak|streak/g, '')));
+    assert.ok(!/rec\.name|color\.name/.test(fn));
   });
 }
 console.log(`\n${pass} passed, ${fail} failed`);

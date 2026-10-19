@@ -2,6 +2,19 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 74 (2026-10-19, Grok Bot): STAR BADGES (Franklin)
+- **Tiers** (`E.starTier(pct)`, on the rounded % the player sees): 90–96 **bronze**, 97–99 **silver**, 100 **gold**. A higher tier replaces a lower one. Labels: "bronze star: 90%+", "silver star: 97%+", "gold star: 100%".
+- **Where:**
+  - Calendar day circles: that day's best attempt. A 10px star sits on the circle's top-right edge, above the centered % (checked for no overlap with the % text at 320px and 390px). The cell's spoken name adds ", gold star: 100%".
+  - Collection tiles: the best mix recorded for that color, scored against that color with the normal accuracy formula (`E.collectedBestPct`). The tile's aria-label adds the tier, and the detail panel shows "· ★ bronze star". Bronze shows here only when a collected color's best is 90–96 (hard colors found within their solver best + 1).
+  - Reveal: a 22px star in the corner of the "Your mix" swatch (role img with an aria-label).
+- **Saves:** nothing new is stored, because stars are derived. Old collection entries use `best.pct`; entries without it fall back to `best.de`, then to the mix hex vs the color hex. `misnomer.save.v1` and `mixology.collection.v1` are unchanged.
+- **Unchanged:** no pot effects, the r73 recipe spoiler lock, and share text and image card (no star and no color name).
+- **Style:** a 5-point SVG star with a thin dark outline and a drop shadow, so it reads on white, yellow, navy and black. It uses forced-color-adjust: none.
+- **Tests:** 89 none, 90/96 bronze, 97/99 silver, 100 gold; rounding; labels; legacy-save fallbacks; markup and a11y contracts; share text has no star. Two older source contracts were updated for the new markup.
+- Shots: `r74-calendar-{390,320}-live.png`, `r74-collection-tiles-live.png`, `r74-collection-detail-bronze-live.png`, `r74-reveal-gold-live.png`.
+- Version 1.17.0. 177 tests.
+
 ## Round 73 (2026-10-19, Grok Bot): SPOILER FIX, OFFICIAL RECIPES ONLY FOR FINISHED DAILIES (Franklin)
 - **Bug:** the Collection showed the official recipe for "evergreen", which is a future daily (internal days 1454, ...).
   - The r69 rule unlocked any color that had been a daily before today. That counted the 656 pre-launch days (internal < 656, before Mixology #1), and those colors recur later in the schedule.
