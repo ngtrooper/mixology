@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-title" content="Mixology">
 <style>
   :root {
-    --paper: #f6f1e7; --ink: #1c1a17; --muted: #7a7264; --card: #fffdf8;
+    --paper: #f6f1e7; --ink: #1c1a17; --muted: #6b6356; --card: #fffdf8;
     --line: #ddd3c0; --accent: #b3541e; --good: #2e7d32;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -42,6 +42,11 @@
     border: 1px solid var(--line); background: var(--card); border-radius: 999px;
     padding: 6px 9px; font-size: 13px; cursor: pointer; color: var(--ink);
   }
+  .hbtn svg { width: 17px; height: 17px; display: block; }
+  #btn-calendar, #btn-mute { padding: 5px 8px; display: inline-flex; align-items: center; }
+  /* round 17: one visible keyboard focus ring everywhere */
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
   header > div:first-child { min-width: 0; }
   #day-label { color: var(--muted); font-size: 12.5px; margin: 2px 0 0; white-space: nowrap; }
   #streak-display { font-size: 13px; color: var(--muted); margin-top: 2px; min-height: 16px; }
@@ -373,6 +378,7 @@
 </head>
 <body>
 <div id="app">
+  <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   <header>
     <div>
       <h1>MIXOLOGY<span class="dot">.</span></h1>
@@ -380,10 +386,10 @@
       <div id="streak-display"></div>
     </div>
     <div class="hbtns">
-      <button class="hbtn" id="btn-calendar" type="button" aria-label="Calendar and stats">📅</button>
+      <button class="hbtn" id="btn-calendar" type="button" aria-label="Calendar and stats"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg></button>
       <button class="hbtn" id="btn-tips" type="button">Tips</button>
       <button class="hbtn" id="btn-practice" type="button">Practice</button>
-      <button class="hbtn" id="btn-mute" type="button" aria-label="Toggle sound">🔊</button>
+      <button class="hbtn" id="btn-mute" type="button" aria-label="Toggle sound"></button>
     </div>
   </header>
 

@@ -810,5 +810,21 @@ test('computeStats: played / average / par rate / best / longest streak / spread
   // stats live in the calendar overlay, not on the main screen (design lock)
   assert.ok(htmlSrc.indexOf('id="cal-stats"') > htmlSrc.indexOf('id="cal-overlay"'), 'stats outside the overlay');
 });
+console.log('— round 17: a11y + SVG header icons —');
+test('a11y: live announcements, focus ring, mute toggle state, SVG header icons, muted-text contrast', () => {
+  assert.ok(htmlSrc.includes('id="sr-announce" class="sr-only" aria-live="polite"'), 'no live region');
+  assert.ok(gameSrc.includes('announce(`Attempt ${round.attempts.length} sealed: ${att.pct}% accuracy.`)'), 'seal not announced');
+  assert.ok(/button:focus-visible[^{]*\{ outline: 3px solid/.test(htmlSrc), 'no global focus ring');
+  assert.ok(gameSrc.includes("b.setAttribute('aria-pressed', String(!m));"), 'mute has no toggle state');
+  assert.ok(!/id="btn-calendar"[^>]*>📅/.test(htmlSrc) && /id="btn-calendar"[^>]*><svg/.test(htmlSrc), 'calendar icon still emoji');
+  // contrast of --muted on --paper (light) >= 4.5:1
+  const lum = h => { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const m = htmlSrc.match(/--paper: (#[0-9a-f]{6}); --ink: #[0-9a-f]{6}; --muted: (#[0-9a-f]{6});/);
+  const cr = (lum(m[1]) + 0.05) / (lum(m[2]) + 0.05);
+  assert.ok(cr >= 4.5, 'muted contrast ' + cr.toFixed(2));
+  // the announcer only reads back what's on screen, never the target colour or recipe
+  const an = gameSrc.slice(gameSrc.indexOf('function announce'), gameSrc.indexOf('function announce') + 200);
+  assert.ok(!/recipe|hex|name/.test(an));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

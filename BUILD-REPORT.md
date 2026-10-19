@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 17 (2026-10-18, Grok Bot): ACCESSIBILITY · SVG HEADER ICONS
+- The header 📅 and 🔊/🔇 emoji are now inline SVG icons (calendar with an accent dot; speaker on/off).
+  - Mute is a real toggle: `aria-pressed` plus a stateful label ("Sound is on. Turn sound off").
+- A global `:focus-visible` ring (3px accent) on buttons and links. Tab order: header → pot → pigments → tools.
+- A polite `aria-live` region announces "Attempt N sealed: X% accuracy." and the round-complete result. It only reads back what is on screen, so the no-hints lock is kept.
+- Light `--muted` darkened from #7a7264 to #6b6356, raising contrast on paper from about 4.3:1 to about 5.4:1 (WCAG AA). Tested.
+- Earlier rounds already gave the overlays focus trap and restore (r14) and reduced motion for confetti, the flame and smooth scroll (r15).
+
 ## Round 16 (2026-10-18, Grok Bot): STATS PANEL
 - The 📅 overlay now has **Calendar | Stats** tabs. It always reopens on Calendar.
 - Stats come from `E.computeStats(store.data.days)`, which is pure and read-only (it never writes the save):

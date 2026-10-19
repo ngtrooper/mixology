@@ -412,6 +412,7 @@ function seal() {
   };
   round.attempts.push(att);
   sfx.seal();
+  announce(`Attempt ${round.attempts.length} sealed: ${att.pct}% accuracy.`);
   if (round.attempts.length >= MAX_ATTEMPTS) finish();
   else { renderAll(); persistWip(); }
   return att;
@@ -450,6 +451,7 @@ function finish() {
     store.persistSoon();
   }
   const streakBefore = round.mode === 'daily' ? streakAtStart : null;
+  announce(`Round complete. Your best attempt scored ${final.pct}%, ${E.bandForDeltaE(final.de)}.`);
   if (final.pct >= 95) sfx.ace(); else if (final.pct >= E.PAR_PCT) sfx.par(); else sfx.reveal();
   renderAll();
   maybeShowDuel();
@@ -457,6 +459,12 @@ function finish() {
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
 }
 
+/* Round 17: screen-reader announcements (polite live region). It only
+ * repeats what is already on screen (the attempt %), nothing more. */
+function announce(msg) {
+  const el = $('sr-announce'); if (!el) return;
+  el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 30);
+}
 /* Round 15: feel. Confetti at 95%+ (skipped under reduced motion), haptics
  * scaled to the result, and a flame bump when the daily streak grows. */
 let streakAtStart = 0;
@@ -1104,12 +1112,21 @@ $('btn-next-practice').addEventListener('click', startPractice);
 $('btn-practice').addEventListener('click', () => {
   if (round && round.mode === 'practice') exitPractice(); else startPractice();
 });
+/* Round 17: SVG speaker icon (on / muted) with a real toggle state. */
+const ICON_SOUND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ICON_MUTED = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function renderMute() {
+  const b = $('btn-mute'), m = !!store.data.muted;
+  b.innerHTML = m ? ICON_MUTED : ICON_SOUND;
+  b.setAttribute('aria-pressed', String(!m));
+  b.setAttribute('aria-label', m ? 'Sound is off. Turn sound on' : 'Sound is on. Turn sound off');
+}
 $('btn-mute').addEventListener('click', () => {
   store.data.muted = !store.data.muted;
   store.persistSoon();
-  $('btn-mute').textContent = store.data.muted ? '🔇' : '🔊';
+  renderMute();
 });
-$('btn-mute').textContent = store.data.muted ? '🔇' : '🔊';
+renderMute();
 
 initDaily();
 
