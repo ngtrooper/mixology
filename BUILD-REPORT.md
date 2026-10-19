@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 54 (2026-10-18, Grok Bot): NOSCRIPT NOTICE
+- With JavaScript disabled, a small card above the board now says "Mixology needs JavaScript to mix paint. Please enable it and reload." Before, the page showed a dead board with "…" as the name.
+- Markup and CSS only. Shot: `r54-after-noscript.png`. Test added.
+
 ## Round 53 (2026-10-18, Grok Bot): LINK-PREVIEW METADATA
 - Head gains `<link rel="canonical">` (duel `?d=` links all collapse to the one page for crawlers), `og:site_name`, `og:locale`, `og:image:type` and `twitter:image:alt`.
   - All of it is static and spoiler-free: the hook line, never a color name.

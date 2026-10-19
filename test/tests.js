@@ -1034,5 +1034,9 @@ test('head has canonical, og:site_name, og:image:type and twitter:image:alt (no 
   for (const s of ['<link rel="canonical" href="https://ngtrooper.github.io/mixology/">', '<meta property="og:site_name" content="Mixology">', '<meta property="og:image:type" content="image/png">', '<meta name="twitter:image:alt" content="Mixology — How well do you know your colors?">'])
     assert.ok(htmlSrc.includes(s), s);
 });
+console.log('— round 54: noscript —');
+test('a <noscript> notice explains that JavaScript is needed (before <main>)', () => {
+  const n = htmlSrc.indexOf('<noscript><div id="noscript">'); assert.ok(n > 0 && n < htmlSrc.indexOf('<main id="app"'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

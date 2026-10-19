@@ -288,6 +288,7 @@
   }
   #card-row { text-align: center; margin-top: 8px; }
   #reveal-next { display: none; text-align: center; font-size: 12.5px; color: var(--muted); letter-spacing: .5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  #noscript { margin: 12px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: var(--ink); text-align: center; font-size: 14px; }
   .tips-foot { text-align: center; margin-top: 14px; }
   #btn-replay-intro { background: none; border: none; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
   #btn-card { background: none; border: none; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
@@ -482,6 +483,7 @@
 </style>
 </head>
 <body>
+<noscript><div id="noscript">Mixology needs JavaScript to mix paint. Please enable it and reload.</div></noscript>
 <main id="app">
   <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   <header>
