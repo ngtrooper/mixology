@@ -2,6 +2,18 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 14 (2026-10-18, Grok Bot): FIRST-VISIT WELCOME · MODAL FOCUS
+- **Welcome overlay** for brand-new players only: no saved days and no WIP, so returning players never see it.
+  - Three illustrated steps (inline SVG): one name a day; mix from five paints by tapping or holding the pot; two attempts, best counts, 85%+ beats par.
+  - Buttons: "Let's mix" and "Read the full tips".
+  - Shown once. The flag is `mixology.welcomed.v1`, in its own localStorage key, so the save format is untouched.
+  - No tool dosages (design lock: those live only in Tips).
+- **a11y:** tips, calendar and welcome now share `openOverlay` / `closeOverlay`.
+  - Focus moves into the dialog and Tab / Shift+Tab wrap inside it.
+  - Esc or close returns focus to the button that opened it.
+  - Opening Tips also stops a running pour.
+- Playwright verified: shows on first visit (light and dark), gone after reload, absent for a seeded returning player, tips focus goes to ✕ and Esc restores focus to Tips.
+
 ## Round 13 (2026-10-18, Grok Bot): DARK MODE
 - `@media (prefers-color-scheme: dark)` sits at the end of the stylesheet and swaps the palette variables (paper #1a1815, card #24211d, ink #f1ebdf, accent #d9743a).
 - The paint itself is untouched: pot surface, pigments, swatches and calendar swatches keep their true colors, so judging a mix in dark mode is still honest.

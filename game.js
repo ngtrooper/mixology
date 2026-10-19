@@ -786,9 +786,38 @@ function openCalendar() {
   calMonth = new Date(t.getFullYear(), t.getMonth(), 1);
   renderCalendar();
   showCalDetail(DAY);
-  $('cal-overlay').classList.add('open');
+  openOverlay('cal-overlay');
 }
-function closeCalendar() { $('cal-overlay').classList.remove('open'); }
+function closeCalendar() { closeOverlay('cal-overlay'); }
+
+/* Round 14 a11y: a shared modal helper. On open it remembers the focused
+ * element and moves focus into the panel (the close button); Tab and
+ * Shift+Tab wrap inside it; on close focus returns to where it was. */
+const overlayReturn = {};
+function overlayFocusables(ov) {
+  return [...ov.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && el.offsetParent !== null);
+}
+function openOverlay(id) {
+  const ov = $(id); if (!ov) return;
+  if (!ov.classList.contains('open')) overlayReturn[id] = document.activeElement;
+  ov.classList.add('open');
+  const f = overlayFocusables(ov); const first = ov.querySelector('[data-autofocus]') || f[0];
+  if (first) try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); }
+}
+function closeOverlay(id) {
+  const ov = $(id); if (!ov || !ov.classList.contains('open')) return;
+  ov.classList.remove('open');
+  const r = overlayReturn[id]; overlayReturn[id] = null;
+  if (r && r.focus && document.contains(r)) try { r.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const ov = document.querySelector('.modal-ov.open'); if (!ov) return;
+  const f = overlayFocusables(ov); if (!f.length) return;
+  const i = f.indexOf(document.activeElement);
+  if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+});
 function renderCalendar() {
   const grid = $('cal-grid');
   grid.innerHTML = '';
@@ -957,8 +986,8 @@ $('btn-toolbar-toggle').addEventListener('click', () => {
   btn.textContent = collapsed ? '▴' : '▾';
 });
 /* Tips overlay: open from the header; close via ✕, backdrop click, Escape. */
-function closeTips() { $('tips-overlay').classList.remove('open'); }
-$('btn-tips').addEventListener('click', () => $('tips-overlay').classList.add('open'));
+function closeTips() { closeOverlay('tips-overlay'); }
+$('btn-tips').addEventListener('click', () => { stopPour(); openOverlay('tips-overlay'); });
 $('btn-calendar').addEventListener('click', openCalendar);
 $('btn-cal-close').addEventListener('click', closeCalendar);
 $('cal-overlay').addEventListener('click', e => { if (e.target === $('cal-overlay')) closeCalendar(); });
@@ -966,7 +995,26 @@ $('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth
 $('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
 $('btn-tips-close').addEventListener('click', closeTips);
 $('tips-overlay').addEventListener('click', e => { if (e.target === $('tips-overlay')) closeTips(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeWelcome(); } });
+/* Round 14: first-visit welcome. Shown once per device, only to someone
+ * with no saved days. The flag lives in its own key so the save format
+ * (misnomer.save.v1) is untouched. */
+const WELCOME_KEY = 'mixology.welcomed.v1';
+function closeWelcome() {
+  if (!$('welcome-overlay').classList.contains('open')) return;
+  closeOverlay('welcome-overlay');
+  try { localStorage.setItem(WELCOME_KEY, '1'); } catch (e) { /* private mode */ }
+}
+function maybeWelcome() {
+  let seen = false; try { seen = !!localStorage.getItem(WELCOME_KEY); } catch (e) { seen = true; }
+  const hasHistory = Object.keys(store.data.days || {}).length > 0 || !!store.data.wip;
+  if (seen || hasHistory) return;
+  openOverlay('welcome-overlay');
+}
+$('btn-welcome-go').addEventListener('click', closeWelcome);
+$('btn-welcome-tips').addEventListener('click', () => { closeWelcome(); openOverlay('tips-overlay'); });
+$('welcome-overlay').addEventListener('click', e => { if (e.target === $('welcome-overlay')) closeWelcome(); });
+maybeWelcome();
 $('btn-undo').addEventListener('click', undo);
 $('btn-reset').addEventListener('click', resetPot);
 $('btn-seal').addEventListener('click', () => seal());
@@ -1016,6 +1064,6 @@ window.MISNOMER = {
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,
   newPractice: startPractice,
-  shareText,
+  shareText, maybeWelcome, WELCOME_KEY,
   engine: E, bank: BANK, pool: POOL
 };

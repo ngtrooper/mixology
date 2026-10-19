@@ -772,5 +772,17 @@ test('dark mode follows the system: palette vars overridden at the end of the st
   assert.ok(!/#pot-surface|\.pigment\b|\.cd-sw\b/.test(blk), 'dark mode recolours paint');
   assert.ok(htmlSrc.includes('content="#1a1815" media="(prefers-color-scheme: dark)"') && htmlSrc.includes('name="color-scheme" content="light dark"'));
 });
+console.log('— round 14: welcome + modal focus —');
+test('welcome shows once, only to brand-new players, and its flag stays out of the save format', () => {
+  assert.ok(htmlSrc.includes('id="welcome-overlay" class="modal-ov" role="dialog" aria-modal="true"'), 'welcome dialog missing');
+  const w = gameSrc.slice(gameSrc.indexOf('function maybeWelcome'), gameSrc.indexOf("$('btn-welcome-go')"));
+  assert.ok(/Object\.keys\(store\.data\.days \|\| \{\}\)\.length > 0/.test(w) && w.includes('store.data.wip'), 'returning players could see it');
+  assert.ok(gameSrc.includes("const WELCOME_KEY = 'mixology.welcomed.v1';") && !/store\.data\.welcomed/.test(gameSrc), 'flag leaks into save');
+  // the welcome copy must not carry tool dosages (those live only in Tips)
+  const wcopy = htmlSrc.slice(htmlSrc.indexOf('<div id="welcome-overlay"'), htmlSrc.indexOf('<div id="tips-overlay"'));
+  assert.ok(!/drops per second|per click|30 drops|1%/.test(wcopy), 'dosage numbers outside Tips');
+  for (const id of ['tips-overlay', 'cal-overlay']) assert.ok(htmlSrc.includes(`id="${id}" class="modal-ov"`), id + ' not on the shared modal helper');
+  assert.ok(gameSrc.includes("closeOverlay('tips-overlay')") && gameSrc.includes("openOverlay('cal-overlay')"), 'overlays bypass focus handling');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
