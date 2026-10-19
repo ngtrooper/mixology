@@ -37,7 +37,7 @@ const arg = process.argv.find(a => a.startsWith('--freeze-through='));
 const FREEZE_THROUGH = arg ? parseInt(arg.split('=')[1], 10) : E.dayNumber(new Date()) + 1 + 1;
 
 const byName = new Map(BANK.map(c => [c.name, c]));
-const pool = BANK.filter(c => E.isDailyEligible(c.de)).map(c => c.name);
+const pool = BANK.filter(c => !c.retired && E.isDailyEligible(c.de)).map(c => c.name); // round 66: retired names never scheduled
 const eligible = new Set(pool);
 
 let existing;

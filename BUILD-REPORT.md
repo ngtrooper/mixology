@@ -2,6 +2,18 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 66 (2026-10-18, Grok Bot): GROSS/BODILY NAMES RETIRED (Franklin)
+- "barf green" slipped past the family-friendly filter.
+- `tools/build-bank.js` gains whole-word `RETIRE_WORDS`: barf, bile, sick, sickly, pee, urine, phlegm, mucus, turd, dung, manure, sewage, feces/faeces, excrement, drool, spew, bruise, dried blood, pimple, zit, scab, earwax. This adds to the existing substring BANNED list (vomit, puke, poop, poo, snot, booger, diarrhea…).
+- **Retired from play (7):** barf green, bile, bruise, dried blood, sick green, sickly green, sickly yellow.
+  - These stay in colors.js as `retired: true` because six frozen PAST days name them (134, 235, 266, 303, 314, 350, all pre-launch). Past days and old saves keep resolving by name, with hex and recipe.
+  - They are excluded from the daily pool (`build-schedule.js`), the practice/fallback pool (`game.js` POOL) and the solver's eligible count.
+- **Regenerated:** build-bank, then solve-recipes (all other entries byte-identical), then `build-schedule --freeze-through=657`.
+  - Days 0–657 (past, today #1, tomorrow #2) are untouched. The frozen hash test passes.
+  - 27 future entries were replaced, the earliest #62 (2026-12-18): sickly yellow → red orange. Full list in the round-66 commit diff of schedule.js.
+- **Not removed, flagged for Franklin:** names that are unflattering but not bodily: gross green, nasty green, ugly blue/brown/green/pink/purple/yellow, mud/muddy *, slime green, swamp, hospital green, blood red, blood orange, oxblood.
+- Test added: no future daily is retired or gross, past retired days resolve, and the game pool skips retired. The header-count test now counts non-retired names only. Version 1.12.1.
+
 ## Round 65 (2026-10-18, Grok Bot): LIVE POT % ON THE PAINT DISCS (Franklin, overrides the no-counts lock)
 - Each of the five paint discs shows the pot's live share of that paint: fresh pot reads white 100%, the others 0%.
   - Numbers update live during pours. The DOM write is coalesced to one per animation frame, because `renderAll` runs on every pour tick.

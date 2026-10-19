@@ -7,7 +7,7 @@ const E = window.MisnomerEngine;
 const BANK = window.MISNOMER_COLORS;
 // Round 8: daily-eligible = the solver's best recipe scores >= par
 // (engine.isDailyEligible / PAR_PCT) — no hard-coded ΔE threshold.
-const POOL = BANK.filter(c => E.isDailyEligible(c.de));
+const POOL = BANK.filter(c => !c.retired && E.isDailyEligible(c.de)); // round 66: retired names stay resolvable (BANK_BY_NAME) but never play again
 const BANK_BY_NAME = new Map(BANK.map(c => [c.name, c]));
 const SCHEDULE = window.MIXOLOGY_SCHEDULE || [];
 
@@ -1353,7 +1353,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.12.0',
+  version: '1.12.1',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

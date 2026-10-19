@@ -82,6 +82,7 @@ Consequences that are **invariants**, not implementation details:
   the solver's best recipe scores ≥ par** (`engine.isDailyEligible`,
   `PAR_PCT = 85`, ≈ ΔE ≤ 11.25) — one shared rule for game.js, the solver
   and the colors.js header; no day can be unwinnable at par.
+- **Family-friendly names** (round 66): gross or bodily names are BANNED (dropped) or RETIRED in `tools/build-bank.js`. Retired names stay in colors.js (`retired: true`) only so frozen past days and old saves resolve. Never schedule them or offer them in practice.
 - **The daily schedule is frozen data** (`schedule.js`, round 8). Never
   derive a day's color from the pool size again; past days, duel links
   and today's color must not move when the bank or pool changes. Change

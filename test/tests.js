@@ -600,7 +600,7 @@ test('par fairness: pool = solver-best score >= PAR_PCT; no hard-coded ΔE 12 le
   const colorsHead = fs.readFileSync(path.join(__dirname, '..', 'colors.js'), 'utf8').slice(0, 1200);
   assert.ok(!/\.de <= 12/.test(gameSrc) && !/\.de <= 12/.test(solverSrc) && !/de <= 12/.test(colorsHead), 'a "de <= 12" threshold survives');
   assert.ok(gameSrc.includes('E.isDailyEligible') && solverSrc.includes('E.isDailyEligible'), 'eligibility not shared');
-  assert.ok(colorsHead.includes(`${pool.length} daily-eligible`), 'colors.js header count is stale');
+  assert.ok(colorsHead.includes(`${pool.filter(c => !c.retired).length} daily-eligible`), 'colors.js header count is stale'); // round 66: retired names are not eligible
 });
 test('single pigment into white is a monotonic walk: never lighter, never less saturated', () => {
   for (const key of ['r', 'y', 'b', 'k']) {
@@ -1134,6 +1134,18 @@ test('disc % markup: on all five discs, no taps (pointer-events none), legible i
   const pot = htmlSrc.slice(htmlSrc.indexOf('<button id="pot"'), htmlSrc.indexOf('</button>', htmlSrc.indexOf('<button id="pot"')));
   assert.ok(!/\d+%/.test(pot), 'the pot must stay number-free');
   assert.ok(htmlSrc.includes("live share of the pot"), 'Tips does not explain the disc numbers');
+});
+console.log('— round 66: gross/bodily names retired —');
+test('gross/bodily names never appear as future dailies or practice picks, yet past days still resolve', () => {
+  const sched = (() => { const g = {}; new Function('window', 'module', fs.readFileSync(path.join(__dirname, '..', 'schedule.js'), 'utf8'))(g, undefined); return g.MIXOLOGY_SCHEDULE; })();
+  const GROSS = /\b(barf|bile|sick|sickly|pee|urine|phlegm|mucus|turd|dung|manure|sewage|feces|faeces|excrement|drool|spew|bruise|dried blood|pimple|zit|scab|earwax|vomit|puke|poop|poo|shit|piss|snot|booger|diarrh(o)?ea|fart|pus)\b/;
+  const byName = new Map(bank.map(c => [c.name, c]));
+  for (const c of bank) if (GROSS.test(c.name)) assert.strictEqual(c.retired, true, `${c.name} is in the bank but not retired`);
+  for (const n of ['barf green', 'bile', 'sick green', 'sickly green', 'sickly yellow', 'dried blood', 'bruise']) assert.ok(byName.get(n) && byName.get(n).retired, n);
+  for (let d = 658; d < sched.length; d++) assert.ok(!GROSS.test(sched[d]) && !byName.get(sched[d]).retired, `future day ${d} is "${sched[d]}"`);
+  // frozen past days that named a retired color still resolve to a full entry (hex + recipe)
+  for (const d of [134, 235, 266, 303, 314, 350]) { const c = byName.get(sched[d]); assert.ok(c && c.retired && /^#[0-9A-F]{6}$/.test(c.hex) && c.recipe, `day ${d}`); }
+  assert.ok(gameSrc.includes('const POOL = BANK.filter(c => !c.retired && E.isDailyEligible(c.de));'), 'game pool (practice/fallback) must skip retired names');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

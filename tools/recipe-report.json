@@ -1,6 +1,6 @@
 {
   "total": 981,
-  "eligible": 860,
+  "eligible": 853,
   "eligibility": "best score >= 85% (de <= ~11.25)",
   "buckets": {
     "<=2": 421,
