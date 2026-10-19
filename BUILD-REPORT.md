@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 45 (2026-10-18, Grok Bot): RICHER INSTALL (MANIFEST SCREENSHOTS)
+- manifest.webmanifest gains `lang: en`, `dir: ltr` and two `screenshots` (`icons/screenshot-narrow.png` 780×1688 and `icons/screenshot-wide.png` 1280×800), each with a form_factor and a label.
+  - Chrome on Android and desktop uses these for the richer install sheet.
+  - The images are a fresh, unmixed board: no mix, no recipe.
+  - Browsers fetch them only for the install UI, so normal page loads don't pay for them.
+- Test checks both files exist and that their PNG dimensions match `sizes`. No JS/CSS change, so the version is unchanged.
+
 ## Round 44 (2026-10-18, Grok Bot): UNDO FEEDBACK
 - Undo now has feel, like the other actions: a small falling two-note sound (respects mute) and an 8 ms haptic tick.
   - Only fires when something was actually undone. Version 1.10.12. Test added.

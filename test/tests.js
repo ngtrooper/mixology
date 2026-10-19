@@ -985,5 +985,16 @@ test('a successful undo plays a soft sound and a short tick; an empty undo stays
   assert.ok(f.indexOf('!round.undo.length) return') < f.indexOf('sfx.undo()') && f.includes('buzz(8)'));
   assert.ok(/undo\(\) \{ beep\(/.test(gameSrc), 'sfx.undo missing');
 });
+console.log('— round 45: manifest screenshots —');
+test('manifest lists narrow + wide install screenshots that exist with the declared sizes', () => {
+  const m = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+  assert.strictEqual(m.lang, 'en');
+  const ff = (m.screenshots || []).map(s => s.form_factor).sort(); assert.deepStrictEqual(ff, ['narrow', 'wide']);
+  for (const s of m.screenshots) {
+    const buf = fs.readFileSync(path.join(__dirname, '..', s.src));
+    assert.strictEqual(`${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`, s.sizes, s.src + ' size mismatch');
+    assert.ok(s.label && s.type === 'image/png');
+  }
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
