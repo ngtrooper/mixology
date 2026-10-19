@@ -2,6 +2,15 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 63 (2026-10-18, Grok Bot): KEYBOARD POUR PARITY
+- With the Pour Bucket selected, holding Enter or Space on the focused pot now runs the real pour: the same round-62 ramp, and one undo step for the whole hold. Release or blur stops it.
+  - Before, OS key auto-repeat dosed about 30 separate drops per second, each its own undo step, with no ramp.
+  - A single press still doses one drop.
+  - Screen-reader activation (a synthetic click) still doses once.
+  - The Dropper is unchanged.
+- Playwright: Enter held 2 s gives 75% red, and one Undo returns to the pre-hold pot. Space held 0.5 s pours and stops on release. A Dropper Enter is +1 unit.
+- Tips keyboard line updated. Version 1.11.1. Test added.
+
 ## Round 62 (2026-10-18, Grok Bot): FASTER POUR BUCKET (Franklin request)
 - **Problem:** at a flat 30 drops/s, holding the Pour Bucket on a fresh white pot took 7.6 s to reach 90% of one pigment and 10.0 s to reach 95%. Measured in the browser on the live site before the change.
 - **Change:** a ramp, defined in `engine.js` (`POUR_RATE_START 30`, `POUR_RATE_MAX 90`, ramp from 0.3 s to 1.0 s, with `pourUnitsAt(sec)` and `pourRateAt(sec)`).

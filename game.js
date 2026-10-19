@@ -1173,6 +1173,21 @@ potEl.addEventListener('pointerdown', e => {
 });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev =>
   potEl.addEventListener(ev, stopPour));
+/* Round 63: keyboard parity for the Pour Bucket. Holding Enter or Space on the
+ * pot pours exactly like holding a finger: the same ramp, and one undo step for
+ * the whole hold. Before, key auto-repeat dosed about 30 separate single drops,
+ * each its own undo step. Screen-reader activation (a synthetic click) still
+ * doses once through the click handler below. */
+potEl.addEventListener('keydown', e => {
+  if ((e.key !== 'Enter' && e.key !== ' ') || !round || round.finished || selectedTool !== 'pour') return;
+  e.preventDefault(); // no click: the hold itself doses
+  if (!e.repeat) startPour();
+});
+potEl.addEventListener('keyup', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (pourTimer) { e.preventDefault(); stopPour(); }
+});
+potEl.addEventListener('blur', stopPour);
 potEl.addEventListener('click', e => {
   if (e.detail !== 0 || !round) return; // keyboard only
   if (round.finished) { lockedFeedback(); return; }
@@ -1318,7 +1333,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.11.0',
+  version: '1.11.1',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

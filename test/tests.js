@@ -1093,5 +1093,11 @@ test('pour loop: catch-up capped per tick, stream width scales with rate and res
   const s = gameSrc.slice(gameSrc.indexOf('function stopPour'), gameSrc.indexOf('function stopPour') + 600);
   assert.ok(s.includes("el.style.strokeWidth = ''"), 'stream width not reset');
 });
+console.log('— round 63: keyboard pour parity —');
+test('holding Enter/Space on the pot with the Pour Bucket runs the real pour (ramp, one undo step)', () => {
+  const i = gameSrc.indexOf('/* Round 63: keyboard parity'); const f = gameSrc.slice(i, i + 1400);
+  assert.ok(f.includes("if (!e.repeat) startPour();") && f.includes("selectedTool !== 'pour'") && f.includes("potEl.addEventListener('blur', stopPour);") && f.includes('stopPour(); }'));
+  assert.ok(gameSrc.indexOf('/* Round 63: keyboard parity') < gameSrc.indexOf("potEl.addEventListener('click', e => {"));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
