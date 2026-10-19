@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 40 (2026-10-18, Grok Bot): KEYBOARD SHORTCUTS
+- Desktop shortcuts: `1`–`5` pick red/yellow/blue/black/white (ring order), `D` Dropper, `P` Pour Bucket, `Z` (or Ctrl/Cmd+Z) Undo. `Enter` on the focused pot already adds paint.
+  - There is **no seal key**, so an attempt can't be sealed by accident.
+  - Shortcuts are ignored while any dialog is open, inside form fields, and with Alt.
+- Documented in Tips › The tools with `<kbd>` styling. Version 1.10.8. Playwright-verified. Test added.
+
 ## Round 39 (2026-10-18, Grok Bot): PLAY FROM THE CALENDAR
 - The calendar's unplayed "Today" detail gets a "Play today's color →" button. It closes the overlay (focus returns to 📅), leaves practice if you were in it, and scrolls to the top.
 - Version 1.10.7. Shot `r39-after-cal-today-play`. Test added.

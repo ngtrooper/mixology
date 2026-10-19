@@ -1201,6 +1201,21 @@ $('btn-cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth
 $('btn-cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); slideCal(1); });
 $('btn-tips-close').addEventListener('click', closeTips);
 $('tips-overlay').addEventListener('click', e => { if (e.target === $('tips-overlay')) closeTips(); });
+/* Round 40: desktop keyboard shortcuts. 1–5 pick red/yellow/blue/black/white
+ * (ring order), D = Dropper, P = Pour Bucket, Z or Ctrl/Cmd+Z = Undo. There is
+ * deliberately no seal key, so an attempt is never sealed by accident. Ignored
+ * while a dialog is open, inside form fields, or with Alt / Ctrl+other. */
+document.addEventListener('keydown', e => {
+  if (e.defaultPrevented || e.altKey || document.querySelector('.modal-ov.open')) return;
+  const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (k === 'z' && !e.shiftKey) { if (round && !round.finished) { e.preventDefault(); undo(); } return; }
+  if (mod) return;
+  const pig = { 1: 'r', 2: 'y', 3: 'b', 4: 'k', 5: 'w' }[e.key];
+  if (pig) { const btn = $(BUCKET_EL[pig]); if (btn) btn.click(); return; }
+  if (k === 'd') $('tool-dropper').click();
+  else if (k === 'p') $('tool-pour').click();
+});
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeWelcome(); } });
 /* Round 14: first-visit welcome. Shown once per device, only to someone
  * with no saved days. The flag lives in its own key so the save format
@@ -1266,7 +1281,7 @@ initDaily();
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.10.7',
+  version: '1.10.8',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,

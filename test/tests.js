@@ -950,5 +950,14 @@ test("calendar 'Today' (unplayed) offers Play, which closes the overlay and leav
   const h = gameSrc.slice(i, i + 300);
   assert.ok(h.includes('closeCalendar();') && h.includes("if (round && round.mode === 'practice') exitPractice();"));
 });
+console.log('— round 40: keyboard shortcuts —');
+test('keyboard shortcuts: 1-5 pigments, D/P tools, Z undo; no seal key; ignored in dialogs/fields', () => {
+  const i = gameSrc.indexOf('/* Round 40: desktop keyboard shortcuts'); assert.ok(i > 0);
+  const k = gameSrc.slice(i, gameSrc.indexOf("document.addEventListener('keydown', e => { if (e.key === 'Escape')", i));
+  assert.ok(k.includes("document.querySelector('.modal-ov.open')") && k.includes('INPUT|TEXTAREA|SELECT'), 'shortcuts fire inside dialogs or fields');
+  assert.ok(!/seal\(/.test(k), 'a key can seal an attempt');
+  assert.ok(k.includes("{ 1: 'r', 2: 'y', 3: 'b', 4: 'k', 5: 'w' }"), 'pigment keys changed');
+  assert.ok(htmlSrc.includes('<p class="kbd-tip">'), 'shortcuts undocumented in Tips');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
