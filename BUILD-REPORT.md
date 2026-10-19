@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 38 (2026-10-18, Grok Bot): TIPS ICON CONSISTENCY
+- The Tips prose now uses the same inline SVG icons as the UI for Dropper, Pour Bucket, Undo and the calendar. No 💧/🪣/📅 emoji remain in the page body. This supersedes the r20 note.
+- Version 1.10.6. Shots: `r38-before-tips-emoji` → `r38-after-tips-icons`. Test added.
+
 ## Round 37 (2026-10-18, Grok Bot): ERROR GUARD
 - A tiny inline guard runs before our scripts. If `colors/schedule/engine/game.js` from our own origin throws, a bottom banner says "Something went wrong loading Mixology. [Reload]" instead of leaving a dead page. It shows once; errors from extensions or other origins are ignored.
 - Verified by serving old HTML (no `#btn-card`) with new JS: a dead page before, the banner now (`r37-after-error-banner.png`). A normal load and a third-party error show no banner.

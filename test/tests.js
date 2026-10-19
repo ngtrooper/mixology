@@ -940,5 +940,10 @@ test('error guard: own-script errors offer a reload (once); other origins/extens
   assert.ok(g.includes('f.indexOf(location.origin) !== 0') && g.includes('(colors|schedule|engine|game)'), 'guard not limited to our scripts');
   assert.ok(g.includes('if (shown ||'), 'banner can repeat');
 });
+test('Tips use the same SVG icons as the UI (no 💧/🪣/📅 emoji left in markup)', () => {
+  const body = htmlSrc.slice(htmlSrc.indexOf('<body'));
+  assert.ok(!/💧|🪣|📅/.test(body), 'emoji icon left in the page');
+  assert.ok(/<p><svg class="ti"[^]*?<\/svg><b>Dropper<\/b>/.test(htmlSrc), 'tips dropper icon missing');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
