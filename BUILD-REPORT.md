@@ -4,7 +4,7 @@ Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothin
 
 ## Round 52 (2026-10-18, Grok Bot): A11Y: INCREASE CONTRAST
 - `prefers-contrast: more` (the iOS/macOS "Increase contrast" setting) strengthens two palette variables: secondary text `--muted` and outlines `--line`. Light and dark each have their own values. Palette only, like dark mode.
-  - Light: muted 8.7:1 on paper (was 5.4:1), lines 3.3:1 (non-text AA).
+  - Light: muted 8.7:1 on paper (was 5.3:1), lines 3.3:1 (non-text AA).
   - Dark: muted 10.8:1, lines 3.5:1.
 - CSS only. Shots: `r52-before-contrast-more.png`, `r52-after-contrast-more.png`, composite `r52-compare-contrast-more.png`. Test added.
 
