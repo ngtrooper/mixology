@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 15 (2026-10-18, Grok Bot): FEEL (TIERED FINISH · CONFETTI · STREAK FLAME)
+- The finish sound is tiered: below par plays the old 3-note chime, par (85%+) adds a fourth note, and 95%+ plays a 6-note sparkle run. All respect mute.
+- Haptics scale with the result (phones with `navigator.vibrate`): 12 ms tick, a par double-pulse, and a triple at 95%+.
+- **Confetti at 95%+:** 80 WAAPI particles in the paint colors plus the official color. The layer is `pointer-events: none` and is removed after 2.6 s. It is skipped entirely under `prefers-reduced-motion`.
+- **Streak flame:** 🔥 is wrapped in `.flame` and does a 0.9 s bump-and-glow when a daily finish grows the streak (not under reduced motion).
+- Playwright verified: 97% run gives 80 particles, flame bump, the vibrate pattern, and the layer cleaned up afterward; reduced motion gives 0 particles. Test added.
+
 ## Round 14 (2026-10-18, Grok Bot): FIRST-VISIT WELCOME · MODAL FOCUS
 - **Welcome overlay** for brand-new players only: no saved days and no WIP, so returning players never see it.
   - Three illustrated steps (inline SVG): one name a day; mix from five paints by tapping or holding the pot; two attempts, best counts, 85%+ beats par.

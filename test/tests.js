@@ -784,5 +784,16 @@ test('welcome shows once, only to brand-new players, and its flag stays out of t
   for (const id of ['tips-overlay', 'cal-overlay']) assert.ok(htmlSrc.includes(`id="${id}" class="modal-ov"`), id + ' not on the shared modal helper');
   assert.ok(gameSrc.includes("closeOverlay('tips-overlay')") && gameSrc.includes("openOverlay('cal-overlay')"), 'overlays bypass focus handling');
 });
+console.log('— round 15: feel —');
+test('celebration tiers: confetti only at 95%+ and never under reduced motion; tiered sound/haptics; streak flame', () => {
+  const c = gameSrc.slice(gameSrc.indexOf('function celebrate'), gameSrc.indexOf('function confetti'));
+  assert.ok(/pct >= 95\) \{ buzz\(\[[^\]]+\]\); confetti\(\); \}/.test(c), 'confetti not gated at 95%');
+  assert.ok(c.includes('E.PAR_PCT'), 'no par tier');
+  const cf = gameSrc.slice(gameSrc.indexOf('function confetti'), gameSrc.indexOf('function confetti') + 400);
+  assert.ok(/if \(REDUCED_MOTION \|\| !document\.body\.animate\) return;/.test(cf), 'confetti ignores reduced motion');
+  assert.ok(gameSrc.includes("if (final.pct >= 95) sfx.ace(); else if (final.pct >= E.PAR_PCT) sfx.par(); else sfx.reveal();"));
+  assert.ok(gameSrc.includes('<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}'), 'streak flame not wrapped');
+  assert.ok(/\.confetti \{ position: fixed; inset: 0; pointer-events: none;/.test(htmlSrc), 'confetti can block taps');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

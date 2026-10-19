@@ -137,7 +137,10 @@ const sfx = {
   dose() { beep(220 + Math.random() * 60, 0.05, 'square', 0.025); },
   pour() { beep(110 + Math.random() * 40, 0.12, 'sine', 0.03); }, // soft glug while pouring
   seal() { beep(150, 0.09, 'triangle', 0.06); },
-  reveal() { [523, 659, 784].forEach((f, i) => beep(f, 0.16, 'sine', 0.05, i * 0.09)); }
+  reveal() { [523, 659, 784].forEach((f, i) => beep(f, 0.16, 'sine', 0.05, i * 0.09)); },
+  // round 15: tiered finish. Par adds a fourth note, 95%+ a sparkle run.
+  par() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'sine', 0.05, i * 0.09)); },
+  ace() { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => beep(f, 0.2, i > 3 ? 'triangle' : 'sine', 0.05, i * 0.075)); }
 };
 
 /* ---------------- round state ------------------------------------------ */
@@ -216,7 +219,8 @@ function resetPot() {
 let pourTimer = null;
 const FX_PIGMENT = k => PIGMENT_HEX[k] || '#FFFFFF';
 function rgba(hex, a) { const [r, g, b] = E.hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
-function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* optional */ } }
+function buzz(ms) { // ms: number or vibration pattern
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* optional */ } }
 /* Geometry: points in #stage px. The surface circle comes from layout. */
 function surfaceGeom() {
   const stage = $('stage'), surf = $('pot-surface');
@@ -417,6 +421,7 @@ function finish() {
   stopPour();
   if (!round || round.finished || !round.attempts.length) return;
   round.finished = true;
+  streakAtStart = store.data.streak || 0;
   const final = bestAttempt(round.attempts);
   if (round.mode === 'daily') {
     const s = store.data;
@@ -444,10 +449,47 @@ function finish() {
     store.data.practiceRounds += 1;
     store.persistSoon();
   }
-  sfx.reveal();
+  const streakBefore = round.mode === 'daily' ? streakAtStart : null;
+  if (final.pct >= 95) sfx.ace(); else if (final.pct >= E.PAR_PCT) sfx.par(); else sfx.reveal();
   renderAll();
   maybeShowDuel();
   scrollRevealIntoView();
+  celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
+}
+
+/* Round 15: feel. Confetti at 95%+ (skipped under reduced motion), haptics
+ * scaled to the result, and a flame bump when the daily streak grows. */
+let streakAtStart = 0;
+function celebrate(pct, streakGrew) {
+  if (pct >= 95) { buzz([14, 50, 14, 50, 28]); confetti(); }
+  else if (pct >= E.PAR_PCT) buzz([14, 50, 22]);
+  else buzz(12);
+  if (streakGrew) {
+    const f = document.querySelector('#streak-display .flame');
+    if (f && !REDUCED_MOTION) { f.classList.remove('bump'); void f.offsetWidth; f.classList.add('bump'); }
+  }
+}
+function confetti() {
+  if (REDUCED_MOTION || !document.body.animate) return;
+  const layer = document.createElement('div');
+  layer.className = 'confetti'; layer.setAttribute('aria-hidden', 'true');
+  const cols = [round && round.color.hex, '#D6282E', '#FFCD00', '#1C4096', '#ffffff', '#b3541e'].filter(Boolean);
+  const W = window.innerWidth, H = window.innerHeight;
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('i');
+    const w = 6 + Math.random() * 6, h = w * (0.4 + Math.random() * 0.8);
+    s.style.cssText = `width:${w}px;height:${h}px;background:${cols[i % cols.length]};left:${W / 2}px;top:${H * 0.38}px;border-radius:${Math.random() < 0.3 ? '50%' : '2px'}`;
+    layer.appendChild(s);
+    const ang = Math.random() * Math.PI * 2, v = 120 + Math.random() * 260;
+    const dx = Math.cos(ang) * v, dy = Math.sin(ang) * v - 160;
+    s.animate([
+      { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) rotate(${360 * Math.random()}deg)`, opacity: 1, offset: 0.35 },
+      { transform: `translate(${dx * 1.3}px, ${dy + H * 0.7}px) rotate(${720 * Math.random()}deg)`, opacity: 0 }
+    ], { duration: 1500 + Math.random() * 900, easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' });
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 2600);
 }
 /* Round 8: on phones the reveal sits below the fold — bring it up. */
 function scrollRevealIntoView() {
@@ -641,8 +683,8 @@ function renderAll() {
     ? [dayTag(round.day) ? `MIXOLOGY ${dayTag(round.day)}` : 'MIXOLOGY', dateForDay(round.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })].join(' · ')
     : 'Practice mode';
   const st = liveStreaks();
-  $('streak-display').textContent = st.streak > 0
-    ? `🔥 Streak ${st.streak}` + (st.parStreak > 0 ? ` · Par streak ${st.parStreak} (${E.PAR_PCT}%+)` : '')
+  $('streak-display').innerHTML = st.streak > 0
+    ? `<span class="flame" aria-hidden="true">🔥</span> Streak ${Number(st.streak)}` + (st.parStreak > 0 ? ` · Par streak ${Number(st.parStreak)} (${E.PAR_PCT}%+)` : '')
     : '';
   const stale = daily && round.day !== DAY;
   if (stale && !round.finished) $('prompt-sub').textContent = "A new day's color is out — finish this one, then play today's.";

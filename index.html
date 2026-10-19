@@ -45,6 +45,11 @@
   header > div:first-child { min-width: 0; }
   #day-label { color: var(--muted); font-size: 12.5px; margin: 2px 0 0; white-space: nowrap; }
   #streak-display { font-size: 13px; color: var(--muted); margin-top: 2px; min-height: 16px; }
+  #streak-display .flame { display: inline-block; transform-origin: 50% 85%; }
+  #streak-display .flame.bump { animation: flame-bump .9s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes flame-bump { 0% { transform: scale(1); filter: none; } 35% { transform: scale(1.7) rotate(-8deg); filter: drop-shadow(0 0 6px #ff9a3c); } 70% { transform: scale(.92) rotate(4deg); } 100% { transform: scale(1); filter: none; } }
+  .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 80; overflow: hidden; }
+  .confetti i { position: absolute; display: block; }
   #duel-card {
     display: none; background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 10px 12px; margin: 12px 0 0; font-size: 14px;
