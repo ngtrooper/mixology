@@ -2,6 +2,23 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Rounds 88–89 (2026-10-19, Grok Bot): THE GAME MOVED TO https://mixologydaily.com (Franklin approved)
+
+- **Bridge:** created the public repo `ngtrooper/mixology-move`, with Pages from main and `/`. It holds `index.html`, `ping.txt` and `transfer.js`. `https://ngtrooper.github.io/mixology-move/ping.txt` returns 200 with CORS `*`.
+- **v1.28.0 (`67ddb01`):** `BRIDGE_URL` points at the live bridge.
+- **Custom domain:**
+  - DNS checked at 1.1.1.1 and 8.8.8.8: A ×4, AAAA ×4, `www` CNAME to ngtrooper.github.io, MX fwd1/fwd2.porkbun.com and SPF.
+  - Set `mixologydaily.com` on ngtrooper/mixology Pages through the API. GitHub committed `CNAME` (`e7b81df`).
+  - The certificate (mixologydaily.com and www) was approved in under a minute, and **Enforce HTTPS** is on.
+- **v1.29.0 (`ed5d2ae`):** `DOMAIN_LIVE: true`, so share/duel links use https://mixologydaily.com/. og:image and twitter:image are on the domain. The first Pages build hung in "building" and a re-requested build deployed it.
+- **Live checks (Chromium and WebKit):**
+  - `https://ngtrooper.github.io/mixology/?d=5&p=90#keepme` 301s to `https://mixologydaily.com/?d=5&p=90#keepme`. The query and hash survive.
+  - `www` 301s to the apex.
+  - **Bridge end to end:** an old save seeded on ngtrooper.github.io goes domain → bridge → `#import=…` → merged (2 days, streak 2). The hash is stripped, "Your progress moved over ✓" shows, and a reload stays put.
+  - A browser with no save bounces exactly once (`#import-none`), and never on the second visit.
+  - 0 GoatCounter hits from the checks.
+- **Known gap:** a no-save first visit loses any *unrelated* `#hash` on the way through the bridge (the query is kept). The game uses no other hashes.
+
 ## Round 87 (2026-10-19, Grok Bot): IMAGE-ONLY SHARING + THE ROUND FITS AN iPHONE (Franklin / tester)
 
 - **Sharing:**

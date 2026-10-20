@@ -157,7 +157,7 @@ Consequences that are **invariants**, not implementation details:
 - Switch order and DNS: `/workspace/research/mixology_domain_switch.md`. GoatCounter keeps code `ngtrooper`. After the switch, page views are `/` instead of `/mixology/`.
 
 ## Roadmap (design notes, not built)
-1. **Domain move to mixologydaily.com.** The transfer code shipped in r86 with its flags off. Run the steps in `/workspace/research/mixology_domain_switch.md` (bridge repo, DNS, custom domain, Enforce HTTPS, `DOMAIN_LIVE`, GoatCounter domain, support@ forwarding, then a support link in Tips).
+1. ~~**Domain move to mixologydaily.com.**~~ **Done in rounds 88–89 (v1.29.0):** the game is served at https://mixologydaily.com/ with the bridge `ngtrooper/mixology-move`. Remaining manual steps: verify the domain on the GitHub account, set the GoatCounter domain, and confirm support@ forwarding. The transfer code shipped in r86 with its flags off. Run the steps in `/workspace/research/mixology_domain_switch.md` (bridge repo, DNS, custom domain, Enforce HTTPS, `DOMAIN_LIVE`, GoatCounter domain, support@ forwarding, then a support link in Tips).
 2. **Optional accounts (after the move).** Supabase free tier with magic link, Google and Apple. The full save syncs with exactly the `MixTransfer.merge` rules. The offer is soft (after a share, at streak milestones, a Stats row) and never at first launch, and guest play always works. Plan, setup, privacy, consent, costs and effort: `/workspace/research/mixology_accounts_plan.md`.
 
 ## Privacy and analytics (round 78)
