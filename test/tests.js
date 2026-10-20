@@ -2152,9 +2152,9 @@ console.log('— round 86: save transfer to mixologydaily.com —');
     assert.ok(htmlSrc.includes('<link rel="canonical" href="https://mixologydaily.com/">') && htmlSrc.includes('<meta property="og:url" content="https://mixologydaily.com/">'));
     assert.ok(gameSrc.includes('window.MixTransfer.shareBase(location)'), 'duel link not built from the one base');
   });
-  test('r86: switch-week behaviour ships OFF; the bridge only ever returns to mixologydaily.com', () => {
+  test('r86/r88: push redirect stays OFF, the bridge is set; the bridge only ever returns to mixologydaily.com', () => {
     assert.strictEqual(T.CONFIG.CANONICAL_ORIGIN, 'https://mixologydaily.com/');
-    assert.strictEqual(T.CONFIG.DOMAIN_LIVE, false); assert.strictEqual(T.CONFIG.MIGRATE_TO_DOMAIN, false); assert.strictEqual(T.CONFIG.BRIDGE_URL, '');
+    assert.strictEqual(T.CONFIG.DOMAIN_LIVE, false); assert.strictEqual(T.CONFIG.MIGRATE_TO_DOMAIN, false); assert.strictEqual(T.CONFIG.BRIDGE_URL, 'https://ngtrooper.github.io/mixology-move/'); // round 88: bridge deployed
     assert.strictEqual(T.showMoveButton({ hostname: 'ngtrooper.github.io' }, oldStore()), false);
     for (const h of ['#return=%2F%2Fevil.com%2F', '#return=https%3A%2F%2Fevil.com', '#return=/x%0Ay', '#nope'])
       assert.ok(T.bridgeReturnLink(h, oldStore()).startsWith('https://mixologydaily.com/#import='), h);
@@ -2168,7 +2168,9 @@ console.log('— round 86: save transfer to mixologydaily.com —');
     const origFetch = global.fetch; global.fetch = () => { calls.push('fetch'); return Promise.resolve({ ok: true }); };
     try {
       T.maybeMigrate(L({ hostname: 'ngtrooper.github.io', protocol: 'https:' }), oldStore());
-      T.maybePullFromBridge(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), mem());
+      T.maybePullFromBridge(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), oldStore()); // has a save: never asks the bridge
+      T.maybePullFromBridge(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), mem({ 'mixology.bridge.checked.v1': '1' })); // asked once already
+      T.maybePullFromBridge(L({ hostname: 'ngtrooper.github.io', protocol: 'https:' }), mem()); // not the domain
       T.maybeUpgrade(L({ hostname: 'ngtrooper.github.io', protocol: 'https:' }), oldStore());
       T.maybeUpgrade(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), oldStore());
     } finally { global.fetch = origFetch; }

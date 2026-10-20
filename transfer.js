@@ -26,7 +26,7 @@
     MIGRATE_TO_DOMAIN: false,
     // pull bridge: a page on another ngtrooper.github.io path (same origin as
     // the old game, so it can still read the old save after GitHub's 301)
-    BRIDGE_URL: '', // e.g. 'https://ngtrooper.github.io/mixology-move/'
+    BRIDGE_URL: 'https://ngtrooper.github.io/mixology-move/', // round 88: live (repo ngtrooper/mixology-move)
   };
   const SAVE_KEY = 'misnomer.save.v1', COLLECTION_KEY = 'mixology.collection.v1';
   const KEYS = [SAVE_KEY, COLLECTION_KEY, 'mixology.welcomed.v1', 'mixology.poured.v1',
