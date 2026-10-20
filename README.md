@@ -126,6 +126,10 @@ Consequences that are **invariants**, not implementation details:
   - The "−" badge also shows at 100%, because taking out the last paint empties the pot.
   - Recipes, schedule and past scores are unchanged. Every pool recipe is exactly reachable from the empty pot (tested for all 853).
   - An in-progress save whose pot is exactly the old untouched 100% white loads as empty. Any other saved pot loads as it is.
+- **Practice counts for nothing** (round 84, Franklin). A practice round never writes the save: no day, streak or stats, no Collection discovery or best %, no star, no recipe unlock, no analytics event. `collectRound` runs only for dailies, and the old `practiceRounds` counter is no longer bumped.
+  - Its end screen shows its own score and "Your mix", but no star. The official recipe row appears only if the player has finished that color as a daily (`E.officialRecipeVisible`, the round 73 spoiler rule). Otherwise it shows "The official recipe unlocks once you finish this color as a daily." (hidden on an exact match).
+  - The label "Practice — doesn't count toward stars, recipes or collection" sits on the practice bar and at the end of the reveal.
+  - Saves from before round 84 may hold Collection entries made or raised by practice. `MISNOMER.practiceAudit()` (`E.auditCollectionSources`) lists them read-only; nothing is removed.
 - **Family-friendly names** (round 66): gross or bodily names are BANNED (dropped) or RETIRED in `tools/build-bank.js`. Retired names stay in colors.js (`retired: true`) only so frozen past days and old saves resolve. Never schedule them or offer them in practice.
 - **The daily schedule is frozen data** (`schedule.js`, round 8). Never
   derive a day's color from the pool size again; past days, duel links

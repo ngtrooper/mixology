@@ -2,6 +2,21 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 84 (2026-10-19, Grok Bot): PRACTICE UNLOCKS NOTHING (Franklin)
+
+- **Audit (before):** modes are only `daily` and `practice`. Duel links only compare with a saved day, and past days can't be replayed (the calendar plays today only).
+  - Practice **did** add Collection discoveries and raise best %/stars: `collectRound` ran in `finish()` for every mode, with discovery toasts.
+  - It showed a **star** on the reveal.
+  - It showed the **official recipe** at its end, even for colors never finished as a daily (a spoiler leak).
+  - It bumped the persistent `practiceRounds` counter.
+  - Already daily-only: days, streaks, stats, calendar stars, the WIP, the Collection backfill, recipe unlocks in Collection/Calendar (`officialRecipeVisible` reads finished dailies only), and every analytics event except `open`/`share`/`duel-open`/return pings.
+- **Change:**
+  - `collectRound` and its toasts run only for dailies. The `practiceRounds` bump is gone, so practice never writes the save.
+  - The practice reveal has no star. It shows its score and "Your mix", plus the official recipe only if that color was finished as a daily, otherwise a lock note.
+  - The practice bar and the end note read "Practice — doesn't count toward stars, recipes or collection".
+- **Existing saves:** practice attempts were never saved, so a Collection entry whose best hex is not a saved daily attempt can only have come from practice. `E.auditCollectionSources` / `MISNOMER.practiceAudit()` sorts every entry as `daily`, `raised` (a daily discovers it, but the best %/star came from practice; it reports the daily-only %) or `practice` (no daily discovers it). It is read-only; nothing was deleted.
+- **Tests:** 9 new: collect gate, no save writes, no star, recipe rule, unlock only via dailies, label, analytics gate, calendar, audit. 1 updated. 223 pass.
+
 ## Round 83 (2026-10-19, Grok Bot): THE POT STARTS EMPTY + DIFFICULTY ANALYTICS (Franklin)
 
 - **Finding (how the pot used to start):** `FRESH_COMP` was `{w: 100}`. That was real white paint, not just the canvas color.

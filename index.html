@@ -475,6 +475,7 @@
   #col-detail:not(:empty) { margin: 6px 0 4px; padding: 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
   #col-detail:focus { outline: none; } #col-detail:focus-visible { outline: 2px solid var(--ink); }
   .col-lock { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+  .practice-note { font-size: 12.5px; font-weight: 600; color: var(--accent); margin: 8px 0 0; text-align: center; } /* round 84 */
   #col-toast { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; z-index: 60;
     display: flex; align-items: center; gap: 10px; width: max-content; max-width: calc(100vw - 32px); padding: 10px 16px 10px 10px; border-radius: 999px;
     background: var(--ink); color: var(--paper); border: none; font: 600 14px/1.25 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 6px 20px rgba(0,0,0,.28); cursor: pointer;
@@ -690,7 +691,7 @@
     <div id="prompt-kicker">Today's color is called</div>
     <div id="color-name">…</div>
     <p id="prompt-sub">How well do you know your colors?</p>
-    <div id="practice-bar"><span>Practice round — doesn't count</span></div>
+    <div id="practice-bar"><span>Practice — doesn't count toward stars, recipes or collection</span></div>
     <div id="done-banner" hidden>
       <p class="db-head" id="db-head">✓ You've played today's color</p>
       <p class="db-next" id="db-next"></p>
@@ -897,10 +898,10 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.23.0"></script>
-<script src="schedule.js?v=1.23.0"></script>
-<script src="engine.js?v=1.23.0"></script>
-<script src="analytics.js?v=1.23.0"></script>
-<script src="game.js?v=1.23.0"></script>
+<script src="colors.js?v=1.24.0"></script>
+<script src="schedule.js?v=1.24.0"></script>
+<script src="engine.js?v=1.24.0"></script>
+<script src="analytics.js?v=1.24.0"></script>
+<script src="game.js?v=1.24.0"></script>
 </body>
 </html>

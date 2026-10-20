@@ -760,6 +760,39 @@ function backfillCollection(col, days, collectible, labs) {
   out.backfilled = true;
   return out;
 }
+/** Round 84: where did each collected color come from? Before round 84
+ *  practice rounds were collected too, but practice attempts are never saved,
+ *  so an entry is checked against the saved DAILY attempts:
+ *   - 'daily'     its best mix IS a saved daily attempt (same hex);
+ *   - 'raised'    a daily discovers it, but its best % (and star) came from
+ *                 elsewhere, i.e. practice; dailyPct is what the dailies earn;
+ *   - 'practice'  no saved daily attempt discovers it at all.
+ *  Read-only (returns a report). twinsOf(name) lists names sharing its recipe
+ *  color; thexOf(name) its target hex. */
+function auditCollectionSources(col, days, collectible, labs, twinsOf, thexOf) {
+  const found = (col && col.found) || {}, hexes = new Set();
+  let dailyCol = { v: 1, found: {}, backfilled: true };
+  for (const d of Object.keys(days || {})) {
+    const rec = days[d];
+    for (const att of (rec && rec.attempts) || []) {
+      if (!att || !att.hex) continue;
+      hexes.add(String(att.hex).toUpperCase());
+      if (!att.comp) continue;
+      const f = att.exact && rec.name ? { name: rec.name, hex: att.hex, deltaE: 0 } : discoverColor(att.hex, collectible, labs, null, rec.name);
+      if (!f) continue;
+      for (const n of [f.name, ...((twinsOf && twinsOf(f.name)) || []).filter(x => x !== f.name)]) dailyCol = recordDiscovery(dailyCol, { ...f, name: n }, att, rec.date || null).col;
+    }
+  }
+  const out = { daily: [], raised: [], practice: [] };
+  for (const [name, e] of Object.entries(found)) {
+    const bestHex = e && e.best && e.best.hex ? String(e.best.hex).toUpperCase() : '';
+    const pct = collectedBestPct(e, thexOf && thexOf(name));
+    if (bestHex && hexes.has(bestHex)) out.daily.push(name);
+    else if (dailyCol.found[name]) out.raised.push({ name, pct, dailyPct: collectedBestPct(dailyCol.found[name], thexOf && thexOf(name)) });
+    else out.practice.push({ name, pct });
+  }
+  return out;
+}
 /** Spoiler rule (round 73, Franklin): the official recipe of a collected color
  *  is shown only if the player has FINISHED a daily of that color (any record
  *  in their own save's `days`, written only by finish()). That is a reveal
@@ -891,7 +924,7 @@ const MisnomerEngine = {
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, nextDayStart, formatCountdown, comeBackLine, dateKey, pickDailyIndex, nearestColorName,
-  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, auditCollectionSources, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

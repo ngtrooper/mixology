@@ -730,7 +730,7 @@ test('subtitle is "How well do you know your colors?" everywhere; old line gone'
   assert.ok(htmlSrc.includes('name="description"') && htmlSrc.includes('og:description'), 'no meta/og description');
 });
 test('recipe bars: rendered only in the finished reveal / played-day detail, never in share text or duel links', () => {
-  assert.ok(gameSrc.includes("$('reveal-recipes').innerHTML = recipesHTML(round.color, fin);"), 'reveal does not show recipe vs mix');
+  assert.ok(gameSrc.includes("$('reveal-recipes').innerHTML = practice ? practiceRecipesHTML(round.color, fin) : recipesHTML(round.color, fin);"), 'reveal does not show recipe vs mix');
   const reveal = gameSrc.slice(gameSrc.indexOf('  if (round.finished) {\n    const fin = scored;'), gameSrc.indexOf("    $('reveal').style.display = 'none';"));
   assert.ok(reveal.includes('recipesHTML'), 'recipe bars not inside the finished branch');
   assert.ok(gameSrc.includes("$('reveal-recipes').innerHTML = '';"), 'recipe bars not cleared on a live round');
@@ -1877,5 +1877,85 @@ console.log('— round 83: the pot starts EMPTY; difficulty analytics —');
     assert.strictEqual(SCHED83[657], 'dark forest green');
   });
 }
+
+console.log('— round 84: practice counts for nothing persistent —');
+{
+  const fin = gameSrc.slice(gameSrc.indexOf('function finish('), gameSrc.indexOf('function finish(') + 6000);
+  test('r84: practice never adds Collection discoveries or best % (collectRound only for dailies)', () => {
+    const calls = gameSrc.split('collectRound(').length - 1;
+    assert.ok(fin.includes("if (round.mode === 'daily') queueDiscoveryToasts(collectRound(round.attempts, round.color.name));"), 'collectRound not gated to dailies');
+    // only the definition + the one gated call
+    assert.strictEqual(calls, 2, 'unexpected collectRound call sites: ' + calls);
+  });
+  test('r84: practice writes nothing to the save (no practiceRounds bump, no days/streak)', () => {
+    assert.ok(!/practiceRounds\s*\+=/.test(gameSrc) && !/practiceRounds\+\+/.test(gameSrc), 'practiceRounds still bumped');
+    const daily = fin.slice(fin.indexOf("if (round.mode === 'daily')"));
+    assert.ok(/s\.days\[/.test(fin) || /days\[/.test(fin), 'days write not found');
+    // every store.data/s.* write in finish sits in the daily branch
+    const head = fin.slice(0, fin.indexOf("if (round.mode === 'daily')"));
+    assert.ok(!/store\.data\.\w+\s*[+\-]?=/.test(head), 'save written before the daily gate');
+    assert.ok(daily.length > 0);
+  });
+  test('r84: no star on the practice reveal; dailies keep theirs', () => {
+    assert.ok(gameSrc.includes("const practice = round.mode !== 'daily';"));
+    assert.ok(gameSrc.includes('const rStar = practice ? null : E.starTier(fin.pct);'), 'reveal star not gated');
+  });
+  test('r84: practice reveal shows your mix, hides the official recipe unless finished as a daily', () => {
+    const f = gameSrc.slice(gameSrc.indexOf('function practiceRecipesHTML'), gameSrc.indexOf('function recipesHTML'));
+    assert.ok(f.includes('E.officialRecipeVisible(color.name, store.data.days)'), 'spoiler rule not applied');
+    assert.ok(/open && color\.recipe \? recipeRowHTML\('Recipe'/.test(f), 'official row not gated on the rule');
+    assert.ok(f.includes("recipeRowHTML('Your mix'"), 'your mix row missing');
+    assert.ok(f.includes('unlocks once you finish this color as a daily'), 'no lock note');
+  });
+  test('r84: official recipe visibility comes only from finished dailies', () => {
+    const name = bank[0].name;
+    // days holds only finished dailies (written by finish(), daily branch only)
+    assert.strictEqual(E.officialRecipeVisible(name, { 5: { name: bank[1].name, attempts: [] } }), false);
+    assert.strictEqual(E.officialRecipeVisible(name, { 5: { name, attempts: [] } }), true);
+    assert.strictEqual(E.officialRecipeVisible(name, {}), false, 'unlock without a daily');
+  });
+  test("r84: practice is labelled \"Practice — doesn't count toward stars, recipes or collection\"", () => {
+    assert.ok(htmlSrc.includes("<span>Practice — doesn't count toward stars, recipes or collection</span>"), 'practice bar label');
+    assert.ok(gameSrc.includes(`const PRACTICE_NOTE = "Practice — doesn't count toward stars, recipes or collection";`), 'end-screen note');
+    assert.ok(htmlSrc.includes('.practice-note'), 'note style');
+  });
+  test('r84: no analytics events from practice (every track call is daily-gated)', () => {
+    const lines = gameSrc.split('\n');
+    const tracks = lines.map((l, i) => [l, i]).filter(([l]) => /\b(trackScore|trackFinish|trackMix|trackStart|MA\.track\w*)\(/.test(l) && !/^\s*(function|\/\/|\*)/.test(l));
+    for (const [l, i] of tracks) {
+      const ctx = lines.slice(Math.max(0, i - 12), i + 1).join('\n');
+      if (/'(open|share|duel-open)'|trackOpen|trackShare|trackDuel|return-day|streak-|played-days/.test(l)) continue;
+      assert.ok(/round\.mode === 'daily'|mode === 'daily'|isDaily/.test(ctx), 'ungated track call at line ' + (i + 1) + ': ' + l.trim());
+    }
+  });
+  test('r84: calendar stars and stats come only from daily days, never practice', () => {
+    assert.ok(!/practice/i.test(gameSrc.slice(gameSrc.indexOf('function openCalendar'), gameSrc.indexOf('function closeCalendar'))), 'calendar reads practice');
+  });
+  test('r84: audit of existing saves classifies daily / raised-by-practice / practice-only (read-only)', () => {
+    const coll = E.collectibleColors(bank).map(c => ({ ...c, thex: E.recipeHex(c.recipe) }));
+    const labs = coll.map(c => E.hexToLab(c.thex));
+    const target = coll[10];
+    const exactAtt = { hex: target.thex, comp: target.recipe, pct: 100, de: 0, exact: true };
+    const days = { 3: { name: target.name, date: '2026-01-01', finished: true, attempts: [{ ...exactAtt, pct: 90, exact: false, hex: '#010203' }] } };
+    // a daily attempt with exact flag -> discovers target
+    days[3].attempts[0].exact = true;
+    const other = coll[200];
+    const col = { v: 1, found: {
+      [target.name]: { date: '2026-01-01', best: { comp: target.recipe, hex: '#010203', pct: 90, de: 5 } },
+      [other.name]: { date: '2026-02-02', best: { comp: other.recipe, hex: other.thex, pct: 100, de: 0 } },
+    } };
+    const snap = JSON.stringify(col);
+    const r = E.auditCollectionSources(col, days, coll, labs, () => [], n => (coll.find(c => c.name === n) || {}).thex);
+    assert.deepStrictEqual(r.daily, [target.name]);
+    assert.deepStrictEqual(r.practice.map(x => x.name), [other.name]);
+    assert.strictEqual(JSON.stringify(col), snap, 'audit mutated the collection');
+    // raised: daily discovers it, but the best hex is not a daily hex
+    col.found[target.name].best.hex = '#ABCDEF';
+    const r2 = E.auditCollectionSources(col, days, coll, labs, () => [], n => (coll.find(c => c.name === n) || {}).thex);
+    assert.deepStrictEqual(r2.raised.map(x => x.name), [target.name]);
+    assert.ok(gameSrc.includes('practiceAudit,'), 'MISNOMER.practiceAudit not exposed');
+  });
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

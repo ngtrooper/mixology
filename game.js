@@ -512,10 +512,10 @@ function finish() {
     }
     s.wip = null;
     store.persistSoon();
-  } else {
-    store.data.practiceRounds += 1;
-    store.persistSoon();
   }
+  // Round 84 (Franklin): practice counts for NOTHING persistent: no save write
+  // (the old practiceRounds counter is no longer bumped), no Collection
+  // discovery or best %, no star, no recipe unlock, no stats or analytics.
   const streakBefore = round.mode === 'daily' ? streakAtStart : null;
   announce(`Round complete. Your best attempt scored ${final.pct}%, ${E.bandForDeltaE(final.de)}.`);
   if (final.pct >= 95) sfx.ace(); else if (final.pct >= E.PAR_PCT) sfx.par(); else sfx.reveal();
@@ -524,7 +524,7 @@ function finish() {
   scrollRevealIntoView();
   revealEntrance(final.pct);
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
-  queueDiscoveryToasts(collectRound(round.attempts, round.color.name)); // round 69: announced only now, at the reveal
+  if (round.mode === 'daily') queueDiscoveryToasts(collectRound(round.attempts, round.color.name)); // round 69: announced only now, at the reveal; round 84: dailies only
   if (round.mode === 'daily') trackFinish(round.day, final.pct); // round 78
   if (round.mode === 'daily') { trackScore('final', round.day, final.pct); trackMix(round.day, final.comp, round.color.recipe); } // round 83
 }
@@ -919,7 +919,8 @@ function renderAll() {
     $('reveal').style.display = 'block';
     $('reveal-official').style.background = round.color.thex;
     $('reveal-mine').style.background = fin.hex;
-    const rStar = E.starTier(fin.pct); // round 74: star on your mix at the reveal
+    const practice = round.mode !== 'daily';
+    const rStar = practice ? null : E.starTier(fin.pct); // round 74: star on your mix at the reveal; round 84: never in practice
     $('reveal-mine').innerHTML = starBadge(rStar, 'big');
     $('reveal-mine').setAttribute('aria-label', rStar ? 'Your mix earned a ' + rStar.label : '');
     if (rStar) $('reveal-mine').setAttribute('role', 'img'); else $('reveal-mine').removeAttribute('role');
@@ -928,7 +929,7 @@ function renderAll() {
     $('reveal-de').textContent = fin.exact || (fin.pct === 100 && fin.de === 0)
       ? `you matched the official ${titleCase(round.color.name)} recipe exactly`
       : `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
-    $('reveal-recipes').innerHTML = recipesHTML(round.color, fin);
+    $('reveal-recipes').innerHTML = practice ? practiceRecipesHTML(round.color, fin) : recipesHTML(round.color, fin);
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
     $('card-row').style.display = round.mode === 'daily' ? 'block' : 'none';
@@ -964,6 +965,17 @@ function recipeRowHTML(label, sub, comp) {
   const dp = E.displayPercents(c); // round 77: whole numbers, exactly as the discs show them
   const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${k.toUpperCase()} ${dp[k]}</span>`).join('');
   return `<div class="rrow"><div class="rl">${label}${sub ? `<b>${sub}</b>` : ''}</div><div class="rbar" role="img" aria-label="${label}: ${keys.map(k => PIG_NAMES[k] + ' ' + Math.round(c[k]) + '%').join(', ')}">${bar}</div><div class="rleg">${leg}</div></div>`;
+}
+/* Round 84: the end of a practice round. Your mix always; the official recipe
+ * only if you have finished this color as a daily (round 73 spoiler rule). */
+const PRACTICE_NOTE = "Practice — doesn't count toward stars, recipes or collection";
+function practiceRecipesHTML(color, att) {
+  if (!color) return '';
+  const open = E.officialRecipeVisible(color.name, store.data.days);
+  return (open && color.recipe ? recipeRowHTML('Recipe', '100%', color.recipe) : '') +
+    (att && att.comp ? recipeRowHTML('Your mix', `${att.pct}%`, att.comp) : '') +
+    (open || (att && att.exact) ? '' : '<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>') +
+    `<p class="practice-note">${PRACTICE_NOTE}.</p>`;
 }
 function recipesHTML(color, att) {
   if (!color || !color.recipe) return '';
@@ -1296,6 +1308,14 @@ function collectRound(attempts, targetName) {
   }
   collection.persist();
   return fresh;
+}
+/* Round 84: read-only audit of collection entries that practice may have made
+ * or raised (before round 84 practice rounds were collected too). Nothing is
+ * changed; see E.auditCollectionSources. */
+function practiceAudit() {
+  return E.auditCollectionSources(collection.data, store.data.days, COLLECTIBLE, COLLECTIBLE_LABS, n => {
+    const c = BANK_BY_NAME.get(n); return c ? (TWINS.get(c.thex) || []) : [];
+  }, n => (BANK_BY_NAME.get(n) || {}).thex);
 }
 /* Names that must not show while a round is open: today's daily color until
  * today is finished, and the open round's own color. A collected one of these
@@ -1674,10 +1694,10 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.23.0',
+  version: '1.24.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
-  checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS,
+  checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS, practiceAudit,
   state() {
     return JSON.parse(JSON.stringify({
       mode: round.mode, finished: round.finished, colorName: round.color.name,
