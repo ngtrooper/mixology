@@ -21,7 +21,7 @@
     OLD_HOST: 'ngtrooper.github.io',
     // true once mixologydaily.com serves the game over HTTPS: share/duel links,
     // the share card and the "Move my progress" button switch to the domain
-    DOMAIN_LIVE: false,
+    DOMAIN_LIVE: true, // round 89: mixologydaily.com is live (custom domain set 2026-10-19)
     // switch week: send github.io visitors to the domain (with their save)
     MIGRATE_TO_DOMAIN: false,
     // pull bridge: a page on another ngtrooper.github.io path (same origin as

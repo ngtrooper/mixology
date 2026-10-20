@@ -752,7 +752,7 @@ test('icons, manifest and og:image exist, are linked, and are real PNGs of the r
   const m = JSON.parse(fs.readFileSync(path.join(R, 'manifest.webmanifest'), 'utf8'));
   assert.strictEqual(m.start_url, './'); assert.ok(m.icons.some(i => i.purpose === 'maskable'));
   for (const i of m.icons) assert.ok(fs.existsSync(path.join(R, i.src)), i.src);
-  for (const s of ['rel="manifest"', 'rel="apple-touch-icon"', 'icons/icon.svg', 'og:image" content="https://ngtrooper.github.io/mixology/icons/og-image.png', 'summary_large_image', 'name="theme-color"'])
+  for (const s of ['rel="manifest"', 'rel="apple-touch-icon"', 'icons/icon.svg', 'og:image" content="https://mixologydaily.com/icons/og-image.png', 'summary_large_image', 'name="theme-color"'])
     assert.ok(htmlSrc.includes(s), 'missing ' + s);
 });
 console.log('— round 12: spoiler-free sharing —');
@@ -2140,7 +2140,7 @@ console.log('— round 86: save transfer to mixologydaily.com —');
   test('r86: path-agnostic: works at the domain root and under /mixology/', () => {
     for (const p of ['https://mixologydaily.com/', 'https://ngtrooper.github.io/mixology/'])
       assert.strictEqual(T.pageBase({ href: p + '?d=1#x' }), p);
-    assert.strictEqual(T.shareBase({ href: 'https://ngtrooper.github.io/mixology/?d=1' }), 'https://ngtrooper.github.io/mixology/', 'share links must stay on the current origin until DOMAIN_LIVE');
+    assert.strictEqual(T.shareBase({ href: 'https://ngtrooper.github.io/mixology/?d=1' }), 'https://mixologydaily.com/', 'share links go to the domain once DOMAIN_LIVE (round 89)');
     // no asset or link in the page/manifest is rooted at /mixology/ or at "/"
     for (const m of htmlSrc.matchAll(/(?:src|href)="([^"]+)"/g)) {
       const u = m[1]; if (/^https?:|^#|^mailto:/.test(u)) continue;
@@ -2154,8 +2154,8 @@ console.log('— round 86: save transfer to mixologydaily.com —');
   });
   test('r86/r88: push redirect stays OFF, the bridge is set; the bridge only ever returns to mixologydaily.com', () => {
     assert.strictEqual(T.CONFIG.CANONICAL_ORIGIN, 'https://mixologydaily.com/');
-    assert.strictEqual(T.CONFIG.DOMAIN_LIVE, false); assert.strictEqual(T.CONFIG.MIGRATE_TO_DOMAIN, false); assert.strictEqual(T.CONFIG.BRIDGE_URL, 'https://ngtrooper.github.io/mixology-move/'); // round 88: bridge deployed
-    assert.strictEqual(T.showMoveButton({ hostname: 'ngtrooper.github.io' }, oldStore()), false);
+    assert.strictEqual(T.CONFIG.DOMAIN_LIVE, true); // round 89: the domain is live assert.strictEqual(T.CONFIG.MIGRATE_TO_DOMAIN, false); assert.strictEqual(T.CONFIG.BRIDGE_URL, 'https://ngtrooper.github.io/mixology-move/'); // round 88: bridge deployed
+    assert.strictEqual(T.showMoveButton({ hostname: 'mixologydaily.com' }, oldStore()), false, 'move button on the new home'); assert.strictEqual(T.showMoveButton({ hostname: 'ngtrooper.github.io' }, mem()), false, 'move button without a save');
     for (const h of ['#return=%2F%2Fevil.com%2F', '#return=https%3A%2F%2Fevil.com', '#return=/x%0Ay', '#nope'])
       assert.ok(T.bridgeReturnLink(h, oldStore()).startsWith('https://mixologydaily.com/#import='), h);
     assert.ok(T.bridgeReturnLink('#return=%2F%3Fd%3D5', oldStore()).startsWith('https://mixologydaily.com/?d=5#import='));
