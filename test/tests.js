@@ -355,7 +355,7 @@ test('feedback (round 77, Franklin override of the r3 no-hint lock): one hint af
   assert.ok(gameSrc.includes("+ (round.attempts.length === 1 ? hintHTML(last) : '')"), 'hint not tied to attempt 1');
   const lr = gameSrc.slice(gameSrc.indexOf("$('last-result').innerHTML = round.finished"), gameSrc.indexOf("const sealBtn = $('btn-seal');"));
   assert.ok(/round\.finished\s*\?\s*''/.test(lr), 'hint must disappear once the round is finished');
-  for (const fn of ['function shareText(', 'function duelUrlFor(', 'function drawShareCard(']) {
+  for (const fn of ['function shareLine(', 'function duelUrlFor(', 'function drawShareCard(']) {
     const i = gameSrc.indexOf(fn), body = gameSrc.slice(i, gameSrc.indexOf('\n}\n', i));
     assert.ok(!/hint/i.test(body), fn + ' mentions the hint');
   }
@@ -372,7 +372,7 @@ test('display rename to Mixology; internal identifiers untouched', () => {
   assert.ok(htmlSrc.includes('<title>Mixology'), 'page title not renamed');
   assert.ok(htmlSrc.includes('MIXOLOGY<span'), 'header wordmark not renamed');
   // Round 10: the number is now the public dayTag ("MIXOLOGY #1"), not the internal day.
-  assert.ok(gameSrc.includes('`🎨 MIXOLOGY ${dayTag(day)'), 'share/day label not renamed');
+  assert.ok(gameSrc.includes('`🎨 MIXOLOGY ${dayTag(day)'), 'share/day label not renamed'); // round 87: shareLine (last-resort line)
   assert.ok(gameSrc.includes("const SAVE_KEY = 'misnomer.save.v1'"), 'save key changed — data continuity broken');
   assert.ok(gameSrc.includes('window.MISNOMER = {'), 'debug handle renamed');
 });
@@ -734,7 +734,7 @@ test('recipe bars: rendered only in the finished reveal / played-day detail, nev
   const reveal = gameSrc.slice(gameSrc.indexOf('  if (round.finished) {\n    const fin = scored;'), gameSrc.indexOf("    $('reveal').style.display = 'none';"));
   assert.ok(reveal.includes('recipesHTML'), 'recipe bars not inside the finished branch');
   assert.ok(gameSrc.includes("$('reveal-recipes').innerHTML = '';"), 'recipe bars not cleared on a live round');
-  const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('async function doShare'));
+  const share = gameSrc.slice(gameSrc.indexOf('function shareLine'), gameSrc.indexOf('async function doShare'));
   const duel = gameSrc.slice(gameSrc.indexOf('function duelUrlFor'), gameSrc.indexOf('function parseDuel'));
   assert.ok(!/recipe/i.test(share) && !/recipe/i.test(duel), 'recipe leaks into share text / duel link');
   assert.ok(gameSrc.includes('recipesHTML(official, scoredAttempt(rec))'), 'calendar detail has no recipe bars');
@@ -757,8 +757,8 @@ test('icons, manifest and og:image exist, are linked, and are real PNGs of the r
 });
 console.log('— round 12: spoiler-free sharing —');
 test('share text + PNG card never contain the color name (hook line instead), mix color or recipe', () => {
-  const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('async function doShare'));
-  assert.ok(share.includes('`🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — How well do you know your colors?`'), 'share headline is not the hook');
+  const share = gameSrc.slice(gameSrc.indexOf('function shareLine'), gameSrc.indexOf('async function doShare'));
+  assert.ok(share.includes('`🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — ${rec.pct}%`'), 'last-resort share line changed'); // round 87: image-only sharing
   assert.ok(!/\.name\b/.test(share), 'share text references the color name');
   const card = gameSrc.slice(gameSrc.indexOf('function drawShareCard'), gameSrc.indexOf('function roundRect'));
   assert.ok(card.length > 500, 'share card renderer missing');
@@ -772,7 +772,7 @@ test('share text + PNG card never contain the color name (hook line instead), mi
   const tb0 = md.indexOf('} else if (incomingDuel.day >= DAY)'); assert.ok(tb0 > 0, 'no today branch');
   const todayBranch = md.slice(tb0, md.indexOf('} else {', tb0 + 5));
   assert.ok(!/theirColor|\.name/.test(todayBranch), "today's duel card spoils");
-  assert.ok(htmlSrc.includes('id="btn-card"') && gameSrc.includes('navigator.canShare({ files: [file] })'), 'no PNG card / file share');
+  assert.ok(htmlSrc.includes('id="btn-card"') && gameSrc.includes('navigator.canShare({ files: [file] })') && gameSrc.includes('navigator.share({ files: [file] })'), 'no PNG card / file share');
 });
 console.log('— round 13: dark mode —');
 test('dark mode follows the system: palette vars overridden at the end of the stylesheet, paint stays true', () => {
@@ -877,7 +877,7 @@ test('standalone install: safe-area padding, manifest id/orientation; Tips expla
   const m = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
   assert.strictEqual(m.id, './'); assert.strictEqual(m.display, 'standalone');
   const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-overlay"'), htmlSrc.indexOf('</div>\n</div>', htmlSrc.indexOf('<div id="tips-overlay"')));
-  assert.ok(tips.includes('without naming the color') && tips.includes('opens your calendar') && tips.includes('<b>Stats</b>') && tips.includes('<b>Collection</b>'), 'tips do not cover sharing/stats/collection');
+  assert.ok(tips.includes("never the color's name") && tips.includes('opens your calendar') && tips.includes('<b>Stats</b>') && tips.includes('<b>Collection</b>'), 'tips do not cover sharing/stats/collection');
 });
 console.log('— round 25: reveal action icons —');
 test('temporary button labels restore the original markup (icons survive "Copied ✓")', () => {
@@ -1492,7 +1492,7 @@ console.log('— star badges (round 74) —');
     assert.ok(/\.star \{ position: absolute; top: -4px; right: -4px;/.test(hSrc), 'star sits in the corner, not over the % ');
   });
   test('share text never mentions a star or the color (unchanged)', () => {
-    const fn = gSrc.slice(gSrc.indexOf('function shareText('), gSrc.indexOf('function flashLabel('));
+    const fn = gSrc.slice(gSrc.indexOf('function shareLine('), gSrc.indexOf('function flashLabel('));
     assert.ok(!/star/i.test(fn.replace(/Streak|streak/g, '')));
     assert.ok(!/rec\.name|color\.name/.test(fn));
   });
@@ -1787,7 +1787,7 @@ test('placement: countdown right after the result; returning finished players ge
   assert.ok(gameSrc.includes('banner.hidden = !show;') && gameSrc.includes("$('btn-db-practice').addEventListener('click', startPractice);"));
   const w = htmlSrc.slice(htmlSrc.indexOf('<div id="welcome-panel">'), htmlSrc.indexOf('id="btn-welcome-go"'));
   assert.ok(w.includes('<b>One new color every day.</b>') && w.includes('How well do you know your colors?'));
-  const share = gameSrc.slice(gameSrc.indexOf('function shareText'), gameSrc.indexOf('function shareText') + 1500);
+  const share = gameSrc.slice(gameSrc.indexOf('function shareLine'), gameSrc.indexOf('function shareLine') + 1500);
   assert.ok(!/Next color|come back|formatCountdown/.test(share), 'share text changed');
 });
 
@@ -2150,7 +2150,7 @@ console.log('— round 86: save transfer to mixologydaily.com —');
     assert.strictEqual(man.start_url, './'); assert.strictEqual(man.scope, './'); assert.strictEqual(man.id, './');
     for (const i of man.icons.concat(man.screenshots)) assert.ok(!i.src.startsWith('/'), i.src);
     assert.ok(htmlSrc.includes('<link rel="canonical" href="https://mixologydaily.com/">') && htmlSrc.includes('<meta property="og:url" content="https://mixologydaily.com/">'));
-    assert.ok(gameSrc.includes('window.MixTransfer.shareBase(location)') && gameSrc.includes('window.MixTransfer.shareHost(location)'), 'duel link / card not built from the one base');
+    assert.ok(gameSrc.includes('window.MixTransfer.shareBase(location)'), 'duel link not built from the one base');
   });
   test('r86: switch-week behaviour ships OFF; the bridge only ever returns to mixologydaily.com', () => {
     assert.strictEqual(T.CONFIG.CANONICAL_ORIGIN, 'https://mixologydaily.com/');
@@ -2173,6 +2173,56 @@ console.log('— round 86: save transfer to mixologydaily.com —');
       T.maybeUpgrade(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), oldStore());
     } finally { global.fetch = origFetch; }
     assert.deepStrictEqual(calls, []);
+  });
+}
+
+
+console.log('— round 87: image-only sharing; the round fits an iPhone screen —');
+{
+  const between = (a, b) => gameSrc.slice(gameSrc.indexOf(a), gameSrc.indexOf(b, gameSrc.indexOf(a)));
+  test('r87: Share result shares ONLY the PNG card (files, no text, no url)', () => {
+    const f = between('async function shareImage', '\n}\n');
+    assert.ok(f.includes('navigator.share({ files: [file] })'), 'not a files-only share');
+    assert.ok(!/navigator\.share\(\{[^}]*(text|url|title)\s*:/.test(f), 'share sheet gets text/url');
+    const h = between("$('btn-share').addEventListener", "$('btn-card').addEventListener");
+    assert.ok(h.includes("track('share');") && h.includes('shareImage(btn, day)') && !h.includes('doShare'), 'Share button still shares text');
+  });
+  test('r87: fallbacks: copy image, then download, and only then one short line', () => {
+    const f = between('async function shareImage', '\n}\n');
+    const iCopy = f.indexOf("new ClipboardItem({ 'image/png': file })"), iDl = f.indexOf('downloadFile(file)'), iLine = f.indexOf('shareLine(day)');
+    assert.ok(iCopy > 0 && iDl > iCopy && iLine > iDl, 'fallback order wrong');
+    const line = between('function shareLine(', '\n}\n');
+    assert.ok(!/duelUrlFor|https?:|location|\.name\b|\\n/.test(line), 'last-resort line carries a link, a name or more than one line');
+  });
+  test('r87: the card is prepared at the reveal (share opens within the tap) and redrawn when the record changes', () => {
+    assert.ok(gameSrc.includes("if (round.mode === 'daily') prepareShareCard(round.day);"));
+    const p = between('function prepareShareCard', '\n}\n');
+    assert.ok(p.includes('rec.pct') && p.includes('store.data.streak'), 'cache key misses score/streak');
+  });
+  test('r87: duel sharing unchanged (challenge line + link)', () => {
+    assert.ok(gameSrc.includes("doShare(ev.currentTarget, url, 'Link copied ✓', line);"));
+    assert.ok(between('async function doShare', '\n}\n').includes('navigator.share({ text: nativeText, url: text })'));
+  });
+  test('r87: share card carries a small mixologydaily.com wordmark, still no name/color/recipe', () => {
+    const card = between('function drawShareCard', 'function roundRect');
+    assert.ok(card.includes("const wm = 'mixologydaily.com'"), 'no wordmark');
+    assert.ok(!/ngtrooper|shareHost/.test(card), 'old host still on the card');
+    assert.ok(card.includes('dayTag(day)') && card.includes('rec.pct') && card.includes('Streak'), 'puzzle # / score / streak missing');
+  });
+  test("r87: phones fit the round down to Submit: dvh + safe-area, stage scaled as one piece, discs >= 44px, desktop untouched", () => {
+    const css = htmlSrc.slice(htmlSrc.indexOf('<style>'), htmlSrc.indexOf('</style>'));
+    const i = css.indexOf('/* Round 87 (iPhone tester)'), m = css.slice(i, css.indexOf('@media (max-width: 600px) and (max-height: 700px)', i));
+    assert.ok(i > 0 && m.includes('@media (max-width: 600px) {'), 'no phone block');
+    assert.ok(m.includes('100dvh - var(--fit-chrome, 0px) - env(safe-area-inset-bottom)') && m.includes('100vh - var(--fit-chrome'), 'stage not sized from dvh with a vh fallback');
+    assert.ok(/#stage \{[^}]*container-type: inline-size;[^}]*width: clamp\(250px/.test(m), 'stage is not width-scaled (aspect kept)');
+    assert.ok(!/#stage \{[^}]*(height|aspect-ratio):/.test(m), 'stage squashed (height/aspect changed)');
+    const disc = /\.pigment \{ width: clamp\((\d+)px, [\d.]+cqw, 64px\); height: clamp\((\d+)px/.exec(m);
+    assert.ok(disc && +disc[1] >= 44 && +disc[2] >= 44, 'discs can shrink below 44px');
+    assert.ok(m.includes('#app.playing #actions { position: sticky; bottom: 0;'), 'Submit not sticky while playing');
+    assert.ok(css.includes('#stage { position: relative; width: 100%; aspect-ratio: 1 / 0.88; margin: 14px 0 0; }'), 'desktop stage rule changed');
+    assert.ok(gameSrc.includes("$('app').classList.toggle('playing', !round.finished);") && gameSrc.includes("window.matchMedia('(max-width: 600px)')"), 'fitStage wiring');
+    const short = css.slice(css.indexOf('@media (max-width: 600px) and (max-height: 700px)'));
+    assert.ok(short.includes('#toolbar.collapsed #toolbar-body { display: block; }'), 'hidden toolbar head could strand a collapsed toolbar');
   });
 }
 

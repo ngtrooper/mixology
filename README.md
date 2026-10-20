@@ -131,6 +131,14 @@ Consequences that are **invariants**, not implementation details:
   - The label "Practice — doesn't count toward stars, recipes or collection" sits on the practice bar and at the end of the reveal.
   - Saves from before round 84 may hold Collection entries made or raised by practice. `MISNOMER.practiceAudit()` (`E.auditCollectionSources`) lists them read-only; nothing is removed.
   - Round 85 (Franklin, option A): the Collection shows a **view** (`E.collectionView`, `collectionView()` in game.js). Practice-only entries are not shown and not counted. Entries raised by practice show their daily-only best % and star. A "practice" entry whose color is a finished daily's color (same name or same target color) counts as daily, because it may be a find from before round 77. The stored `mixology.collection.v1` is never pruned, so the change is reversible. The grid, the count and the detail all read the view, and a daily that re-finds a hidden color toasts it as new.
+- **Sharing is image-only** (round 87, Franklin). Share result sends only the PNG card, with `navigator.share({ files })`: no text and no URL. Fallbacks in order: copy the image to the clipboard, download it, and only if no image can be made, copy one short line (`shareLine`: number and %, no name, no link). The card is drawn at the reveal so the share sheet opens within the tap. It carries a small "● mixologydaily.com" wordmark, plus the number, score, tries and streak, and never the name, the color or a recipe. Duel links are unchanged (challenge line plus link). The `share` event is kept.
+- **A phone round fits one screen** (round 87, iPhone tester), for `max-width: 600px` only, so desktop is untouched.
+  - The spacing is tighter.
+  - The stage (pot and ring, scaled as one piece with the aspect ratio kept) is `clamp(250px, (100dvh − --fit-chrome − safe-area) / .88, 100%)` wide. `fitStage()` measures --fit-chrome once per round and on resize.
+  - Paint discs scale with the stage but never go under 48px.
+  - Below 700px tall the hook sub-line and the toolbar header are hidden (the tools stay open).
+  - Submit is sticky at the bottom while playing.
+  - Checked at 375×667, 320×568, 390×844 and 430×932.
 - **Family-friendly names** (round 66): gross or bodily names are BANNED (dropped) or RETIRED in `tools/build-bank.js`. Retired names stay in colors.js (`retired: true`) only so frozen past days and old saves resolve. Never schedule them or offer them in practice.
 - **The daily schedule is frozen data** (`schedule.js`, round 8). Never
   derive a day's color from the pool size again; past days, duel links

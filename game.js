@@ -672,21 +672,14 @@ function escapeHtml(s) {
 }
 
 /* ---------------- share ------------------------------------------------- */
-function shareText(day) {
+/* Round 87 (Franklin): sharing is IMAGE ONLY. The Share button sends just the
+ * PNG result card: no text, no link. This single short line (never the color's
+ * name, no URL) is the last resort when no image can be made at all. */
+function shareLine(day) {
   day = day || (round && round.mode === 'daily' ? round.day : DAY);
   const rec = store.data.days[day];
   if (!rec) return '';
-  const final = scoredAttempt(rec);
-  const s = store.data;
-  const lines = [
-    // Franklin: never put the color's name in shared text, only the hook.
-    `🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — How well do you know your colors?`,
-    'My mix: ██████',
-    `${rec.pct}% accuracy — ${rec.band} · Tries: ${rec.attempts.map(a => a.pct + '%').join(' · ')}`,
-    `🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? ` · Par streak ${s.parStreak}` : ''),
-    duelUrlFor(final, day)
-  ];
-  return lines.join('\n');
+  return `🎨 MIXOLOGY ${dayTag(day) || shortDate(day)} — ${rec.pct}%`;
 }
 /* Round 25: buttons carry SVG icons, so a temporary "Copied ✓" label must
  * restore the button's markup, not just its text. Guarded against double taps. */
@@ -696,22 +689,52 @@ function flashLabel(btn, label) {
   clearTimeout(btn._flashT);
   btn._flashT = setTimeout(() => { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }, 1600);
 }
-async function doShare(btn, text, okLabel, file, nativeText) {
+/* Duel links (unchanged): a native sheet gets the challenge line + the link;
+ * otherwise the link is copied. */
+async function doShare(btn, text, okLabel, nativeText) {
   const done = () => flashLabel(btn, okLabel);
   if (navigator.share && nativeText) {
     try { await navigator.share({ text: nativeText, url: text }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
-  if (navigator.share && !nativeText) {
-    // Round 12: attach the PNG card when the platform can share files.
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], text }); return; }
-      catch (e) { if (e && e.name === 'AbortError') return; }
-    }
-    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
-  }
   try { await navigator.clipboard.writeText(text); done(); }
   catch (e) { window.prompt('Copy your result:', text); }
+}
+/* Round 87: Share result = the PNG card ONLY (files, no text, no url).
+ * Fallbacks, in order: copy the image to the clipboard, download it, and only
+ * if no image can be made, copy shareLine(). The card is drawn ahead of time
+ * at the reveal so the share sheet opens inside the tap's user activation. */
+let cardCache = { key: '', p: null, file: null };
+function prepareShareCard(day) {
+  const rec = store.data.days[day]; if (!rec) return null;
+  const key = [day, rec.pct, (rec.attempts || []).length, store.data.streak, store.data.parStreak].join(':');
+  if (cardCache.key !== key) {
+    const c = { key, p: null, file: null };
+    c.p = shareCardFile(day).then(f => (c.file = f));
+    cardCache = c;
+  }
+  return cardCache.p;
+}
+function downloadFile(f) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function shareImage(btn, day) {
+  if (!store.data.days[day]) return;
+  const p = prepareShareCard(day);
+  const file = cardCache.file || (p ? await p : null);
+  if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  if (file && navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': file })]); flashLabel(btn, 'Image copied ✓'); return; }
+    catch (e) { /* next fallback */ }
+  }
+  if (file) { downloadFile(file); flashLabel(btn, 'Image saved ✓'); return; }
+  const line = shareLine(day);
+  try { await navigator.clipboard.writeText(line); flashLabel(btn, 'Copied ✓'); }
+  catch (e) { window.prompt('Copy your result:', line); }
 }
 
 /* Round 12: a 1080x1080 PNG result card, drawn on a canvas.
@@ -758,8 +781,13 @@ function drawShareCard(day) {
   const s = store.data;
   x.fillStyle = '#1c1a17'; x.font = `600 38px ${sans}`;
   x.fillText(`🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? `  ·  Par streak ${s.parStreak}` : ''), S / 2, 940);
-  x.fillStyle = '#7a7264'; x.font = `500 30px ${sans}`;
-  x.fillText(window.MixTransfer ? window.MixTransfer.shareHost(location) : 'ngtrooper.github.io/mixology', S / 2, 990); // round 86
+  // round 87 (Franklin): a small wordmark; the image is shared on its own, with no link
+  x.font = `600 30px ${sans}`;
+  if ('letterSpacing' in x) x.letterSpacing = '1px';
+  const wm = 'mixologydaily.com', wmw = x.measureText(wm).width;
+  x.fillStyle = '#b3541e'; x.beginPath(); x.arc(S / 2 - wmw / 2 - 18, 980, 7, 0, 7); x.fill();
+  x.fillStyle = '#7a7264'; x.fillText(wm, S / 2 + 6, 990);
+  if ('letterSpacing' in x) x.letterSpacing = '0px';
   return c;
 }
 function roundRect(x, l, t, w, h, r) {
@@ -776,8 +804,7 @@ function shareCardFile(day) {
 async function saveShareCard(btn) {
   const day = round && round.mode === 'daily' ? round.day : DAY;
   const f = await shareCardFile(day); if (!f) return;
-  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  downloadFile(f);
   flashLabel(btn, 'Saved ✓');
 }
 
@@ -934,12 +961,38 @@ function renderAll() {
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
     $('card-row').style.display = round.mode === 'daily' ? 'block' : 'none';
+    if (round.mode === 'daily') prepareShareCard(round.day); // round 87: ready before the Share tap
   } else {
     $('reveal').style.display = 'none';
     $('reveal-recipes').innerHTML = '';
   }
   renderNextCountdown(); // round 82: reveal countdown + the top "done for today" banner
+  $('app').classList.toggle('playing', !round.finished); // round 87: sticky Submit only while playing
+  fitStage();
 }
+
+/* Round 87 (iPhone tester): on a phone the whole round, down to "Submit
+ * attempt", fits the screen. CSS sizes the stage (pot + paint ring, scaled as
+ * one piece, never squashed) from 100dvh minus everything else on the page;
+ * this measures "everything else" (--fit-chrome) once per round and on
+ * resize, so a banner, a practice line or a long name are all accounted for.
+ * Phones only (max-width 600px); desktop is untouched. */
+const FIT_MQ = window.matchMedia ? window.matchMedia('(max-width: 600px)') : null;
+let fitRound = null;
+function fitStage(force) {
+  try {
+    const app = $('app'), st = $('stage');
+    if (!force && fitRound === round) return;
+    fitRound = round;
+    if (!FIT_MQ || !FIT_MQ.matches || round.finished) { if (!round.finished) app.style.removeProperty('--fit-chrome'); return; }
+    const hint = $('seal-hint'), end = hint && !hint.hidden ? hint : $('actions');
+    const endBottom = end.getBoundingClientRect().bottom + window.scrollY;
+    const chrome = endBottom - st.getBoundingClientRect().height + 8; // 8px breathing room under the last line
+    app.style.setProperty('--fit-chrome', Math.round(chrome) + 'px');
+  } catch (e) { /* layout nicety only */ }
+}
+let fitT = null;
+window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(() => fitStage(true), 120); });
 
 /* The attempt this round is scored on (saved day record wins for daily). */
 function finalOfRound() {
@@ -1661,8 +1714,7 @@ $('btn-seal').addEventListener('click', () => seal());
 $('btn-share').addEventListener('click', async ev => {
   const btn = ev.currentTarget, day = round && round.mode === 'daily' ? round.day : DAY;
   track('share'); // round 78
-  const file = navigator.canShare ? await shareCardFile(day) : null;
-  doShare(btn, shareText(), 'Copied ✓', file);
+  shareImage(btn, day); // round 87: image only
 });
 $('btn-card').addEventListener('click', ev => saveShareCard(ev.currentTarget));
 $('btn-duel').addEventListener('click', ev => {
@@ -1673,7 +1725,7 @@ $('btn-duel').addEventListener('click', ev => {
   // Round 36: a native share sheet gets a one-line challenge (never the color's name).
   // The clipboard fallback still copies just the link, as the button says.
   const line = `Beat my ${rec.pct}% on Mixology ${dayTag(day) || shortDate(day)}?`;
-  doShare(ev.currentTarget, url, 'Link copied ✓', null, line);
+  doShare(ev.currentTarget, url, 'Link copied ✓', line);
 });
 $('btn-today').addEventListener('click', () => { initDaily(); window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' }); });
 $('btn-next-practice').addEventListener('click', startPractice);
@@ -1727,7 +1779,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.26.0',
+  version: '1.27.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS, practiceAudit,
@@ -1749,6 +1801,6 @@ window.MISNOMER = {
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,
   newPractice: startPractice,
-  shareText, maybeWelcome, WELCOME_KEY, untilNextColor, titleCase,
+  shareLine, shareImage, maybeWelcome, WELCOME_KEY, untilNextColor, titleCase,
   engine: E, bank: BANK, pool: POOL
 };

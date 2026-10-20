@@ -2,6 +2,30 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 87 (2026-10-19, Grok Bot): IMAGE-ONLY SHARING + THE ROUND FITS AN iPHONE (Franklin / tester)
+
+- **Sharing:**
+  - Share result now calls `navigator.share({ files: [card] })` only.
+  - Fallbacks: copy the image ("Image copied ✓"), then download it ("Image saved ✓"), then as a last resort copy the single line `🎨 MIXOLOGY #N — P%`.
+  - `shareText` (the text plus duel link) is gone.
+  - The card is pre-drawn at the reveal and cached by score and streak, so iOS keeps the tap's user activation.
+  - The card's footer is now a small accent dot plus "mixologydaily.com", shown even before the domain is live (approved).
+  - Duel links are unchanged and the `share` event is kept. The Tips copy is updated.
+- **Fit (phones, ≤600px wide):**
+  - Tighter header, prompt, toolbar, slots and actions.
+  - The stage width comes from `100dvh` minus the measured rest of the page and the bottom safe area. It is clamped 250px..100% and scaled as one piece, so it never squashes.
+  - Discs are `clamp(48px, 18.5cqw, 64px)`.
+  - Below 700px tall the sub-line and toolbar header are hidden (the tools stay open even if collapsed before).
+  - Submit is sticky at the bottom while a round is open.
+- **Measured (Submit fully visible with no scroll):**
+  - 375×667: Submit ends at y=642, pot 118px, discs 48px.
+  - 390×844: Submit ends at 784, pot 168, discs 64.
+  - 430×932: Submit ends at 819, pot 187.
+  - 320×568: Submit is visible.
+  - After attempt 1 (with the hint), Submit stays visible at every size (sticky).
+  - Desktop 1280×800 is identical to before (pot 196, Submit at y=865).
+- **Tests:** 6 new (files-only share, fallback order and the line, pre-drawn card, duel unchanged, wordmark, fit CSS/JS). 7 updated for the share rename. 246 pass.
+
 ## Round 86 (2026-10-19, Grok Bot): SAVE TRANSFER FOR mixologydaily.com (Franklin), flags OFF
 
 - **Path-agnostic:** the assets and manifest were already relative (`./`), and it is now tested that nothing is rooted at `/`. The canonical and og:url now point at `https://mixologydaily.com/`. The duel link base and the share-card host come from one place (`MixTransfer.shareBase/shareHost`): this page until `DOMAIN_LIVE`, then `CANONICAL_ORIGIN`. Verified running at `/mixology/` and at a root `/`.
