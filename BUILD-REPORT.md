@@ -2,6 +2,11 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 90 (2026-10-20, Grok Bot): CONTACT SUPPORT LINK
+
+- Tips now has a "Contact support" link, `mailto:support@mixologydaily.com?subject=Mixology%20support`, right under "Replay the intro". Porkbun forwards that address to Franklin's Gmail.
+- Tests: 1 new. 247 pass.
+
 ## Rounds 88–89 (2026-10-19, Grok Bot): THE GAME MOVED TO https://mixologydaily.com (Franklin approved)
 
 - **Bridge:** created the public repo `ngtrooper/mixology-move`, with Pages from main and `/`. It holds `index.html`, `ping.txt` and `transfer.js`. `https://ngtrooper.github.io/mixology-move/ping.txt` returns 200 with CORS `*`.

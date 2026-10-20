@@ -2228,5 +2228,15 @@ console.log('— round 87: image-only sharing; the round fits an iPhone screen �
   });
 }
 
+
+console.log('— round 90: support contact —');
+test('r90: Tips has a "Contact support" mailto link right under "Replay the intro"', () => {
+  const i = htmlSrc.indexOf('id="btn-replay-intro"'), j = htmlSrc.indexOf('id="support-link"');
+  assert.ok(i > 0 && j > i && j - i < 300, 'support link missing or not under Replay the intro');
+  assert.ok(htmlSrc.includes('<a id="support-link" href="mailto:support@mixologydaily.com?subject=Mixology%20support">Contact support</a>'));
+  const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-panel"'), htmlSrc.indexOf('id="privacy-note"'));
+  assert.ok(tips.includes('support-link'), 'link is not inside Tips');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
