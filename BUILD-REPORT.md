@@ -2,6 +2,18 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 86 (2026-10-19, Grok Bot): SAVE TRANSFER FOR mixologydaily.com (Franklin), flags OFF
+
+- **Path-agnostic:** the assets and manifest were already relative (`./`), and it is now tested that nothing is rooted at `/`. The canonical and og:url now point at `https://mixologydaily.com/`. The duel link base and the share-card host come from one place (`MixTransfer.shareBase/shareHost`): this page until `DOMAIN_LIVE`, then `CANONICAL_ORIGIN`. Verified running at `/mixology/` and at a root `/`.
+- **Import (`transfer.js`, runs before analytics.js and game.js):** reads `#import=<payload>`, a self-contained synchronous LZW plus base64url codec (400 days come to about 10 KB). It validates the payload (strict schema, allowlisted keys, size caps), merges it safely, strips the hash and shows the toast "Your progress moved over ✓". Importing is idempotent, since the comparison is on data, not key order.
+- **Export:** `MixTransfer.buildLink()`. The Tips "Move my progress" button appears only when `DOMAIN_LIVE` is on, on github.io, with a save.
+- **Switch-week flags, all false:**
+  - `MIGRATE_TO_DOMAIN`: a github.io visitor is sent to the domain, with the save if any, once the domain answers.
+  - An http→https hop on the domain, carrying any save, covers the time before Enforce HTTPS.
+  - `BRIDGE_URL`: a one-time pull from a same-origin bridge page, `tools/transfer-bridge/`, to deploy as `ngtrooper/mixology-move`.
+- **Finding:** the URL fragment survives GitHub's 301 (Chromium and WebKit tested on mermaid-js.github.io). Every ngtrooper.github.io project shares one localStorage, so a bridge in another repo can still read the old save after the custom domain is set. The recommended order is in `/workspace/research/mixology_domain_switch.md`.
+- **Tests:** 12 new (codec, round-trip, hash stripping, bad payloads, merge days/streak/WIP/collection/flags, idempotence, root vs /mixology/, flags off and bridge origin lock, no-op migrations). 2 updated (script order, canonical). 240 pass.
+
 ## Round 85 (2026-10-19, Grok Bot): COLLECTION IGNORES OLD PRACTICE FINDS (Franklin, option A)
 
 - **Change:** the Collection grid, the "N / 853 discovered" count and the color detail now read a computed view (`E.collectionView`), never the raw store.

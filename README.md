@@ -137,6 +137,17 @@ Consequences that are **invariants**, not implementation details:
   and today's color must not move when the bank or pool changes. Change
   future days only with `node tools/build-schedule.js`.
 
+## Moving to mixologydaily.com (round 86)
+- The app is path-agnostic: every asset and manifest URL is relative, so it runs at `/mixology/` and at a domain root `/`. The canonical and og:url are `https://mixologydaily.com/`. og:image stays on github.io until the switch, because GitHub's 301 will carry it over.
+- `transfer.js` loads **before** analytics.js and game.js. It reads `#import=m1.<len>.<data>` (UTF-8 JSON of every Mixology key, LZW, base64url), validates it, **merges** it, strips the hash (`history.replaceState`), and game.js shows "Your progress moved over ✓".
+  - **Merge rules:** days are unioned, with the best % per day kept (a tie keeps local). lastDay is the max. streak/parStreak follow the latest side and are re-derived from the merged days, so a run split across origins joins. A WIP is kept unless its day is finished. The Collection is unioned with the best mix and the earliest date kept. Onboarding flags are unioned, an analytics opt-out always carries over, and today's sent-flags are unioned (no double count).
+  - Bad links are rejected and change nothing. Importing twice is a no-op.
+- **Flags (`MixTransfer.CONFIG`), all off:**
+  - `DOMAIN_LIVE`: share/duel links, the card text and the Tips "Move my progress" button switch to the domain.
+  - `MIGRATE_TO_DOMAIN`: github.io redirects to the domain with the save, once the domain answers.
+  - `BRIDGE_URL`: on the domain, a browser with no save pulls once from a bridge page on the old origin (`tools/transfer-bridge/`).
+- Switch order and DNS: `/workspace/research/mixology_domain_switch.md`. GoatCounter keeps code `ngtrooper`. After the switch, page views are `/` instead of `/mixology/`.
+
 ## Privacy and analytics (round 78)
 Mixology sets no cookies and has no accounts. Saves live only in this browser's localStorage.
 

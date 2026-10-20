@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Mixology transfer bridge (round 86). Deploy as its own GitHub Pages repo,
+     e.g. ngtrooper/mixology-move -> https://ngtrooper.github.io/mixology-move/,
+     together with a copy of ../../transfer.js and ping.txt. It runs on the SAME
+     origin as the old game (https://ngtrooper.github.io), so it can still read
+     the old save after GitHub 301s /mixology/* to mixologydaily.com. It only
+     ever sends the save to https://mixologydaily.com (fixed in transfer.js). -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Moving your Mixology progress…</title>
+<style>body{font:16px system-ui,sans-serif;background:#f6f1e7;color:#1c1a17;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center}a{color:#b5531d}</style>
+</head><body><p id="msg">Moving your Mixology progress…</p>
+<script>window.MIX_TRANSFER_NO_AUTO = true;</script>
+<script src="transfer.js"></script>
+<script>
+(function () {
+  var T = window.MixTransfer, msg = document.getElementById('msg');
+  if (!/^#return=/.test(location.hash)) { msg.innerHTML = 'Mixology now lives at <a href="https://mixologydaily.com/">mixologydaily.com</a>.'; return; }
+  try { location.replace(T.bridgeReturnLink(location.hash, localStorage)); }
+  catch (e) { location.replace('https://mixologydaily.com/#import-none'); }
+})();
+</script></body></html>

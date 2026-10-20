@@ -917,7 +917,7 @@ test('script tags are cache-busted with the game version (no new-JS/old-HTML mis
   const v = (gameSrc.match(/version: '([\d.]+)'/) || [])[1];
   assert.ok(v, 'no version');
   const tags = [...htmlSrc.matchAll(/<script src="([a-z]+)\.js(\?v=[\d.]+)?"><\/script>/g)];
-  assert.deepStrictEqual(tags.map(m => m[1]), ['colors', 'schedule', 'engine', 'analytics', 'game']); // round 78: analytics.js
+  assert.deepStrictEqual(tags.map(m => m[1]), ['colors', 'schedule', 'engine', 'transfer', 'analytics', 'game']); // round 78: analytics.js; round 86: transfer.js (before analytics + game)
   for (const m of tags) assert.strictEqual(m[2], '?v=' + v, `${m[1]}.js not stamped with ?v=${v} (bump both together)`);
 });
 console.log('— round 33: headline title case —');
@@ -1043,7 +1043,7 @@ test('prefers-contrast: more strengthens --muted/--line for light and dark, afte
 });
 console.log('— round 53: link-preview metadata —');
 test('head has canonical, og:site_name, og:image:type and twitter:image:alt (no color names)', () => {
-  for (const s of ['<link rel="canonical" href="https://ngtrooper.github.io/mixology/">', '<meta property="og:site_name" content="Mixology">', '<meta property="og:image:type" content="image/png">', '<meta name="twitter:image:alt" content="Mixology: Daily Color Mix — How well do you know your colors?">'])
+  for (const s of ['<link rel="canonical" href="https://mixologydaily.com/">', '<meta property="og:site_name" content="Mixology">', '<meta property="og:image:type" content="image/png">', '<meta name="twitter:image:alt" content="Mixology: Daily Color Mix — How well do you know your colors?">'])
     assert.ok(htmlSrc.includes(s), s);
 });
 console.log('— round 54: noscript —');
@@ -2030,6 +2030,149 @@ console.log('— round 85: Collection hides practice-only entries, shows daily-o
     const v = E.collectionView(col, days, coll, labs, () => [], thexOf);
     assert.deepStrictEqual(v.raised, []);
     assert.strictEqual(v.found[T.name].best.pct, 100);
+  });
+}
+
+
+console.log('— round 86: save transfer to mixologydaily.com —');
+{
+  const T = require('../transfer.js');
+  const mem = (o = {}) => { const m = Object.assign({}, o); return { m, getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
+  const day = (name, pct, date) => ({ date: date || '2026-10-01', name, attempts: [{ comp: { r: 50, y: 50, b: 0, k: 0, w: 0 }, hex: '#AA5500', pct, de: 3 }], pct, de: 3, band: 'x', hex: '#AA5500', scoring: 'best' });
+  const saveOf = (days, extra) => JSON.stringify(Object.assign({ v: 2, streak: 0, parStreak: 0, lastDay: null, days, wip: null, muted: false, practiceRounds: 0 }, extra));
+  const colOf = found => JSON.stringify({ v: 1, found, backfilled: true });
+  const oldStore = () => mem({
+    'misnomer.save.v1': saveOf({ 700: day('plum', 90), 701: day('lavender', 70), 702: day('cinnamon', 99) }, { streak: 3, parStreak: 1, lastDay: 702 }),
+    'mixology.collection.v1': colOf({ plum: { date: '2026-09-01', best: { comp: {}, hex: '#111111', pct: 98, de: 2 } } }),
+    'mixology.welcomed.v1': '1', 'mixology.poured.v1': '1', 'mixology.noanalytics.v1': '1',
+    'mixology.analytics.sent.v1': JSON.stringify({ day: '2026-10-19', sent: ['open', 'start-#9'] }), 'unrelated.key': 'x' });
+  const loc = (hash, path = '/', search = '') => ({ hash, pathname: path, search, href: 'https://mixologydaily.com' + path + search + hash, hostname: 'mixologydaily.com', protocol: 'https:' });
+  const hist = () => { const h = { url: null, replaceState: (a, b, u) => { h.url = u; } }; return h; };
+
+  test('r86: codec round-trips any text (empty, unicode, long, full dictionary)', () => {
+    let r = 7; const rnd = () => (r = (r * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const big = Array.from({ length: 150000 }, () => String.fromCharCode(32 + Math.floor(rnd() * 95))).join('');
+    for (const s of ['', 'a', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'héllo 🎨 «wörld»', big]) assert.strictEqual(T.unpack(T.pack(s)), s);
+    assert.ok(/^m1\.[0-9a-z]+\.[A-Za-z0-9_-]*$/.test(T.pack('{"x":1}')), 'not base64url');
+  });
+  test('r86: export -> import round-trip moves every Mixology key (and only those) into an empty origin', () => {
+    const link = T.buildLink(oldStore());
+    assert.ok(link.startsWith('https://mixologydaily.com/#import=m1.'), link.slice(0, 60));
+    const fresh = mem(), h = hist();
+    const res = T.importFromHash(loc(link.slice(link.indexOf('#'))), fresh, h);
+    assert.ok(res.ok && res.changed, JSON.stringify(res));
+    const src = oldStore().m;
+    for (const k of T.KEYS) if (src[k] != null && !/save|collection/.test(k)) assert.strictEqual(fresh.m[k], src[k], k);
+    assert.deepStrictEqual(JSON.parse(fresh.m['mixology.collection.v1']).found, JSON.parse(src['mixology.collection.v1']).found);
+    assert.deepStrictEqual(JSON.parse(fresh.m['misnomer.save.v1']).days, JSON.parse(src['misnomer.save.v1']).days);
+    assert.strictEqual(fresh.m['unrelated.key'], undefined, 'non-Mixology key carried');
+    assert.strictEqual(T.buildLink(mem()), null, 'a browser with no save gets no link');
+  });
+  test('r86: the hash is stripped (path + query kept), even for a bad payload', () => {
+    const link = T.buildLink(oldStore()), h = hist();
+    T.importFromHash(loc(link.slice(link.indexOf('#')), '/', '?d=5&p=90'), mem(), h);
+    assert.strictEqual(h.url, '/?d=5&p=90');
+    const h2 = hist(); const r2 = T.importFromHash(loc('#import=garbage', '/mixology/'), mem(), h2);
+    assert.strictEqual(r2.ok, false); assert.strictEqual(h2.url, '/mixology/');
+    const h3 = hist(); assert.ok(T.importFromHash(loc('#import-none'), mem(), h3).none); assert.strictEqual(h3.url, '/');
+    assert.strictEqual(T.importFromHash(loc('#other'), mem(), hist()), null, 'unrelated hash touched');
+  });
+  test('r86: bad payloads are rejected and change nothing', () => {
+    const enc = o => T.pack(JSON.stringify(o));
+    const good = JSON.parse(T.unpack(T.encode(T.snapshot(oldStore()))));
+    const bads = ['', 'm1', 'm2.a.AAAA', 'm1.zzzzzzzz.AAAA', 'm1.5.!!!!', T.pack('not json'), enc([]), enc({ v: 2, k: good.k }),
+      enc({ v: 1, k: { 'misnomer.save.v1': '{bad' } }), enc({ v: 1, k: { 'misnomer.save.v1': JSON.stringify({ days: { x: {} } }) } }),
+      enc({ v: 1, k: { 'mixology.collection.v1': JSON.stringify({ v: 2, found: {} }) } }), enc({ v: 1, k: { 'mixology.welcomed.v1': '1' } }),
+      T.encode(T.snapshot(oldStore())).slice(0, 40), 'x'.repeat(1600000)];
+    for (const b of bads) {
+      const st = oldStore(), before = JSON.stringify(st.m);
+      const r = T.importFromHash(loc('#import=' + b), st, hist());
+      assert.strictEqual(r.ok, false, 'accepted: ' + b.slice(0, 30));
+      assert.strictEqual(JSON.stringify(st.m), before, 'storage changed by a bad payload');
+    }
+    // unknown keys and malformed flags are dropped, not trusted
+    const v = T.validate({ v: 1, k: Object.assign({}, good.k, { evil: 'x', 'mixology.poured.v1': '<script>' }) });
+    assert.ok(!('evil' in v.k) && !('mixology.poured.v1' in v.k));
+  });
+  test('r86: merge never loses local progress: best per day, union of days, streak from the latest day', () => {
+    const local = { k: { 'misnomer.save.v1': saveOf({ 701: day('lavender', 95), 703: day('plum', 88) }, { streak: 2, parStreak: 2, lastDay: 703, muted: true }) } };
+    const inc = { k: { 'misnomer.save.v1': oldStore().m['misnomer.save.v1'] } };
+    const s = JSON.parse(T.merge(local, inc).k['misnomer.save.v1']);
+    assert.deepStrictEqual(Object.keys(s.days).sort(), ['700', '701', '702', '703']);
+    assert.strictEqual(s.days[701].pct, 95, 'local better day overwritten');
+    assert.strictEqual(s.days[702].pct, 99);
+    assert.strictEqual(s.lastDay, 703);
+    assert.strictEqual(s.streak, 4, 'split run 700..703 should join');
+    assert.strictEqual(s.parStreak, 4, '700 90, 701 95, 702 99, 703 88 all >= par');
+    assert.strictEqual(s.muted, true, 'local setting lost');
+    // a tie keeps local; an older incoming save never lowers a newer local streak
+    const s2 = JSON.parse(T.merge({ k: { 'misnomer.save.v1': saveOf({ 900: day('a', 50) }, { streak: 30, parStreak: 0, lastDay: 900 }) } }, inc).k['misnomer.save.v1']);
+    assert.strictEqual(s2.streak, 30); assert.strictEqual(s2.lastDay, 900);
+    assert.strictEqual(T.PAR_PCT, E.PAR_PCT);
+  });
+  test('r86: merge: an in-progress round survives unless that day is finished in the merged save', () => {
+    const w = { day: 702, name: 'cinnamon', attempts: [], pot: {} };
+    const s = JSON.parse(T.merge({ k: { 'misnomer.save.v1': saveOf({}, { wip: w }) } }, { k: { 'misnomer.save.v1': oldStore().m['misnomer.save.v1'] } }).k['misnomer.save.v1']);
+    assert.strictEqual(s.wip, null, 'wip kept for a finished day');
+    const w2 = Object.assign({}, w, { day: 705 });
+    const s2 = JSON.parse(T.merge({ k: { 'misnomer.save.v1': saveOf({}, { wip: w2 }) } }, { k: { 'misnomer.save.v1': oldStore().m['misnomer.save.v1'] } }).k['misnomer.save.v1']);
+    assert.strictEqual(s2.wip.day, 705);
+  });
+  test('r86: merge: collection union keeps the best mix and the first discovery date; flags union; opt-out sticks', () => {
+    const local = { k: { 'mixology.collection.v1': colOf({ plum: { date: '2026-09-20', best: { comp: {}, hex: '#222222', pct: 99, de: 1 } }, lime: { date: '2026-10-02', best: { comp: {}, hex: '#00FF00', pct: 97, de: 3 } } }),
+      'mixology.noanalytics.v1': '0', 'mixology.analytics.sent.v1': JSON.stringify({ day: '2026-10-19', sent: ['open'] }) } };
+    const out = T.merge(local, { k: oldStore().m }).k;
+    const c = JSON.parse(out['mixology.collection.v1']);
+    assert.deepStrictEqual(Object.keys(c.found).sort(), ['lime', 'plum']);
+    assert.strictEqual(c.found.plum.best.pct, 99, 'better local mix lost');
+    assert.strictEqual(c.found.plum.date, '2026-09-01', 'earliest date not kept');
+    assert.strictEqual(out['mixology.welcomed.v1'], '1');
+    assert.strictEqual(out['mixology.noanalytics.v1'], '1', 'an opt-out must carry over');
+    assert.deepStrictEqual(JSON.parse(out['mixology.analytics.sent.v1']).sent, ['open', 'start-#9'], 'sent flags not unioned (double counting)');
+  });
+  test('r86: importing the same link twice is idempotent', () => {
+    const link = T.buildLink(oldStore()), st = mem({ 'misnomer.save.v1': saveOf({ 703: day('plum', 88) }, { lastDay: 703, streak: 1 }) });
+    T.importFromHash(loc(link.slice(link.indexOf('#'))), st, hist());
+    const once = JSON.stringify(st.m);
+    const r = T.importFromHash(loc(link.slice(link.indexOf('#'))), st, hist());
+    assert.ok(r.ok); assert.strictEqual(r.changed, false); assert.strictEqual(JSON.stringify(st.m), once);
+  });
+  test('r86: path-agnostic: works at the domain root and under /mixology/', () => {
+    for (const p of ['https://mixologydaily.com/', 'https://ngtrooper.github.io/mixology/'])
+      assert.strictEqual(T.pageBase({ href: p + '?d=1#x' }), p);
+    assert.strictEqual(T.shareBase({ href: 'https://ngtrooper.github.io/mixology/?d=1' }), 'https://ngtrooper.github.io/mixology/', 'share links must stay on the current origin until DOMAIN_LIVE');
+    // no asset or link in the page/manifest is rooted at /mixology/ or at "/"
+    for (const m of htmlSrc.matchAll(/(?:src|href)="([^"]+)"/g)) {
+      const u = m[1]; if (/^https?:|^#|^mailto:/.test(u)) continue;
+      assert.ok(!u.startsWith('/'), 'absolute path breaks one of the two homes: ' + u);
+    }
+    const man = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+    assert.strictEqual(man.start_url, './'); assert.strictEqual(man.scope, './'); assert.strictEqual(man.id, './');
+    for (const i of man.icons.concat(man.screenshots)) assert.ok(!i.src.startsWith('/'), i.src);
+    assert.ok(htmlSrc.includes('<link rel="canonical" href="https://mixologydaily.com/">') && htmlSrc.includes('<meta property="og:url" content="https://mixologydaily.com/">'));
+    assert.ok(gameSrc.includes('window.MixTransfer.shareBase(location)') && gameSrc.includes('window.MixTransfer.shareHost(location)'), 'duel link / card not built from the one base');
+  });
+  test('r86: switch-week behaviour ships OFF; the bridge only ever returns to mixologydaily.com', () => {
+    assert.strictEqual(T.CONFIG.CANONICAL_ORIGIN, 'https://mixologydaily.com/');
+    assert.strictEqual(T.CONFIG.DOMAIN_LIVE, false); assert.strictEqual(T.CONFIG.MIGRATE_TO_DOMAIN, false); assert.strictEqual(T.CONFIG.BRIDGE_URL, '');
+    assert.strictEqual(T.showMoveButton({ hostname: 'ngtrooper.github.io' }, oldStore()), false);
+    for (const h of ['#return=%2F%2Fevil.com%2F', '#return=https%3A%2F%2Fevil.com', '#return=/x%0Ay', '#nope'])
+      assert.ok(T.bridgeReturnLink(h, oldStore()).startsWith('https://mixologydaily.com/#import='), h);
+    assert.ok(T.bridgeReturnLink('#return=%2F%3Fd%3D5', oldStore()).startsWith('https://mixologydaily.com/?d=5#import='));
+    assert.strictEqual(T.bridgeReturnLink('#return=%2F', mem()), 'https://mixologydaily.com/#import-none');
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'tools', 'transfer-bridge', 'index.html')));
+    assert.ok(htmlSrc.indexOf('transfer.js') < htmlSrc.indexOf('analytics.js?') && htmlSrc.indexOf('analytics.js?') < htmlSrc.indexOf('game.js?'), 'transfer.js must load first');
+  });
+  test('r86: migrate/upgrade/bridge do nothing with the flags off or on the wrong origin', () => {
+    const calls = []; const L = (o) => Object.assign({ replace: u => calls.push(u), search: '', pathname: '/' }, o);
+    const origFetch = global.fetch; global.fetch = () => { calls.push('fetch'); return Promise.resolve({ ok: true }); };
+    try {
+      T.maybeMigrate(L({ hostname: 'ngtrooper.github.io', protocol: 'https:' }), oldStore());
+      T.maybePullFromBridge(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), mem());
+      T.maybeUpgrade(L({ hostname: 'ngtrooper.github.io', protocol: 'https:' }), oldStore());
+      T.maybeUpgrade(L({ hostname: 'mixologydaily.com', protocol: 'https:' }), oldStore());
+    } finally { global.fetch = origFetch; }
+    assert.deepStrictEqual(calls, []);
   });
 }
 

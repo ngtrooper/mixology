@@ -609,7 +609,8 @@ function persistWip() {
  * renders the friend's mix only after the visitor finishes that day.
  * Legacy links (?m=<hex>&q=a.b.c.d.e) still parse. */
 function duelUrlFor(final, day) {
-  const base = location.href.split(/[?#]/)[0];
+  // round 86: one place decides the link's base (this page until the domain is live)
+  const base = window.MixTransfer ? window.MixTransfer.shareBase(location) : location.href.split(/[?#]/)[0];
   // round 77: s=2 marks a score made against the new 100%-reachable target
   return `${base}?d=${day}&p=${final.pct}&x=${E.encodeDuelComp(final.comp, day)}&s=2`;
 }
@@ -758,7 +759,7 @@ function drawShareCard(day) {
   x.fillStyle = '#1c1a17'; x.font = `600 38px ${sans}`;
   x.fillText(`🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? `  ·  Par streak ${s.parStreak}` : ''), S / 2, 940);
   x.fillStyle = '#7a7264'; x.font = `500 30px ${sans}`;
-  x.fillText('ngtrooper.github.io/mixology', S / 2, 990);
+  x.fillText(window.MixTransfer ? window.MixTransfer.shareHost(location) : 'ngtrooper.github.io/mixology', S / 2, 990); // round 86
   return c;
 }
 function roundRect(x, l, t, w, h, r) {
@@ -1705,12 +1706,28 @@ initPotHint(); // round 81: decided once, from the save as loaded
 initDaily();
 // round 78: anonymous counts (no-op until ANALYTICS_CODE is set in analytics.js)
 track('open'); trackReturn(); if (incomingDuel) track('duel-open');
+/* Round 86: save transfer to mixologydaily.com (transfer.js runs first and has
+ * already merged any #import=... link into storage before this file loaded). */
+(function transferUI() {
+  const T = window.MixTransfer; if (!T) return;
+  const imp = T.lastImport;
+  if (imp && imp.ok && !imp.none) {
+    const el = $('move-toast'); el.hidden = false;
+    setTimeout(() => { el.hidden = true; }, 4500);
+  }
+  try {
+    if (T.showMoveButton(location, localStorage)) {
+      $('move-row').hidden = false;
+      $('btn-move').addEventListener('click', () => { store.persist(); collection.persist(); const l = T.buildLink(localStorage, { search: location.search }); if (l) location.href = l; });
+    }
+  } catch (e) { /* ignore */ }
+})();
 try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = false; } catch (e) { /* ignore */ }
 
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.25.0',
+  version: '1.26.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS, practiceAudit,
