@@ -1294,6 +1294,7 @@ if (!collection.data.backfilled) {
 /** Fold a finished round's attempts in; returns the newly discovered names. */
 function collectRound(attempts, targetName) {
   const fresh = [], when = E.dateKey(new Date());
+  const shownBefore = new Set(Object.keys(collectionView().found)); // round 85: a hidden practice-only entry found by a daily is new to the player
   for (const att of attempts || []) {
     const found = E.discoverColor(att.hex, COLLECTIBLE, COLLECTIBLE_LABS, null, targetName);
     // round 77: an exact match of the day's recipe discovers the day's color even
@@ -1303,10 +1304,11 @@ function collectRound(attempts, targetName) {
     for (const n of names) {
       const r = E.recordDiscovery(collection.data, { ...hit, name: n }, att, when);
       collection.data = r.col;
-      if (r.isNew && !fresh.includes(r.name)) fresh.push(r.name);
+      if ((r.isNew || !shownBefore.has(r.name)) && !fresh.includes(r.name)) fresh.push(r.name);
     }
   }
   collection.persist();
+  _colView = null;
   return fresh;
 }
 /* Round 84: read-only audit of collection entries that practice may have made
@@ -1316,6 +1318,20 @@ function practiceAudit() {
   return E.auditCollectionSources(collection.data, store.data.days, COLLECTIBLE, COLLECTIBLE_LABS, n => {
     const c = BANK_BY_NAME.get(n); return c ? (TWINS.get(c.thex) || []) : [];
   }, n => (BANK_BY_NAME.get(n) || {}).thex);
+}
+/* Round 85 (Franklin, option A): the Collection shows a VIEW of the stored
+ * data: practice-only entries left out, practice-raised entries at their
+ * daily-only best. collection.data itself is never pruned (reversible).
+ * Cached per (collection, days) state. */
+let _colView = null, _colViewKey = '';
+function collectionView() {
+  const key = Object.keys(collection.data.found || {}).length + '|' + Object.keys(store.data.days).length + '|' + JSON.stringify(collection.data).length;
+  if (_colView && key === _colViewKey) return _colView;
+  const twinsOf = n => { const c = BANK_BY_NAME.get(n); return c ? (TWINS.get(c.thex) || []) : []; };
+  try { _colView = E.collectionView(collection.data, store.data.days, COLLECTIBLE, COLLECTIBLE_LABS, twinsOf, n => (BANK_BY_NAME.get(n) || {}).thex); }
+  catch (e) { _colView = { ...collection.data, hidden: [], raised: [] }; }
+  _colViewKey = key;
+  return _colView;
 }
 /* Names that must not show while a round is open: today's daily color until
  * today is finished, and the open round's own color. A collected one of these
@@ -1355,7 +1371,7 @@ function openCollection(name) {
 }
 function closeCollection() { closeOverlay('col-overlay'); }
 function renderCollection() {
-  const hidden = collectionHidden(), found = collection.data.found || {};
+  const hidden = collectionHidden(), found = collectionView().found || {}; // round 85: the view, not the raw store
   const has = c => !!found[c.name] && !hidden.has(c.name);
   const fams = E.HUE_FAMILIES.map(f => ({ ...f, colors: [] }));
   const byId = new Map(fams.map(f => [f.id, f]));
@@ -1375,7 +1391,7 @@ function renderCollection() {
   $('cal-col').querySelectorAll('.ct[data-name]').forEach(b => b.addEventListener('click', () => showCollectionDetail(b.dataset.name)));
 }
 function showCollectionDetail(name) {
-  const el = $('col-detail'), rec = (collection.data.found || {})[name], c = BANK_BY_NAME.get(name);
+  const el = $('col-detail'), rec = (collectionView().found || {})[name], c = BANK_BY_NAME.get(name);
   if (!el || !rec || !c || collectionHidden().has(name)) return;
   document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
   const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
@@ -1694,7 +1710,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.24.0',
+  version: '1.25.0',
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS, practiceAudit,
@@ -1709,7 +1725,8 @@ window.MISNOMER = {
   },
   selectBucket(b) { selectedBucket = b; renderAll(); },
   removePaint, // round 68
-  collection: () => JSON.parse(JSON.stringify(collection.data)), // round 69
+  collection: () => JSON.parse(JSON.stringify(collection.data)), // round 69 (raw, stored)
+  collectionView: () => JSON.parse(JSON.stringify(collectionView())), // round 85 (what the Collection shows)
   openCollection,
   selectTool(t) { selectedTool = t; renderAll(); },
   dose, undo, resetPot, seal, finish,

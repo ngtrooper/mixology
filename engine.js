@@ -788,10 +788,39 @@ function auditCollectionSources(col, days, collectible, labs, twinsOf, thexOf) {
     const bestHex = e && e.best && e.best.hex ? String(e.best.hex).toUpperCase() : '';
     const pct = collectedBestPct(e, thexOf && thexOf(name));
     if (bestHex && hexes.has(bestHex)) out.daily.push(name);
-    else if (dailyCol.found[name]) out.raised.push({ name, pct, dailyPct: collectedBestPct(dailyCol.found[name], thexOf && thexOf(name)) });
+    else if (dailyCol.found[name]) out.raised.push({ name, pct, dailyPct: collectedBestPct(dailyCol.found[name], thexOf && thexOf(name)), dailyBest: dailyCol.found[name].best });
     else out.practice.push({ name, pct });
   }
   return out;
+}
+/** Round 85 (Franklin, option A): what the Collection SHOWS. A view, never
+ *  written back: the stored collection keeps every entry (reversible).
+ *   - 'practice' entries are left out (not shown, not counted), except when
+ *     the color is a finished daily's own color (same name or same target
+ *     color): those may be daily finds from before round 77's target change,
+ *     so they count as daily;
+ *   - 'raised' entries show their daily-only best (so their % and star).
+ *  Returns { v, found, backfilled, hidden: [names], raised: [names] }. */
+function collectionView(col, days, collectible, labs, twinsOf, thexOf) {
+  const base = col || { v: 1, found: {} }, found = { ...(base.found || {}) };
+  const a = auditCollectionSources(base, days, collectible, labs, twinsOf, thexOf);
+  const dailyNames = new Set(), dailyHexes = new Set();
+  for (const r of Object.values(days || {})) {
+    if (!r || !r.name) continue;
+    dailyNames.add(r.name);
+    const t = thexOf && thexOf(r.name); if (t) dailyHexes.add(String(t).toUpperCase());
+  }
+  const hidden = [], raised = [];
+  for (const p of a.practice) {
+    const t = thexOf && thexOf(p.name);
+    if (dailyNames.has(p.name) || (t && dailyHexes.has(String(t).toUpperCase()))) continue; // pre-r77 edge case: keep
+    delete found[p.name]; hidden.push(p.name);
+  }
+  for (const r of a.raised) {
+    found[r.name] = { ...found[r.name], best: { ...r.dailyBest } };
+    raised.push(r.name);
+  }
+  return { ...base, found, hidden, raised };
 }
 /** Spoiler rule (round 73, Franklin): the official recipe of a collected color
  *  is shown only if the player has FINISHED a daily of that color (any record
@@ -924,7 +953,7 @@ const MisnomerEngine = {
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, nextDayStart, formatCountdown, comeBackLine, dateKey, pickDailyIndex, nearestColorName,
-  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, auditCollectionSources, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, auditCollectionSources, collectionView, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

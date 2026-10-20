@@ -2,6 +2,15 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 85 (2026-10-19, Grok Bot): COLLECTION IGNORES OLD PRACTICE FINDS (Franklin, option A)
+
+- **Change:** the Collection grid, the "N / 853 discovered" count and the color detail now read a computed view (`E.collectionView`), never the raw store.
+  - Entries the round 84 audit marks `practice` are left out: not shown, not counted.
+  - `raised` entries show the best mix and % the player's saved dailies earned, so their star drops to the daily one. The discovery date is kept.
+  - Edge case (pre-round-77 targets): a `practice` entry whose color is any finished daily's own color, by name or by the same target color, is treated as daily and shown unchanged.
+- **Reversible:** `mixology.collection.v1` is never pruned or rewritten by the view. `MISNOMER.collection()` is the raw store and `MISNOMER.collectionView()` is what is shown. A daily that re-finds a hidden color toasts it as new. A daily that beats a raised entry makes it daily-backed again.
+- **Tests:** 6 new (hide and count, raised % and star, edge case by name and by target color, no data change and no deletes, UI reads the view, a daily beating it later). 229 pass.
+
 ## Round 84 (2026-10-19, Grok Bot): PRACTICE UNLOCKS NOTHING (Franklin)
 
 - **Audit (before):** modes are only `daily` and `practice`. Duel links only compare with a saved day, and past days can't be replayed (the calendar plays today only).

@@ -1957,5 +1957,81 @@ console.log('— round 84: practice counts for nothing persistent —');
   });
 }
 
+
+console.log('— round 85: Collection hides practice-only entries, shows daily-only best (option A) —');
+{
+  const coll = E.collectibleColors(bank).map(c => ({ ...c, thex: E.recipeHex(c.recipe) }));
+  const labs = coll.map(c => E.hexToLab(c.thex));
+  const thexOf = n => (coll.find(c => c.name === n) || {}).thex;
+  const T = coll[10], P = coll[200], Q = coll[300];
+  // a daily near miss on T that still discovers T (discovery needs 97+), below 100
+  let NEAR = null;
+  for (let d = 2; d < 60 && !NEAR; d += 1) {
+    const h = '#' + Math.max(0, parseInt(T.thex.slice(1, 3), 16) - d).toString(16).padStart(2, '0') + T.thex.slice(3);
+    const f = E.discoverColor(h, coll, labs, null, T.name);
+    if (f && f.name === T.name && E.accuracyFromDeltaE(f.deltaE) <= 99) NEAR = { hex: h, pct: E.accuracyFromDeltaE(f.deltaE) };
+  }
+  const mk = () => ({
+    days: { 3: { name: T.name, date: '2026-01-01', finished: true, attempts: [{ hex: NEAR.hex, comp: { y: 50, b: 50 }, pct: NEAR.pct, de: 5 }] } },
+    col: { v: 1, backfilled: true, found: {
+      [T.name]: { date: '2026-01-01', best: { comp: T.recipe, hex: T.thex, pct: 100, de: 0 } }, // raised by practice to 100
+      [P.name]: { date: '2026-02-02', best: { comp: P.recipe, hex: P.thex, pct: 100, de: 0 } }, // practice only
+    } },
+  });
+  test('r85: practice-only entries are hidden from the view (not shown, not counted)', () => {
+    const { days, col } = mk();
+    const v = E.collectionView(col, days, coll, labs, () => [], thexOf);
+    assert.ok(!v.found[P.name], 'practice-only entry still shown');
+    assert.deepStrictEqual(v.hidden, [P.name]);
+    assert.strictEqual(Object.keys(v.found).length, 1, 'count includes hidden entry');
+  });
+  test('r85: raised entries show their daily-only best % and star', () => {
+    const { days, col } = mk();
+    const v = E.collectionView(col, days, coll, labs, () => [], thexOf);
+    assert.deepStrictEqual(v.raised, [T.name]);
+    assert.strictEqual(v.found[T.name].best.hex, NEAR.hex);
+    assert.strictEqual(E.collectedBestPct(v.found[T.name], T.thex), NEAR.pct, 'still shows the practice %');
+    assert.notStrictEqual(E.starTier(NEAR.pct).id, 'diamond');
+    assert.strictEqual(E.starTier(E.collectedBestPct(v.found[T.name], T.thex)).id, E.starTier(NEAR.pct).id, 'practice star still shown');
+    assert.strictEqual(E.starTier(E.collectedBestPct(col.found[T.name], T.thex)).id, 'diamond', 'raw entry changed');
+    assert.strictEqual(v.found[T.name].date, '2026-01-01', 'discovery date lost');
+  });
+  test("r85: pre-round-77 edge case: a 'practice' entry for a finished daily's color is kept", () => {
+    const { days, col } = mk();
+    days[4] = { name: Q.name, date: '2026-01-02', finished: true, attempts: [{ hex: '#FEFEFE', comp: { w: 100 }, pct: 40, de: 40 }] };
+    col.found[Q.name] = { date: '2025-12-01', best: { comp: Q.recipe, hex: '#123456', pct: 92, de: 4 } };
+    const v = E.collectionView(col, days, coll, labs, () => [], thexOf);
+    assert.ok(v.found[Q.name] && v.found[Q.name].best.pct === 92, 'edge-case entry hidden or changed');
+    assert.ok(!v.hidden.includes(Q.name));
+    // same target color under another name also counts
+    const twin = { ...Q, name: 'zz test twin' };
+    const v2 = E.collectionView({ ...col, found: { ...col.found, [twin.name]: { date: null, best: { comp: Q.recipe, hex: '#654321', pct: 90, de: 5 } } } }, days, [...coll, twin], [...labs, E.hexToLab(twin.thex)], () => [], n => n === twin.name ? Q.thex : thexOf(n));
+    assert.ok(v2.found[twin.name], 'same target color entry hidden');
+  });
+  test('r85: stored collection data is never deleted or changed (view only)', () => {
+    const { days, col } = mk();
+    const snap = JSON.stringify(col), dsnap = JSON.stringify(days);
+    E.collectionView(col, days, coll, labs, () => [], thexOf);
+    assert.strictEqual(JSON.stringify(col), snap, 'collection mutated');
+    assert.strictEqual(JSON.stringify(days), dsnap, 'days mutated');
+    const vs = gameSrc.slice(gameSrc.indexOf('function collectionView()'), gameSrc.indexOf('function collectionHidden'));
+    assert.ok(!/collection\.data\s*=/.test(vs) && !/persist\(/.test(vs) && !/delete /.test(vs), 'game view writes the store');
+    assert.ok(!/delete\s+collection\.data/.test(gameSrc), 'game deletes collection entries');
+  });
+  test('r85: Collection grid, counts and detail read the view; dailies refresh it', () => {
+    assert.ok(gameSrc.includes('found = collectionView().found || {};'), 'grid/counts not on the view');
+    assert.ok(gameSrc.includes("rec = (collectionView().found || {})[name]"), 'detail not on the view');
+    assert.ok(/collection\.persist\(\);\n  _colView = null;/.test(gameSrc), 'view not refreshed after a daily');
+    assert.ok(gameSrc.includes('!shownBefore.has(r.name)'), 'hidden entry re-found by a daily gives no toast');
+  });
+  test('r85: a daily that later beats the entry makes it daily-backed again', () => {
+    const { days, col } = mk();
+    days[3].attempts.push({ hex: T.thex, comp: T.recipe, pct: 100, de: 0, exact: true });
+    const v = E.collectionView(col, days, coll, labs, () => [], thexOf);
+    assert.deepStrictEqual(v.raised, []);
+    assert.strictEqual(v.found[T.name].best.pct, 100);
+  });
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
