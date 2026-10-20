@@ -519,7 +519,10 @@
   #move-toast { position: fixed; left: 50%; top: max(14px, env(safe-area-inset-top)); transform: translateX(-50%); z-index: 70; padding: 10px 18px; border-radius: 999px;
     background: var(--ink); color: var(--paper); font: 600 14px/1.25 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 6px 20px rgba(0,0,0,.28); max-width: calc(100vw - 32px); }
   #move-toast[hidden] { display: none; } /* round 86 */
-  .tips-support a { color: var(--accent); font-size: 14px; font-weight: 600; } /* round 90 */
+  /* round 91: a quiet support link at the very end of the page, below the fold on phones */
+  #site-foot { margin: 14px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  #support-link { color: var(--muted); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; display: inline-block; padding: 10px 8px; }
+  #support-link:hover { color: var(--ink); }
   #col-toast i { width: 28px; height: 28px; border-radius: 50%; flex: none; border: 2px solid var(--paper); }
   #btn-cal-play { margin-top: 10px; width: 100%; padding: 11px; border-radius: 12px; border: none; background: #b3541e; color: #fff; font-size: 14.5px; font-weight: 700; cursor: pointer; }
   #cal-stats .st-h { margin: 14px 0 6px; font-size: 11.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
@@ -836,6 +839,7 @@
     pot, submit two attempts (your best counts), and find out what the name officially
     means. Your score is % accuracy — how close your mix lands to the real
     color, measured perceptually (CIEDE2000). A fresh color arrives every day.
+    <p id="site-foot"><a id="support-link" href="mailto:support@mixologydaily.com?subject=Mixology%20support">Contact support</a></p>
   </footer>
 </main>
 
@@ -914,7 +918,6 @@
     <p>The reveal shows the official recipe next to your mix. <b>Share result</b> shares just an image of your result card (your score, tries and streak, never the color's name), so no spoilers. <b>Copy duel link</b> lets a friend try to beat you on the same color.</p>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg>opens your calendar: every day you've played. The <b>Stats</b> button (bars) shows your streaks and how your scores spread, and <b>Collection</b> (tiles) shows every named color you've discovered. All of it is saved on this device only.</p>
     <p class="tips-foot"><button id="btn-replay-intro" type="button">Replay the intro</button></p>
-    <p class="tips-foot tips-support"><a id="support-link" href="mailto:support@mixologydaily.com?subject=Mixology%20support">Contact support</a></p>
     <p id="move-row" class="tips-foot" hidden><button id="btn-move" type="button">Move my progress to mixologydaily.com</button></p>
     <p id="privacy-note" class="tips-privacy" hidden>No cookies. Anonymous play counts only.</p>
     </div>
@@ -939,11 +942,11 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.30.0"></script>
-<script src="schedule.js?v=1.30.0"></script>
-<script src="engine.js?v=1.30.0"></script>
-<script src="transfer.js?v=1.30.0"></script>
-<script src="analytics.js?v=1.30.0"></script>
-<script src="game.js?v=1.30.0"></script>
+<script src="colors.js?v=1.31.0"></script>
+<script src="schedule.js?v=1.31.0"></script>
+<script src="engine.js?v=1.31.0"></script>
+<script src="transfer.js?v=1.31.0"></script>
+<script src="analytics.js?v=1.31.0"></script>
+<script src="game.js?v=1.31.0"></script>
 </body>
 </html>

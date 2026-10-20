@@ -2229,13 +2229,16 @@ console.log('— round 87: image-only sharing; the round fits an iPhone screen �
 }
 
 
-console.log('— round 90: support contact —');
-test('r90: Tips has a "Contact support" mailto link right under "Replay the intro"', () => {
-  const i = htmlSrc.indexOf('id="btn-replay-intro"'), j = htmlSrc.indexOf('id="support-link"');
-  assert.ok(i > 0 && j > i && j - i < 300, 'support link missing or not under Replay the intro');
+console.log('— round 90/91: support contact —');
+test('r91: "Contact support" is a quiet footer link at the very bottom of the main screen, not in Tips', () => {
+  assert.strictEqual((htmlSrc.match(/id="support-link"/g) || []).length, 1, 'exactly one support link');
   assert.ok(htmlSrc.includes('<a id="support-link" href="mailto:support@mixologydaily.com?subject=Mixology%20support">Contact support</a>'));
   const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-panel"'), htmlSrc.indexOf('id="privacy-note"'));
-  assert.ok(tips.includes('support-link'), 'link is not inside Tips');
+  assert.ok(!tips.includes('support-link'), 'still in Tips');
+  const foot = htmlSrc.slice(htmlSrc.indexOf('<footer>'), htmlSrc.indexOf('</footer>'));
+  assert.ok(foot.includes('id="support-link"'), 'not in the footer');
+  assert.ok(htmlSrc.indexOf('</footer>') < htmlSrc.indexOf('</main>') && htmlSrc.indexOf('</footer>') > htmlSrc.indexOf('id="actions"'), 'footer must come after the round (below Submit)');
+  assert.ok(/#site-foot \{[^}]*env\(safe-area-inset-bottom\)/.test(htmlSrc), 'no safe-area padding under the link');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

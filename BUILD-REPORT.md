@@ -2,6 +2,12 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 91 (2026-10-20, Grok Bot): SUPPORT LINK MOVED TO THE PAGE FOOTER (Franklin)
+
+- "Contact support" (`mailto:support@mixologydaily.com?subject=Mixology%20support`) is now a small muted link at the very end of the main page, inside the footer. It has been removed from Tips. It sits after the round, so the phone fit is unchanged: the stage is still sized only from content down to Submit.
+- The link has safe-area padding underneath. The sticky Submit bar only sticks while Submit's natural place is below the screen edge, so at the footer it scrolls normally and can't cover the link.
+- Tests: the r90 test was replaced (1 test). 247 pass.
+
 ## Round 90 (2026-10-20, Grok Bot): CONTACT SUPPORT LINK
 
 - Tips now has a "Contact support" link, `mailto:support@mixologydaily.com?subject=Mixology%20support`, right under "Replay the intro". Porkbun forwards that address to Franklin's Gmail.
