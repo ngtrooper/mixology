@@ -2,6 +2,10 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 92 (2026-10-20, Grok Bot): FOOTER LINK RENAMED (Franklin)
+
+- The footer link now reads **"Got an idea?"**. It still emails support@mixologydaily.com, with the subject now "Mixology idea". The layout and fit are unchanged. 247 tests pass.
+
 ## Round 91 (2026-10-20, Grok Bot): SUPPORT LINK MOVED TO THE PAGE FOOTER (Franklin)
 
 - "Contact support" (`mailto:support@mixologydaily.com?subject=Mixology%20support`) is now a small muted link at the very end of the main page, inside the footer. It has been removed from Tips. It sits after the round, so the phone fit is unchanged: the stage is still sized only from content down to Submit.

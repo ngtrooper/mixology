@@ -2230,9 +2230,10 @@ console.log('— round 87: image-only sharing; the round fits an iPhone screen �
 
 
 console.log('— round 90/91: support contact —');
-test('r91: "Contact support" is a quiet footer link at the very bottom of the main screen, not in Tips', () => {
+test('r91/r92: "Got an idea?" is a quiet footer link at the very bottom of the main screen, not in Tips', () => {
   assert.strictEqual((htmlSrc.match(/id="support-link"/g) || []).length, 1, 'exactly one support link');
-  assert.ok(htmlSrc.includes('<a id="support-link" href="mailto:support@mixologydaily.com?subject=Mixology%20support">Contact support</a>'));
+  assert.ok(htmlSrc.includes('<a id="support-link" href="mailto:support@mixologydaily.com?subject=Mixology%20idea">Got an idea?</a>')); // round 92: renamed
+  assert.ok(!htmlSrc.includes('Contact support'), 'old label left');
   const tips = htmlSrc.slice(htmlSrc.indexOf('<div id="tips-panel"'), htmlSrc.indexOf('id="privacy-note"'));
   assert.ok(!tips.includes('support-link'), 'still in Tips');
   const foot = htmlSrc.slice(htmlSrc.indexOf('<footer>'), htmlSrc.indexOf('</footer>'));
