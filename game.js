@@ -24,6 +24,28 @@ function colorForDay(day) {
   const c = BANK_BY_NAME.get(SCHEDULE[day]);
   return c || POOL[E.pickDailyIndex(day, POOL.length)];
 }
+/* Round 93 (Franklin): DUO days. Two named colors in one daily: two tries at
+ * each (4 in all), the best try per color counts and the day's score is the
+ * AVERAGE of the two (rounded). The end screen draws a picture (a pumpkin) in
+ * the official colors next to the same picture in the player's two mixes.
+ * Color 1 is always the frozen schedule's color for that day (so nothing in
+ * schedule.js moves); only color 2 is added. Keyed by the internal day, i.e.
+ * the player's LOCAL date like every daily. Only #14 (Sat 2026-10-31) for now.
+ * Nothing duo-related is shown on any other day (no spoilers before it). */
+const DUO_DAYS = {
+  669: { id: 'halloween-2026', label: 'Halloween', emoji: '\u{1F383}', title: 'Halloween Duo', motif: 'pumpkin',
+    colors: ['pumpkin', 'midnight purple'], roles: ['the pumpkin', 'the face and stem'] }
+};
+const _duoCache = {};
+function duoFor(day) {
+  const d = DUO_DAYS[day]; if (!d) return null;
+  if (!_duoCache[day]) {
+    const cols = d.colors.map(n => BANK_BY_NAME.get(n));
+    if (cols.some(c => !c) || cols[0].name !== colorForDay(day).name) return null; // misconfigured: play a normal day
+    _duoCache[day] = Object.assign({}, d, { day, colors: cols });
+  }
+  return _duoCache[day];
+}
 const currentDay = () => E.dayNumber(new Date()) + 1; // display/share day number (#1 = 2025-01-01)
 let DAY = currentDay();             // mutable: rolls over in an open tab (see checkDayRollover)
 let todayColor = colorForDay(DAY);
@@ -160,6 +182,8 @@ let round = null; // {mode, color, pot, undo:[], attempts:[], finished}
 function newRound(mode, color) {
   gestureOpen = false;
   round = { mode, color, day: DAY, pot: freshPot(), undo: [], attempts: [], finished: false };
+  const dd = mode === 'daily' ? duoFor(DAY) : null; // round 93
+  if (dd) { round.duo = { def: dd, idx: 0, parts: [null, null] }; round.color = dd.colors[0]; }
   renderAll();
 }
 function mixHex() { return E.mixColor(round.pot); }
@@ -432,11 +456,14 @@ function seal() {
   const att = { comp: { ...round.pot }, hex: sc.hex, pct: sc.pct, de: sc.de };
   if (sc.exact) att.exact = true;
   round.attempts.push(att);
-  if (round.mode === 'daily' && round.attempts.length === 1) trackScore('a1', round.day, sc.pct); // round 83
+  if (!(round.duo && round.duo.idx > 0)) { // round 93: on a duo day a1 is color 1's first try only
+    if (round.mode === 'daily' && round.attempts.length === 1) trackScore('a1', round.day, sc.pct); // round 83
+  }
   justSealed = round.attempts.length - 1;
   sfx.seal();
   announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.` + (round.attempts.length === 1 && round.attempts.length < MAX_ATTEMPTS ? ` Hint: ${hintText(att)}.` : ''));
-  if (round.attempts.length >= MAX_ATTEMPTS) finish(); // finish() has its own tiered haptic
+  if (round.duo && round.duo.idx === 0 && round.attempts.length >= MAX_ATTEMPTS) duoAdvance(); // round 93: color 1 done, on to color 2
+  else if (round.attempts.length >= MAX_ATTEMPTS) finish(); // finish() has its own tiered haptic
   else { buzz(18); renderAll(); persistWip(); } // round 56: a firm tap for a non-final seal
   return att;
 }
@@ -487,6 +514,7 @@ function trackFinish(day, pct) {
 function finish() {
   stopPour();
   if (!round || round.finished || !round.attempts.length) return;
+  if (round.duo) return finishDuo(); // round 93: a duo day (two colors) is saved and scored by finishDuo()
   round.finished = true;
   streakAtStart = store.data.streak || 0;
   const final = bestAttempt(round.attempts);
@@ -528,6 +556,54 @@ function finish() {
   if (round.mode === 'daily') trackFinish(round.day, final.pct); // round 78
   if (round.mode === 'daily') { trackScore('final', round.day, final.pct); trackMix(round.day, final.comp, round.color.recipe); } // round 83
 }
+/* Round 93: the end of a duo day (daily rounds only; duo state never exists in
+ * practice). ONE day record: name/attempts/hex are color 1's, so every older
+ * reader (transfer merge, collection backfill, spoiler rule) keeps working; pct
+ * and de are the averages; `duo` holds both colors. The streak rules are the
+ * same as finish(): a duo day is simply that day's play. */
+function finishDuo() {
+  const duo = round.duo;
+  round.finished = true;
+  streakAtStart = store.data.streak || 0;
+  duo.parts[1] = round.attempts;
+  const finals = duo.parts.map(p => bestAttempt(p));
+  const sum = duoSummary(finals);
+  const s = store.data;
+  const day = round.day;
+  const already = !!s.days[day];
+  const rec = {
+    date: E.dateKey(new Date()), name: duo.def.colors[0].name,
+    attempts: duo.parts[0], pct: sum.pct, de: sum.de,
+    band: E.bandForDeltaE(sum.de), hex: finals[0].hex, scoring: 'best',
+    duo: { id: duo.def.id, names: duo.def.colors.map(c => c.name), parts: duo.parts,
+      pcts: finals.map(f => f.pct), hexes: finals.map(f => f.hex), des: finals.map(f => f.de) }
+  };
+  s.days[day] = rec;
+  if (!already) {
+    const par = sum.pct >= E.PAR_PCT;
+    if (s.lastDay === day - 1) { s.streak += 1; s.parStreak = par ? s.parStreak + 1 : 0; }
+    else if (s.lastDay == null || s.lastDay < day) { s.streak = 1; s.parStreak = par ? 1 : 0; }
+    if (s.lastDay == null || day > s.lastDay) s.lastDay = day;
+  }
+  s.wip = null;
+  store.persistSoon();
+  announce(`Duo complete. ${titleCase(duo.def.colors[0].name)} ${finals[0].pct}%, ${titleCase(duo.def.colors[1].name)} ${finals[1].pct}%. Average ${sum.pct}%.`);
+  if (sum.pct >= 95) sfx.ace(); else if (sum.pct >= E.PAR_PCT) sfx.par(); else sfx.reveal();
+  renderAll();
+  maybeShowDuel();
+  scrollRevealIntoView();
+  revealEntrance(sum.pct);
+  celebrate(sum.pct, store.data.streak > streakAtStart);
+  if (round.mode === 'daily') { // always true (duo state only exists on a daily); kept explicit like finish()
+    const fresh = []; // both colors collect
+    duo.def.colors.forEach((c, i) => { for (const n of collectRound(duo.parts[i], c.name)) if (!fresh.includes(n)) fresh.push(n); });
+    queueDiscoveryToasts(fresh);
+    trackFinish(day, sum.pct); // score-band etc. from the average
+    trackScore('final', day, sum.pct);
+    trackScore('c2', day, finals[1].pct);
+    trackMix(day, finals[0].comp, duo.def.colors[0].recipe); // off-/paints- describe color 1 (the scheduled color)
+  }
+}
 
 /* Round 17: screen-reader announcements (polite live region). It only
  * repeats what is already on screen (the attempt %), nothing more. */
@@ -546,7 +622,7 @@ function revealEntrance(pct) {
   const el = $('reveal'); if (!el || REDUCED_MOTION) return;
   el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter');
   setTimeout(() => el.classList.remove('enter'), 1200);
-  const out = $('reveal-pct'), t0 = performance.now(), D = 750;
+  const out = round && round.duo ? $('dr-avg') : $('reveal-pct'), t0 = performance.now(), D = 750; // round 93: the duo average counts up
   const step = now => {
     const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
     out.textContent = Math.round(pct * e) + '%';
@@ -587,6 +663,7 @@ function confetti() {
 }
 /* Round 8: on phones the reveal sits below the fold — bring it up. */
 function scrollRevealIntoView() {
+  if (round && round.duo) { setTimeout(() => window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' }), 80); return; } // round 93: the duo reveal replaces the play area
   const el = $('reveal');
   if (!el || el.style.display === 'none') return;
   setTimeout(() => el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'start' }), 80);
@@ -597,6 +674,9 @@ function persistWip() {
     // Round 8: the WIP carries its color's name, so a WIP can never be
     // scored against a different color (schedule or pool changes).
     store.data.wip = { day: round.day, name: round.color.name, attempts: round.attempts, pot: { ...round.pot } };
+    if (round.duo) { // round 93: a duo WIP is filed under the day's color (color 1) and remembers where it is
+      store.data.wip.name = round.duo.def.colors[0].name; store.data.wip.duoIdx = round.duo.idx; store.data.wip.duoParts = round.duo.parts;
+    }
     store.persistSoon();
   }
 }
@@ -631,6 +711,10 @@ function parseDuel() {
   hex = legacyHex || (comp ? E.mixColor(comp) : null);
   let pct = parseInt(p.get('p'), 10);
   if (!hex || !isFinite(day) || !isFinite(pct)) return null;
+  // round 93: a duo day's link also carries the friend's color-2 mix (y); p is their average
+  const comp2 = DUO_DAYS[day] && p.has('y') ? E.decodeDuelComp(p.get('y'), day) : null;
+  const hex2 = comp2 ? E.mixColor(comp2) : null;
+  if (DUO_DAYS[day]) return { day, hex, hex2, pct: clamp01(pct), comp, comp2, rescored: false, duo: true };
   // round 77: links made before the recipe-color target (no s=2) scored against
   // the raw named color. When the friend's mix is in the link, rescore it the
   // way the visitor is scored now, so the duel compares like with like.
@@ -645,6 +729,27 @@ function maybeShowDuel() {
   if (!incomingDuel || !isFinite(incomingDuel.day)) { card.style.display = 'none'; return; }
   const theirColor = colorForDay(incomingDuel.day);
   const mine = store.data.days[incomingDuel.day];
+  const dd = incomingDuel.duo ? duoFor(incomingDuel.day) : null;
+  if (dd) { // round 93: a duo day's duel: averages, each side's two mixes as a split swatch
+    const split = (a, b) => b ? `linear-gradient(135deg, ${a} 50%, ${b} 50%)` : a;
+    const title = `${dayTag(incomingDuel.day) || shortDate(incomingDuel.day)} ${dd.emoji} ${escapeHtml(dd.title)}`;
+    card.style.display = 'block';
+    card.className = mine ? 'done' : (incomingDuel.day >= DAY ? 'pending' : 'past');
+    if (mine) {
+      const win = mine.pct > incomingDuel.pct ? 'you' : mine.pct < incomingDuel.pct ? 'them' : 'tie';
+      const myHex = mine.duo ? split(mine.duo.hexes[0], mine.duo.hexes[1]) : mine.hex;
+      card.innerHTML = `<b>Duel · ${title}</b><div class="swatches">` +
+        `<div class="dsw${win === 'them' ? ' win' : ''}"><div style="background:${split(incomingDuel.hex, incomingDuel.hex2)}"></div>Them · <strong>${incomingDuel.pct}%</strong></div>` +
+        `<div class="dsw${win === 'you' ? ' win' : ''}"><div style="background:${myHex}"></div>You · <strong>${mine.pct}%</strong></div></div>` +
+        `<div class="dverdict">${win === 'you' ? 'You take this one. 🏆' : win === 'them' ? 'They take this one. Rematch tomorrow.' : 'Dead heat. 🤝'}</div>`;
+    } else if (incomingDuel.day >= DAY) {
+      card.innerHTML = `<b>A friend has already mixed today's color.</b><div>Finish your round to see how you stack up — no spoilers until then.</div>`;
+    } else {
+      card.innerHTML = `<b>A duel from ${title}</b><div class="swatches"><div class="dsw"><div style="background:${split(incomingDuel.hex, incomingDuel.hex2)}"></div>Their average · ${incomingDuel.pct}%</div></div>` +
+        `<div style="margin-top:6px">You didn't play that day — today's color is up top.</div>`;
+    }
+    return;
+  }
   card.style.display = 'block';
   card.className = mine ? 'done' : (incomingDuel.day >= DAY ? 'pending' : 'past');
   if (mine) {
@@ -745,6 +850,7 @@ async function shareImage(btn, day) {
 function drawShareCard(day) {
   const rec = store.data.days[day];
   if (!rec) return null;
+  if (rec.duo && duoFor(day)) return drawDuoShareCard(day, rec); // round 93
   const S = 1080, c = document.createElement('canvas'); c.width = c.height = S;
   const x = c.getContext('2d');
   const sans = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -808,6 +914,148 @@ async function saveShareCard(btn) {
   flashLabel(btn, 'Saved ✓');
 }
 
+/* ---------------- duo days (round 93) ----------------------------------- */
+/* The summary a duo is scored on: average % (rounded) and average ΔE (band). */
+function duoSummary(finals) {
+  return { pct: Math.round((finals[0].pct + finals[1].pct) / 2), de: Math.round((finals[0].de + finals[1].de) / 2 * 100) / 100,
+    hex: finals[0].hex, comp: finals[0].comp };
+}
+/* After color 1's 2nd try: color 1 is locked in (its official color stays hidden
+ * until the end), the pot empties and color 2 starts. */
+function duoAdvance() {
+  const d = round.duo;
+  d.parts[0] = round.attempts.slice();
+  const b = bestAttempt(d.parts[0]);
+  d.idx = 1; round.color = d.def.colors[1];
+  round.attempts = []; round.pot = freshPot(); round.undo = [];
+  selectedTool = 'pour';
+  d.flash = true;
+  if (round.mode === 'daily') { trackScore('c1', round.day, b.pct); trackDaily('duo-c2', round.day); } // round 93
+  sfx.reveal(); buzz([14, 50, 14]);
+  announce(`Color 1 done: ${b.pct}%. Color 2 of 2 is called ${titleCase(round.color.name)}.`);
+  persistWip(); renderAll();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+/* The pumpkin: 5 lobes in color 1, stem + carved face in color 2. One light and
+ * shade overlay for both pumpkins, so only the paint differs. A thin outline in
+ * --pk-line (dark in light mode, light in dark mode) keeps a dark stem or body
+ * readable on the dark card. */
+const PK_LOBES = [[58, 112, 48, 60], [142, 112, 48, 60], [80, 110, 42, 66], [120, 110, 42, 66], [100, 109, 34, 68]];
+const PK_STEM = 'M93 48 C91 34 95 20 106 9 C110 6 117 9 116 14 C107 24 105 34 107 48 Z';
+const PK_FACE = ['M58 92 L84 92 L71 70 Z', 'M116 92 L142 92 L129 70 Z', 'M93 112 L107 112 L100 100 Z', 'M48 124 C60 134 140 134 152 124 C150 150 128 162 100 162 C72 162 50 150 48 124 Z'];
+const PK_TEETH = ['M74 132 L82 146 L90 133 Z', 'M110 133 L118 146 L126 132 Z'];
+const PK_RIDGES = ['M66 50 C44 80 44 140 66 172', 'M134 50 C156 80 156 140 134 172', 'M86 44 C76 80 76 140 86 176', 'M114 44 C124 80 124 140 114 176'];
+let pumpkinSeq = 0;
+function pumpkinSVG(c1, c2, label) {
+  const id = 'pk' + (++pumpkinSeq);
+  const lobes = PK_LOBES.map(([cx, cy, rx, ry]) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`).join('');
+  return `<svg class="pk" viewBox="-4 2 208 182" role="img" aria-label="${escapeHtml(label)}">` +
+    `<defs><radialGradient id="${id}g" cx="38%" cy="32%" r="78%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>` +
+    `<clipPath id="${id}c">${lobes}</clipPath></defs>` +
+    `<ellipse cx="100" cy="176" rx="74" ry="5" class="pk-shadow"/>` +
+    `<path d="${PK_STEM}" fill="${c2}" class="pk-line"/>` +
+    `<g class="pk-line pk-out">${lobes}</g><g fill="${c1}">${lobes}</g>` +
+    `<g clip-path="url(#${id}c)"><rect x="0" y="30" width="200" height="160" fill="url(#${id}g)"/>` +
+    `<g fill="none" stroke="#000" stroke-opacity=".16" stroke-width="2.5" stroke-linecap="round">${PK_RIDGES.map(d => `<path d="${d}"/>`).join('')}</g></g>` +
+    `<g fill="${c2}" class="pk-face">${PK_FACE.map(d => `<path d="${d}"/>`).join('')}</g>` +
+    `<g fill="${c1}">${PK_TEETH.map(d => `<path d="${d}"/>`).join('')}</g></svg>`;
+}
+/* The same pumpkin on a canvas (share card), drawn with Path2D so the card stays
+ * synchronous like the daily card. (cx, top) is the top centre, w the width. */
+function drawPumpkin(x, cx, top, w, c1, c2) {
+  const k = w / 200;
+  x.save(); x.translate(cx - 100 * k, top); x.scale(k, k);
+  x.fillStyle = 'rgba(0,0,0,.10)'; x.beginPath(); x.ellipse(100, 176, 74, 6, 0, 0, 7); x.fill();
+  x.lineJoin = 'round';
+  x.fillStyle = c2; x.strokeStyle = 'rgba(0,0,0,.28)'; x.lineWidth = 2;
+  const stem = new Path2D(PK_STEM); x.fill(stem); x.stroke(stem);
+  const body = new Path2D(); for (const [ex, ey, rx, ry] of PK_LOBES) { body.moveTo(ex + rx, ey); body.ellipse(ex, ey, rx, ry, 0, 0, Math.PI * 2); }
+  x.lineWidth = 3; x.stroke(body);
+  x.fillStyle = c1; for (const [ex, ey, rx, ry] of PK_LOBES) { x.beginPath(); x.ellipse(ex, ey, rx, ry, 0, 0, Math.PI * 2); x.fill(); }
+  x.save(); x.clip(body, 'nonzero');
+  const g = x.createRadialGradient(76, 85, 0, 76, 85, 150);
+  g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.28)');
+  x.fillStyle = g; x.fillRect(0, 30, 200, 160);
+  x.strokeStyle = 'rgba(0,0,0,.16)'; x.lineWidth = 2.5; x.lineCap = 'round';
+  for (const d of PK_RIDGES) x.stroke(new Path2D(d));
+  x.restore();
+  x.fillStyle = c2; for (const d of PK_FACE) x.fill(new Path2D(d));
+  x.fillStyle = c1; for (const d of PK_TEETH) x.fill(new Path2D(d));
+  x.restore();
+}
+/* Duo share card: the daily card's frame, the player's pumpkin (their two mixes),
+ * the average, one neutral bar per color. No names, no official colors, no recipe. */
+function drawDuoShareCard(day, rec) {
+  const dd = duoFor(day);
+  const S = 1080, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  const sans = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  const ls = v => { if ('letterSpacing' in x) x.letterSpacing = v; };
+  x.fillStyle = '#f6f1e7'; x.fillRect(0, 0, S, S);
+  x.fillStyle = '#fffdf8'; x.strokeStyle = '#ddd3c0'; x.lineWidth = 4;
+  roundRect(x, 60, 60, S - 120, S - 120, 48); x.fill(); x.stroke();
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  x.fillStyle = '#1c1a17'; x.font = `800 64px ${sans}`;
+  ls('10px'); x.fillText('MIXOLOGY', S / 2 - 12, 175); ls('0px');
+  const ww = x.measureText('MIXOLOGY').width;
+  x.fillStyle = '#b3541e'; x.beginPath(); x.arc(S / 2 + ww / 2 + 30, 165, 9, 0, 7); x.fill();
+  x.font = `800 34px ${sans}`; ls('5px'); x.fillText(dd.title.toUpperCase(), S / 2, 238); ls('0px');
+  x.fillStyle = '#7a7264'; x.font = `500 30px ${sans}`;
+  x.fillText([dayTag(day), shortDate(day)].filter(Boolean).join(' · '), S / 2, 284);
+  try { drawPumpkin(x, 320, 318, 400, rec.duo.hexes[0], rec.duo.hexes[1]); } catch (e) { /* the card still works without it */ }
+  x.fillStyle = '#7a7264'; x.font = `600 28px ${sans}`; x.fillText('my pumpkin', 320, 722);
+  x.fillStyle = '#1c1a17'; x.font = `800 210px ${sans}`; x.fillText(`${rec.pct}%`, 760, 560);
+  x.font = `800 30px ${sans}`; ls('4px'); x.fillText('AVG OF 2 COLORS', 760, 620); ls('0px');
+  x.fillStyle = '#7a7264';
+  let tf = 34; do { x.font = `italic ${tf}px Georgia, "Times New Roman", serif`; } while (x.measureText('How well do you know your colors?').width > 450 && --tf > 20); // fits whatever serif the phone has
+  x.fillText('How well do you know your colors?', 760, 680);
+  const pw = 360, ph = 26, gap = 60, x0 = S / 2 - (2 * pw + gap) / 2;
+  rec.duo.pcts.forEach((p, i) => {
+    const px = x0 + i * (pw + gap), py = 830;
+    x.font = `800 30px ${sans}`; x.fillStyle = '#1c1a17';
+    x.fillText(`Color ${i + 1} · ${p}%`, px + pw / 2, py - 16);
+    x.fillStyle = '#efe8da'; roundRect(x, px, py, pw, ph, ph / 2); x.fill();
+    x.save(); roundRect(x, px, py, pw, ph, ph / 2); x.clip();
+    x.fillStyle = '#1c1a17'; x.fillRect(px, py, pw * Math.max(0, Math.min(100, p)) / 100, ph); x.restore();
+  });
+  const s = store.data;
+  x.fillStyle = '#1c1a17'; x.font = `600 36px ${sans}`;
+  x.fillText(`🔥 Streak ${s.streak}` + (s.parStreak >= 2 ? `  ·  Par streak ${s.parStreak}` : ''), S / 2, 935);
+  x.font = `600 30px ${sans}`; ls('1px');
+  const wm = 'mixologydaily.com', wmw = x.measureText(wm).width;
+  x.fillStyle = '#b3541e'; x.beginPath(); x.arc(S / 2 - wmw / 2 - 18, 980, 7, 0, 7); x.fill();
+  x.fillStyle = '#7a7264'; x.fillText(wm, S / 2 + 6, 990); ls('0px');
+  return c;
+}
+function renderDuoProgress() {
+  const el = $('duo-progress'); if (!el) return;
+  const d = round && round.duo;
+  if (!d || round.finished) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = d.def.colors.map((c, i) => {
+    const done = d.parts[i] ? bestAttempt(d.parts[i]) : null, cur = i === d.idx;
+    return `<span class="dp${cur ? ' cur' : ''}${done ? ' done' : ''}"><b>${i + 1}</b>${escapeHtml(titleCase(c.name))}${done ? ` · ${done.pct}%` : ''}</span>`;
+  }).join('<span class="dp-plus" aria-hidden="true">+</span>');
+}
+function duoRecipesHTML(dd, finals) {
+  return dd.colors.map((c, i) => `<div class="dr-rh">${escapeHtml(titleCase(c.name))}</div>` + recipesHTML(c, finals[i])).join('');
+}
+function renderDuoReveal(dd, parts) {
+  const finals = parts.map(p => bestAttempt(p)), sum = duoSummary(finals);
+  $('reveal-h').textContent = `${dd.emoji} ${dd.title}`;
+  $('dr-true').innerHTML = pumpkinSVG(dd.colors[0].thex, dd.colors[1].thex, `${dd.label} pumpkin in the official colors`);
+  $('dr-mine').innerHTML = pumpkinSVG(finals[0].hex, finals[1].hex, 'Your pumpkin in the colors you mixed');
+  $('dr-true-cap').textContent = dd.label;
+  $('dr-rows').innerHTML = dd.colors.map((c, i) => {
+    const f = finals[i];
+    return `<div class="dr-row"><span class="dr-sw" style="background:${c.thex}" title="Official"></span><span class="dr-sw" style="background:${f.hex}" title="Yours"></span>` +
+      `<span class="dr-name">${escapeHtml(titleCase(c.name))}<small>${parts[i].map(a => a.pct + '%').join(' → ')}</small></span><span class="dr-pct">${f.pct}%</span></div>`;
+  }).join('');
+  $('dr-avg').textContent = sum.pct + '%';
+  $('dr-band').textContent = `average of 2 colors · ${E.bandForDeltaE(sum.de)}`;
+  $('reveal-recipes').innerHTML = duoRecipesHTML(dd, finals);
+}
+
 /* ---------------- rendering -------------------------------------------- */
 const $ = id => document.getElementById(id);
 /* Round 33: headline-style title case. Small joining words stay lower case
@@ -848,11 +1096,20 @@ function renderDiscPercents() {
 function renderAll() {
   if (!round) return;
   const daily = round.mode === 'daily';
+  const duo = round.duo || null; // round 93
   $('color-name').textContent = titleCase(round.color.name);
-  $('prompt-kicker').textContent = daily ? "Today's color is called" : 'Practice color';
-  $('prompt-sub').textContent = daily
+  $('prompt-kicker').textContent = duo ? `Color ${duo.idx + 1} of 2 is called` : daily ? "Today's color is called" : 'Practice color';
+  $('prompt-sub').textContent = duo ? `Mix ${duo.def.roles[duo.idx]}. Two tries, best one counts.`
+    : daily
     ? 'How well do you know your colors?'
     : 'Free round — the reveal is instant, the streak is safe.';
+  renderDuoProgress();
+  if (duo && duo.flash) {
+    duo.flash = false;
+    const pa = $('prompt-area');
+    if (pa && !REDUCED_MOTION) { pa.classList.remove('duo-pop'); void pa.offsetWidth; pa.classList.add('duo-pop'); }
+  }
+  $('app').classList.toggle('duo-done', !!(duo && round.finished));
   $('practice-bar').style.display = daily ? 'none' : 'block';
   $('btn-practice').textContent = daily ? 'Practice' : '← Daily';
   // round 72: each part stays whole; on a narrow phone the date wraps to its own
@@ -866,6 +1123,7 @@ function renderAll() {
   const hol = daily ? E.holidayOn(dateForDay(round.day)) : null, hTag = $('holiday-tag');
   if (hTag) {
     hTag.hidden = !hol;
+    if (hol && duo) hol.label = duo.def.title; // round 93: "🎃 Halloween Duo" (holidayOn returns a fresh object)
     const html = hol ? `<span aria-hidden="true">${hol.emoji}</span> ${escapeHtml(hol.label)}` : '';
     if (hTag.innerHTML !== html) hTag.innerHTML = html;
   }
@@ -929,6 +1187,7 @@ function renderAll() {
     ? ''
     : last
       ? `Attempt ${round.attempts.length} submitted: <b>${last.pct}% accuracy</b>` + (round.attempts.length === 1 ? hintHTML(last) : '')
+      : duo ? (duo.idx === 0 ? 'Two colors today, two tries each. Your average is your score.' : `Color 1 locked in. Now ${titleCase(round.color.name)}.`)
       : 'Dose the pot, then submit an attempt. Two per round — your best one counts.';
 
   const sealBtn = $('btn-seal');
@@ -936,6 +1195,7 @@ function renderAll() {
   $('seal-hint').hidden = round.finished || !empty;
   sealBtn.classList.toggle('done', !!round.finished); // round 31: calm finished state
   sealBtn.textContent = round.finished ? 'Round complete ✓'
+    : duo && duo.idx === 0 && round.attempts.length === MAX_ATTEMPTS - 1 ? 'Submit & go to color 2 →'
     : round.attempts.length === MAX_ATTEMPTS - 1 ? `Submit final attempt` : `Submit attempt ${round.attempts.length + 1}`;
 
   const locked = round.finished;
@@ -957,13 +1217,19 @@ function renderAll() {
     $('reveal-de').textContent = fin.exact || (fin.pct === 100 && fin.de === 0)
       ? `you matched the official ${titleCase(round.color.name)} recipe exactly`
       : `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
-    $('reveal-recipes').innerHTML = practice ? practiceRecipesHTML(round.color, fin) : recipesHTML(round.color, fin);
+    $('reveal').classList.toggle('duo', !!duo);
+    if (duo) renderDuoReveal(duo.def, duo.parts); // round 93: pumpkins, both colors, the average
+    else {
+      $('reveal-h').textContent = 'The reveal';
+      $('reveal-recipes').innerHTML = practice ? practiceRecipesHTML(round.color, fin) : recipesHTML(round.color, fin);
+    }
     $('btn-next-practice').style.display = round.mode === 'practice' ? 'block' : 'none';
     $('reveal-actions').style.display = round.mode === 'daily' ? 'flex' : 'none';
     $('card-row').style.display = round.mode === 'daily' ? 'block' : 'none';
     if (round.mode === 'daily') prepareShareCard(round.day); // round 87: ready before the Share tap
   } else {
     $('reveal').style.display = 'none';
+    $('reveal').classList.remove('duo');
     $('reveal-recipes').innerHTML = '';
   }
   renderNextCountdown(); // round 82: reveal countdown + the top "done for today" banner
@@ -996,6 +1262,7 @@ window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(
 
 /* The attempt this round is scored on (saved day record wins for daily). */
 function finalOfRound() {
+  if (round.duo) return bestAttempt(round.attempts); // round 93: the slots show color 2's tries
   const rec = round.mode === 'daily' ? store.data.days[round.day] : null;
   return rec ? scoredAttempt(rec) : bestAttempt(round.attempts);
 }
@@ -1242,7 +1509,15 @@ function renderCalendar() {
     cell.dataset.day = day;
     let cls = 'cal-day';
     let sw = '', pct = '', ink = '', name = '', star = null;
-    if (rec && rec.attempts && rec.attempts.length) {
+    if (rec && rec.duo && Array.isArray(rec.duo.hexes) && rec.duo.hexes.length === 2) { // round 93: a duo day: both mixes, the average
+      const p = Number(rec.pct);
+      cls += ' played duo' + (p >= E.PAR_PCT ? ' par' : '');
+      sw = `style="background:linear-gradient(135deg, ${rec.duo.hexes[0]} 50%, ${rec.duo.hexes[1]} 50%)"`;
+      pct = p + '%';
+      ink = inkFor(rec.duo.hexes[0]);
+      name = (DUO_DAYS[day] && DUO_DAYS[day].title) || 'Duo';
+      star = E.starTier(p);
+    } else if (rec && rec.attempts && rec.attempts.length) {
       const best = bestAttempt(rec.attempts);
       cls += ' played' + (best.pct >= E.PAR_PCT ? ' par' : '');
       sw = `style="background:${best.hex}"`;
@@ -1285,7 +1560,16 @@ function showCalDetail(day) {
   const rec = store.data.days[day];
   const when = dateForDay(day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   const el = $('cal-detail');
-  if (rec && rec.attempts && rec.attempts.length) {
+  const dd = rec && rec.duo && Array.isArray(rec.duo.parts) ? duoFor(day) : null;
+  if (dd && rec.duo.parts.every(p => Array.isArray(p) && p.length)) { // round 93: a played duo day
+    const finals = rec.duo.parts.map(p => bestAttempt(p));
+    el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}${dd.emoji} ${escapeHtml(dd.title)}</div>` +
+      `<div class="cdt-sub">${escapeHtml(when)} · average ${rec.pct}% · ${E.bandForDeltaE(Number(rec.de) || 0)}</div>` +
+      `<div class="cdt-pk"><figure>${pumpkinSVG(dd.colors[0].thex, dd.colors[1].thex, 'Official pumpkin')}<figcaption>${escapeHtml(dd.label)}</figcaption></figure><figure>${pumpkinSVG(finals[0].hex, finals[1].hex, 'Your pumpkin')}<figcaption>Yours</figcaption></figure></div>` +
+      dd.colors.map((c, i) => `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.thex}"></i>${escapeHtml(titleCase(c.name))}</span>` +
+        rec.duo.parts[i].map((a, j) => `<span class="cdt-sw${a === finals[i] ? ' best' : ''}"><i style="background:${a.hex}"></i>Try ${j + 1}: <b>${a.pct}%</b></span>`).join('') + `</div>`).join('') +
+      duoRecipesHTML(dd, finals);
+  } else if (rec && rec.attempts && rec.attempts.length) {
     const best = bestAttempt(rec.attempts);
     const official = BANK_BY_NAME.get(rec.name) || colorForDay(day);
     el.innerHTML = `<div class="cdt-title">${dayTag(day) ? dayTag(day) + ' · ' : ''}“${escapeHtml(titleCase(rec.name))}”</div>` +
@@ -1475,7 +1759,12 @@ function exitPractice() {
 /* ---------------- init --------------------------------------------------- */
 function initDaily() {
   const rec = store.data.days[DAY];
-  if (rec) {
+  const dd = duoFor(DAY);
+  if (rec && dd && rec.duo && Array.isArray(rec.duo.parts) && rec.duo.parts.every(p => Array.isArray(p) && p.length)) { // round 93
+    round = { mode: 'daily', color: dd.colors[1], day: DAY, finished: true, pot: freshPot(), undo: [], attempts: rec.duo.parts[1],
+      duo: { def: dd, idx: 1, parts: rec.duo.parts } };
+    renderAll();
+  } else if (rec) {
     const lastAtt = scoredAttempt(rec);
     round = {
       mode: 'daily', color: todayColor, day: DAY, finished: true,
@@ -1495,10 +1784,14 @@ function initDaily() {
       // becomes the new empty pot; any other saved pot loads as it is
       // (white in it is real paint the player kept).
       round.pot = !wip.pot || E.recipeMatch(wip.pot, E.OLD_WHITE_START) && Math.abs((wip.pot.w || 0) - 100) < 1e-9 ? freshPot() : wip.pot;
+      if (round.duo && wip.duoIdx === 1 && Array.isArray(wip.duoParts) && Array.isArray(wip.duoParts[0]) && wip.duoParts[0].length) { // round 93: resume on color 2
+        round.duo.idx = 1; round.duo.parts = [wip.duoParts[0], null]; round.color = round.duo.def.colors[1];
+      }
       // Round 9 migration: a WIP saved under the 3-attempt rules may
       // already hold 2 sealed attempts — that is a complete round now,
       // so finish it (best of the attempts made counts; nothing lost).
-      if (round.attempts.length >= MAX_ATTEMPTS) finish();
+      if (round.duo && round.duo.idx === 0 && round.attempts.length >= MAX_ATTEMPTS) duoAdvance(); // round 93
+      else if (round.attempts.length >= MAX_ATTEMPTS) finish();
       else renderAll();
     } else if (wip) {
       store.data.wip = null; // stale WIP (old day or a different color): discard safely
@@ -1721,7 +2014,10 @@ $('btn-duel').addEventListener('click', ev => {
   const day = round && round.mode === 'daily' ? round.day : DAY;
   const rec = store.data.days[day];
   if (!rec) return;
-  const url = duelUrlFor(scoredAttempt(rec), day);
+  // round 93: a duo day's link carries the average (p), color 1's mix (x) and color 2's mix (y)
+  const dParts = rec.duo && Array.isArray(rec.duo.parts) && rec.duo.parts.every(p => Array.isArray(p) && p.length) ? rec.duo.parts : null;
+  const url = dParts ? duelUrlFor({ pct: rec.pct, comp: bestAttempt(dParts[0]).comp }, day) + `&y=${E.encodeDuelComp(bestAttempt(dParts[1]).comp, day)}`
+    : duelUrlFor(scoredAttempt(rec), day);
   // Round 36: a native share sheet gets a one-line challenge (never the color's name).
   // The clipboard fallback still copies just the link, as the button says.
   const line = `Beat my ${rec.pct}% on Mixology ${dayTag(day) || shortDate(day)}?`;
@@ -1779,13 +2075,14 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.32.0',
+  version: '1.33.0',
+  DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
   checkDayRollover, parseDuel, openCalendar, closeCalendar, MAX_ATTEMPTS, practiceAudit,
   state() {
     return JSON.parse(JSON.stringify({
-      mode: round.mode, finished: round.finished, colorName: round.color.name,
+      mode: round.mode, finished: round.finished, colorName: round.color.name, duoIdx: round.duo ? round.duo.idx : null, duoParts: round.duo ? round.duo.parts : null,
       targetHex: round.color.thex, // debug only (round 77: the recipe color) — never rendered pre-reveal in the UI
       pot: round.pot, attempts: round.attempts,
       selectedBucket, selectedTool,

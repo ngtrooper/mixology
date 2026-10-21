@@ -1884,8 +1884,10 @@ console.log('— round 84: practice counts for nothing persistent —');
   test('r84: practice never adds Collection discoveries or best % (collectRound only for dailies)', () => {
     const calls = gameSrc.split('collectRound(').length - 1;
     assert.ok(fin.includes("if (round.mode === 'daily') queueDiscoveryToasts(collectRound(round.attempts, round.color.name));"), 'collectRound not gated to dailies');
-    // only the definition + the one gated call
-    assert.strictEqual(calls, 2, 'unexpected collectRound call sites: ' + calls);
+    // only the definition + the one gated call (+ round 93: the duo day's call, inside finishDuo's daily gate)
+    assert.strictEqual(calls, 3, 'unexpected collectRound call sites: ' + calls);
+    const fd = gameSrc.slice(gameSrc.indexOf('function finishDuo()'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function finishDuo()')));
+    assert.ok(fd.indexOf("if (round.mode === 'daily') {") >= 0 && fd.indexOf("if (round.mode === 'daily') {") < fd.indexOf('collectRound('), 'duo collectRound not gated to dailies');
   });
   test('r84: practice writes nothing to the save (no practiceRounds bump, no days/streak)', () => {
     assert.ok(!/practiceRounds\s*\+=/.test(gameSrc) && !/practiceRounds\+\+/.test(gameSrc), 'practiceRounds still bumped');
@@ -2240,6 +2242,42 @@ test('r91/r92: "Got an idea?" is a quiet footer link at the very bottom of the m
   assert.ok(foot.includes('id="support-link"'), 'not in the footer');
   assert.ok(htmlSrc.indexOf('</footer>') < htmlSrc.indexOf('</main>') && htmlSrc.indexOf('</footer>') > htmlSrc.indexOf('id="actions"'), 'footer must come after the round (below Submit)');
   assert.ok(/#site-foot \{[^}]*env\(safe-area-inset-bottom\)/.test(htmlSrc), 'no safe-area padding under the link');
+});
+
+console.log('— round 93: Halloween Duo (#14) —');
+test('r93: only internal day 669 (#14, Sat 2026-10-31 local) is a duo; color 1 is the scheduled color, color 2 a daily-eligible bank color', () => {
+  const m = gameSrc.match(/const DUO_DAYS = \{([\s\S]*?)\n\};/); assert.ok(m, 'no DUO_DAYS');
+  const keys = [...m[1].matchAll(/^\s*(\d+):/gm)].map(x => Number(x[1]));
+  assert.deepStrictEqual(keys, [669], 'only #14 may be a duo for now');
+  assert.strictEqual(E.publicNumber(669), 14);
+  assert.strictEqual(E.dayNumber(new Date(2026, 9, 31, 0, 0, 1)) + 1, 669, 'local midnight Oct 31 starts day 669');
+  assert.strictEqual(E.dayNumber(new Date(2026, 9, 30, 23, 59, 59)) + 1, 668, 'Oct 30 is still a normal day');
+  assert.strictEqual(SCHEDULE[669], 'pumpkin', 'color 1 must be the frozen schedule color');
+  assert.ok(m[1].includes("colors: ['pumpkin', 'midnight purple']"));
+  const mp = bank.find(c => c.name === 'midnight purple'); assert.ok(mp && !mp.retired && E.isDailyEligible(mp.de), 'midnight purple not playable');
+  assert.ok(gameSrc.includes("cols[0].name !== colorForDay(day).name) return null"), 'a misconfigured duo must fall back to a normal day');
+});
+test('r93: duo analytics events are allowed; names never are', () => {
+  const A = require('../analytics.js');
+  for (const ok of ['duo-c2-#14', 'pct-#14-c1-90', 'pct-#14-c2-<60', 'pct-#14-c2-100', 'start-#14', 'finish-#14']) assert.ok(A.validEvent(ok), ok);
+  for (const bad of ['duo-c2-pumpkin', 'duo-c2-#14 x', 'pct-#14-c3-90', 'duo-#14', 'pct-#14-c1-midnight purple']) assert.ok(!A.validEvent(bad), bad);
+  assert.ok(gameSrc.includes("trackDaily('duo-c2', round.day)") && gameSrc.includes("trackScore('c1', round.day, b.pct)") && gameSrc.includes("trackScore('c2', day, finals[1].pct)"));
+});
+test('r93: a duo day is one day record (pct = average, duo = both colors); streak rules match finish()', () => {
+  const fd = gameSrc.slice(gameSrc.indexOf('function finishDuo()'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function finishDuo()')));
+  for (const k of ['name: duo.def.colors[0].name', 'attempts: duo.parts[0]', 'pct: sum.pct', 'pcts: finals.map(f => f.pct)', 'hexes: finals.map(f => f.hex)', 's.days[day] = rec;', 's.wip = null;', 'if (s.lastDay === day - 1) { s.streak += 1;']) assert.ok(fd.includes(k), k);
+  assert.ok(gameSrc.includes('pct: Math.round((finals[0].pct + finals[1].pct) / 2)'), 'score is the rounded average');
+  assert.ok(gameSrc.includes('if (round.duo) return finishDuo();'));
+  // duel: p = average, x = color 1, y = color 2; parse tolerates a missing y
+  assert.ok(gameSrc.includes('+ `&y=${E.encodeDuelComp(bestAttempt(dParts[1]).comp, day)}`'));
+  assert.ok(gameSrc.includes("const comp2 = DUO_DAYS[day] && p.has('y') ? E.decodeDuelComp(p.get('y'), day) : null;"));
+});
+test('r93: duo UI only on a duo day (no spoilers): every duo render is gated on round.duo / duoFor(day)', () => {
+  assert.ok(htmlSrc.includes('<div id="duo-progress" hidden></div>'), 'duo chips must start hidden');
+  assert.ok(/#duo-pics \{ display: none; \}/.test(htmlSrc) && /#reveal\.duo #duo-pics \{ display: block; \}/.test(htmlSrc), 'duo reveal must be hidden unless #reveal.duo');
+  assert.ok(gameSrc.includes("const dd = mode === 'daily' ? duoFor(DAY) : null;"));
+  assert.ok(gameSrc.includes("if (rec.duo && duoFor(day)) return drawDuoShareCard(day, rec);"));
+  assert.ok(/\.pk \{ --pk-line: rgba\(241,235,223,\.6\); \}/.test(htmlSrc), 'dark-mode pumpkin outline');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

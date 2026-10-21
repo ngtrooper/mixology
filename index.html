@@ -354,6 +354,51 @@
   .attempt-slot.pop { animation: slot-pop .42s cubic-bezier(.3,1.6,.5,1); }
   @keyframes slot-pop { 0% { transform: scale(.85); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
   #reveal-pct { font-variant-numeric: tabular-nums; }
+  /* Round 93: DUO days (two colors, a pumpkin reveal). Only ever rendered on a duo day. */
+  #duo-progress { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 6px 0 0; flex-wrap: wrap; }
+  #duo-progress[hidden] { display: none; }
+  #duo-progress .dp { font-size: 12px; padding: 3px 10px 3px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  #duo-progress .dp b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--line); color: var(--ink); font-size: 11px; }
+  #duo-progress .dp.cur { border-color: var(--accent); color: var(--ink); font-weight: 700; }
+  #duo-progress .dp.cur b { background: #b3541e; color: #fff; }
+  #duo-progress .dp.done b { background: #2e7d32; color: #fff; }
+  #duo-progress .dp-plus { color: var(--muted); font-weight: 700; }
+  #prompt-area.duo-pop #color-name { animation: duo-pop .6s cubic-bezier(.3,1.5,.5,1); }
+  @keyframes duo-pop { 0% { transform: scale(.6); } 100% { transform: scale(1); } }
+  #app.duo-done #prompt-area, #app.duo-done #stage, #app.duo-done #toolbar, #app.duo-done #attempts-list,
+  #app.duo-done #last-result, #app.duo-done #actions, #app.duo-done #seal-hint { display: none !important; }
+  #app.duo-done #reveal { margin-top: 10px; padding: 12px 14px 14px; }
+  /* the payoff and Share/Duel fit the first screen; countdown and recipes follow */
+  #reveal.duo { display: flex !important; flex-direction: column; }
+  #reveal.duo > * { order: 9; }
+  #reveal.duo #reveal-h { order: 0; } #reveal.duo #duo-pics { order: 1; } #reveal.duo #reveal-actions { order: 2; margin-top: 10px; }
+  #reveal.duo #card-row { order: 3; } #reveal.duo #reveal-next { order: 4; } #reveal.duo #reveal-recipes { order: 5; }
+  #duo-pics { display: none; }
+  #reveal.duo #duo-pics { display: block; }
+  #reveal.duo .vs, #reveal.duo #reveal-pct, #reveal.duo #reveal-band, #reveal.duo #reveal-de { display: none; }
+  #reveal.duo h2 { color: var(--ink); text-transform: none; letter-spacing: .3px; font-size: 17px; margin-bottom: 4px; }
+  .dr-pics, .cdt-pk { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .dr-pics figure, .cdt-pk figure { margin: 0; text-align: center; }
+  .dr-pics svg { width: 100%; height: auto; max-height: 24vh; display: block; margin: 0 auto; }
+  .cdt-pk { margin: 8px 0 4px; } .cdt-pk svg { width: 100%; max-width: 120px; height: auto; display: block; margin: 0 auto; }
+  .dr-pics figcaption, .cdt-pk figcaption { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-top: 2px; }
+  .pk { --pk-line: rgba(0,0,0,.28); }
+  .pk .pk-line { stroke: var(--pk-line); stroke-width: 1.6; stroke-linejoin: round; }
+  .pk .pk-out { fill: none; stroke-width: 3; }
+  .pk .pk-face { stroke: rgba(0,0,0,.18); stroke-width: 1; }
+  .pk .pk-shadow { fill: #000; opacity: .10; }
+  #dr-rows { display: grid; gap: 6px; margin: 8px 0 4px; }
+  .dr-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 12px; text-align: left; }
+  .dr-sw { width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(0,0,0,.15); flex: none; }
+  .dr-name { flex: 1; font-weight: 700; font-size: 14px; line-height: 1.15; padding-left: 4px; }
+  .dr-name small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); }
+  .dr-pct { font-weight: 800; font-size: 18px; }
+  #dr-avg { text-align: center; font-size: 52px; font-weight: 800; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  #dr-band { text-align: center; font-size: 11.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 4px; font-weight: 700; }
+  .dr-rh { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  #reveal.duo.enter .dr-pics figure:first-child { animation: rv-left .6s .08s cubic-bezier(.2,.8,.3,1) both; }
+  #reveal.duo.enter .dr-pics figure:last-child { animation: rv-right .6s .16s cubic-bezier(.2,.8,.3,1) both; }
+  .cal-day.duo .cd-name { font-style: italic; }
   #reveal-pct { text-align: center; font-size: 52px; font-weight: 800; margin: 12px 0 0; line-height: 1; }
   #reveal-band { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; margin-top: 4px; }
   #reveal-de { text-align: center; color: var(--muted); font-size: 13px; margin-top: 4px; text-wrap: balance; }
@@ -663,7 +708,7 @@
    * invisible (the game was unplayable). Real paint colors are content, so keep
    * them; the rest of the UI still follows the system palette. */
   @media (forced-colors: active) {
-    #stage, .asw, .vs .sw, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i, .ct, #col-toast i, .col-fams i, .star { forced-color-adjust: none; }
+    #stage, .asw, .vs .sw, .dr-sw, .pk, .rbar, .rleg i, .dsw div, .cd-sw, .cdt-sw i, .st-row i, .ct, #col-toast i, .col-fams i, .star { forced-color-adjust: none; }
     .tool[aria-pressed="true"] { outline: 3px solid Highlight; outline-offset: -3px; } /* selection was a fill only */
   }
   @media (prefers-reduced-motion: reduce) {
@@ -687,6 +732,8 @@
     .rbar { background: #f1ebdf; }
     .rleg i { border-color: rgba(241,235,223,.35); }
     /* white-on-accent buttons keep the light-mode accent for contrast (~5:1) */
+    .pk { --pk-line: rgba(241,235,223,.6); } /* round 93: a dark stem / body stays readable on the dark card */
+    .dr-sw { border-color: rgba(241,235,223,.35); }
     #btn-seal:not(.done), #btn-next-practice, #btn-today { background: #b3541e; }
   }
   /* Round 52: "increase contrast" (macOS/iOS setting, prefers-contrast: more).
@@ -733,6 +780,7 @@
     <div id="prompt-kicker">Today's color is called</div>
     <div id="color-name">…</div>
     <p id="prompt-sub">How well do you know your colors?</p>
+    <div id="duo-progress" hidden></div>
     <div id="practice-bar"><span>Practice — doesn't count toward stars, recipes or collection</span></div>
     <div id="done-banner" hidden>
       <p class="db-head" id="db-head">✓ You've played today's color</p>
@@ -811,7 +859,13 @@
   <p id="seal-hint">Pour some paint into the pot to submit.</p>
 
   <section id="reveal">
-    <h2>The reveal</h2>
+    <h2 id="reveal-h">The reveal</h2>
+    <div id="duo-pics">
+      <div class="dr-pics"><figure><div id="dr-true"></div><figcaption id="dr-true-cap">Official</figcaption></figure><figure><div id="dr-mine"></div><figcaption>Yours</figcaption></figure></div>
+      <div id="dr-rows"></div>
+      <div id="dr-avg">—</div>
+      <div id="dr-band"></div>
+    </div>
     <div class="vs">
       <div class="side"><div class="sw" id="reveal-official"></div><div class="slabel">Official</div></div>
       <div class="side"><div class="sw" id="reveal-mine"></div><div class="slabel">Your mix</div></div>
@@ -942,11 +996,11 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.32.0"></script>
-<script src="schedule.js?v=1.32.0"></script>
-<script src="engine.js?v=1.32.0"></script>
-<script src="transfer.js?v=1.32.0"></script>
-<script src="analytics.js?v=1.32.0"></script>
-<script src="game.js?v=1.32.0"></script>
+<script src="colors.js?v=1.33.0"></script>
+<script src="schedule.js?v=1.33.0"></script>
+<script src="engine.js?v=1.33.0"></script>
+<script src="transfer.js?v=1.33.0"></script>
+<script src="analytics.js?v=1.33.0"></script>
+<script src="game.js?v=1.33.0"></script>
 </body>
 </html>

@@ -61,7 +61,7 @@ Consequences that are **invariants**, not implementation details:
 - **Assets** (round 11): `icons/icon.svg` is the source. The PNGs (favicon-32, apple-touch 180, 192, 512, maskable 512) and `icons/og-image.png` (1200×630) were rendered from it with Playwright. The og image never names a daily color.
 - **Share card** (round 12): `drawShareCard(day)` draws a 1080² canvas with no name, no colors and no recipe. Share attaches it through Web Share when the platform can share files.
 - **Buttons with icons** (round 25): use `flashLabel(btn, text)` for temporary labels. Setting `textContent` directly would wipe the SVG.
-- **Shipping UI changes** (round 32): bump `version` in game.js and the `?v=` on all four `<script>` tags together (a test enforces the match). Pages caches for about 10 min, so without this a returning visitor can get new game.js with old index.html, or the reverse.
+- **Shipping UI changes** (round 32): bump `version` in game.js and the `?v=` on all six `<script>` tags together (a test enforces the match). Pages caches for about 10 min, so without this a returning visitor can get new game.js with old index.html, or the reverse.
 - **a11y baseline** (rounds 17, 21, 26): axe-core is clean in 12 states (light/dark × home, reveal, calendar, stats, tips, welcome). Keep `<main id="app">`, the `#sr-announce` live region, `aria-pressed` on pigments and tools, and `--muted` at ≥ 4.5:1.
 - **Keyboard shortcuts** (rounds 40, 57, 60): 1–5 pigments, D/P tools, Z undo, PgUp/PgDn months. There is deliberately **no seal key**, so an attempt can never be sealed by accident. Shortcuts are ignored in dialogs and fields, and they announce changes to screen readers by naming the control, never the mix.
 - **Forced colors** (round 51): any new element whose *meaning* is a paint color must join the `@media (forced-colors: active)` `forced-color-adjust: none` list, or it vanishes in High Contrast mode.
@@ -73,6 +73,13 @@ Consequences that are **invariants**, not implementation details:
   - An attempt whose disc numbers equal the recipe's numbers is an exact match: 100%, ΔE 0, DEAD ON (`E.scoreMix`).
   - Every pool recipe is reachable with whole drops and '−' taps from a fresh pot (`E.wholeDropPath`, tested).
   - The official color shown at the reveal, in the calendar and in the Collection is the recipe color. Collection discovery is ΔE00 3 from recipe colors, with no hard-color margin. Names sharing one recipe color are discovered together.
+- **Duo days** (round 93, Franklin): only days listed in `DUO_DAYS` in game.js are two-color days. The only one is internal day 669, **Mixology #14 (Sat Oct 31, 2026), the Halloween Duo**: Pumpkin (the scheduled color) followed by Midnight Purple. There is no weekly duo yet. Each color gets two attempts, best one counts, and the day's `pct` is the **average** of the two bests.
+  - One day record holds color 1's `name`/`attempts`/`hex`, plus a `duo` sub-object (`names`, `parts`, `pcts`, `hexes`, `des`). That way save transfer, streaks, stats and the collection keep working unchanged.
+  - Everything is gated on `duoFor(day)`, so nothing about a duo is visible before that local date.
+  - The duo share card shows the player's own pumpkin (their two mixes) with the average and both per-color %. It never shows names or recipes.
+  - The duel link adds `&y=` for color 2. A link without `y` degrades to a no-spoiler card.
+  - The clip tools in `/workspace/game-clips` read `DUO_DAYS`: `make_clip.js --story` films both colors, and `make_cover.js` draws the pumpkin.
+  - Every other day must play and share byte-identically to a non-duo build.
   - Saved history is never rescored. Duel links carry `s=2`; older links with a mix are rescored on open.
 - **One hint after attempt 1** (round 77, Franklin, overriding the "no hints" lock below for that moment only): `E.mixHint` gives the 1–2 biggest issues in plain words (lightness, muted/strong, which hue to lean toward). 97–99 gets "So close!" and 100 gets "Perfect match!". There are never amounts, numbers or the recipe. It shows under attempt 1's result until attempt 2, and is never in share text, duel links or the card.
 - **Title** (round 77): "Mixology: Daily Color Mix" in `<title>`, og/twitter titles and the manifest `name` (`short_name` stays "Mixology"). The header wordmark stays "MIXOLOGY." with a small "Daily Color Mix" line under it. Share text keeps "MIXOLOGY #N — How well do you know your colors?".

@@ -55,7 +55,9 @@ const ANALYTICS_CODE = 'ngtrooper';
    *                   recipe in whole disc percents: 0..5, 6-10, 11-20, 21+.
    *                   Both sum to 100, so k is always even: 2 = one paint 1%
    *                   too high and another 1% too low.
-   *   paints-#N-<c>   how many paints (1-5) the final mix uses */
+   *   paints-#N-<c>   how many paints (1-5) the final mix uses
+   * Round 93 (duo days): duo-c2-#N when a player reaches color 2, and
+   * pct-#N-c1-<score> / pct-#N-c2-<score> for each color's best try (final = the average). */
   function scoreLabel(pct) {
     const n = Math.round(Number(pct));
     if (!Number.isFinite(n) || n < 0 || n > 100) return null;
@@ -73,7 +75,7 @@ const ANALYTICS_CODE = 'ngtrooper';
   function paintCount(mine) { const c = PAINTS.filter(k => whole(mine && mine[k]) > 0).length; return c >= 1 ? c : null; }
 
   /** Only these shapes may ever leave the browser (no names, no free text). */
-  const EVENT_RE = /^(open|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+)|pct-#\d{1,5}-(a1|final)-(<60|[6-9]\d|100)|off-#\d{1,5}-([0-5]|6-10|11-20|21\+)|paints-#\d{1,5}-[1-5])$/;
+  const EVENT_RE = /^(open|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+)|duo-c2-#\d{1,5}|pct-#\d{1,5}-(a1|final|c1|c2)-(<60|[6-9]\d|100)|off-#\d{1,5}-([0-5]|6-10|11-20|21\+)|paints-#\d{1,5}-[1-5])$/;
   function validEvent(name) { return typeof name === 'string' && EVENT_RE.test(name); }
 
   function localHost(h) {

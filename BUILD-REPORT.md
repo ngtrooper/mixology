@@ -2,6 +2,23 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 93 (2026-10-21, Grok Bot): HALLOWEEN DUO ON #14, v1.33.0 (Franklin approved)
+
+- **What:** Mixology #14 (Sat Oct 31, 2026, internal day 669) is the first two-color day. You mix Pumpkin (#DF7810), then Midnight Purple (#32193F). Each color gets two attempts, best one counts, and the score is their average.
+  - The reveal shows the official pumpkin next to the player's, plus per-color rows and the average.
+  - The share card shows the player's pumpkin with "#14 · Oct 31, 2026", the average and Color 1/Color 2 bars.
+  - The pumpkin has a light outline in dark mode.
+- **Unchanged:** every other day. The e2e plays Oct 30 on the old and new builds, and the share PNG, reveal text and state are identical.
+- **Saves:** the save format is still v2, with one day record plus a `duo` sub-object.
+  - A mid-duo reload resumes on the right color (WIP `duoIdx`/`duoParts`).
+  - The streak goes 1 → 2 → 3 across Oct 30, 31 and Nov 1.
+  - Save transfer round-trips the duo day. The calendar shows a split swatch and a duo detail.
+- **Duels:** links carry `&y=` for color 2 and show "Them/You" averages. A link without `y` degrades gracefully.
+- **Analytics:** all existing events are kept. Added `duo-c2-#14`, `pct-#14-c1-N` and `pct-#14-c2-N`. `score-band` comes from the average.
+- **Tests:**
+  - 4 new unit tests and 1 updated. 251 pass.
+  - Headless e2e (`/workspace/game/mixology-duo/live-build/e2e.cjs`, Date shim in a Playwright init script only): 40/40 in Chromium and WebKit, at iPhone 390×844, light and dark.
+
 ## Round 92 (2026-10-20, Grok Bot): FOOTER LINK RENAMED (Franklin)
 
 - The footer link now reads **"Got an idea?"**. It still emails support@mixologydaily.com, with the subject now "Mixology idea". The layout and fit are unchanged. 247 tests pass.
