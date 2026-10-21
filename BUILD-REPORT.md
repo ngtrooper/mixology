@@ -2,6 +2,18 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 94 (2026-10-21, Grok Bot): STARS ONLY ON THE COLOR OF THE DAY, v1.34.0 (Franklin)
+
+- **Problem:** Franklin's 99% on #3 Manilla also gave gold stars to Butter, Faded Yellow, Light Yellow and Yellowish Tan. They share Manilla's recipe color, so discovery credited them all.
+- **Rule:** "stars are only awarded on the color of the day." The new engine functions `dailyStarPct(name, days)` and `collectionStar(name, days)` give a star only to a color that was the target of a daily you played; on the duo day both colors count. The star uses the best of those daily attempts.
+  - The Collection grid and detail use this rule. Twins and nearby finds stay discovered and show their % with no star, plus a muted note: "Found by a nearby mix. Stars are earned only on the color of the day."
+  - It is retroactive through the derived view; the stored collection is untouched. Toasts, the reveal and the calendar are unchanged.
+  - Collection detail also unlocks the official recipe for a duo's color 2 once played.
+- **Tests:**
+  - 3 new unit tests; 254 pass.
+  - New e2e `/workspace/game/mixology-duo/live-build/stars-e2e.cjs` reproduces the Manilla 99% save: 22/22 in Chromium and WebKit, light and dark. Only Manilla has a star (gold), and the other four are discovered at 99% with no star.
+  - Duo e2e: 40/40.
+
 ## Round 93 (2026-10-21, Grok Bot): HALLOWEEN DUO ON #14, v1.33.0 (Franklin approved)
 
 - **What:** Mixology #14 (Sat Oct 31, 2026, internal day 669) is the first two-color day. You mix Pumpkin (#DF7810), then Midnight Purple (#32193F). Each color gets two attempts, best one counts, and the score is their average.

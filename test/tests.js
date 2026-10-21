@@ -2280,5 +2280,41 @@ test('r93: duo UI only on a duo day (no spoilers): every duo render is gated on 
   assert.ok(/\.pk \{ --pk-line: rgba\(241,235,223,\.6\); \}/.test(htmlSrc), 'dark-mode pumpkin outline');
 });
 
+console.log('— round 94: stars only on the color of the day —');
+test('r94: a collection star needs a played daily of that color; twins/nearby finds get none (Manilla 99% case)', () => {
+  const days = { 658: { date: '2026-10-20', name: 'manilla', attempts: [{ pct: 91, hex: '#e0d07a' }, { pct: 99, hex: '#e6da7e' }], pct: 99, scoring: 'best' } };
+  assert.strictEqual(E.dailyStarPct('manilla', days), 99);
+  assert.strictEqual(E.collectionStar('manilla', days).id, 'gold');
+  for (const twin of ['butter', 'faded yellow', 'light yellow', 'yellowish tan']) {
+    assert.strictEqual(E.dailyStarPct(twin, days), null, twin);
+    assert.strictEqual(E.collectionStar(twin, days), null, twin + ' must not get a star');
+  }
+  // best of that color's daily attempts across every day it was played
+  const two = { ...days, 1098: { date: '2027-12-30', name: 'manilla', attempts: [{ pct: 100 }], pct: 100 } };
+  assert.strictEqual(E.collectionStar('manilla', two).id, 'diamond');
+  // a later daily of a twin earns that twin its own star from its own attempts
+  const later = { ...days, 700: { date: '2026-12-01', name: 'butter', attempts: [{ pct: 86 }, { pct: 84 }], pct: 86 } };
+  assert.strictEqual(E.collectionStar('butter', later).id, 'bronze');
+  // records without attempts fall back to the scored pct; junk is ignored
+  assert.strictEqual(E.dailyStarPct('x', { 1: { name: 'x', pct: 90 }, 2: null, 3: 'junk' }), 90);
+  assert.strictEqual(E.collectionStar('x', {}), null);
+});
+test('r94: duo day: both colors are targets, each starred from its own attempts (not the average)', () => {
+  const days = { 669: { date: '2026-10-31', name: 'pumpkin', attempts: [{ pct: 80 }, { pct: 98 }], pct: 89,
+    duo: { id: 'halloween-2026', names: ['pumpkin', 'midnight purple'], parts: [[{ pct: 80 }, { pct: 98 }], [{ pct: 84 }, { pct: 79 }]], pcts: [98, 84] } } };
+  assert.strictEqual(E.collectionStar('pumpkin', days).id, 'gold');
+  assert.strictEqual(E.collectionStar('midnight purple', days), null, '84% is under bronze');
+  assert.strictEqual(E.dailyStarPct('midnight purple', days), 84);
+});
+test('r94: the Collection grid and detail use collectionStar (derived, nothing pruned); toasts never name a tier', () => {
+  assert.ok(gameSrc.includes('(E.collectionStar(c.name, store.data.days))'), 'grid star');
+  assert.ok(gameSrc.includes('bStar = E.collectionStar(name, store.data.days)'), 'detail star');
+  assert.ok(!/E\.starTier\(E\.collectedBestPct\(/.test(gameSrc), 'no star straight from a collected best');
+  const toast = gameSrc.slice(gameSrc.indexOf('function nextToast()'), gameSrc.indexOf('function openCollection('));
+  assert.ok(!/star|gold|silver|bronze|diamond|tier/i.test(toast), 'discovery toasts must not mention stars');
+  assert.ok(gameSrc.includes('Stars are earned only on the color of the day.'));
+  assert.ok(/\.col-found \{/.test(htmlSrc));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1724,7 +1724,7 @@ function renderCollection() {
     `<div id="col-detail" tabindex="-1"></div>` +
     fams.map(f => `<h2 class="col-h">${f.label} <span>${f.colors.filter(has).length}/${f.colors.length}</span></h2><div class="col-grid">` +
       f.colors.map(c => has(c)
-        ? (st => `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.thex}" aria-label="${escapeHtml(titleCase(c.name))}${st ? ', ' + st.label : ''}">${starBadge(st)}</button>`)(E.starTier(E.collectedBestPct(found[c.name], c.thex)))
+        ? (st => `<button type="button" class="ct" data-name="${escapeHtml(c.name)}" style="background:${c.thex}" aria-label="${escapeHtml(titleCase(c.name))}${st ? ', ' + st.label : ''}">${starBadge(st)}</button>`)(E.collectionStar(c.name, store.data.days)) // round 94: stars only for colors that were a played day's target
         : `<span class="ct q" aria-hidden="true">?</span>`).join('') + `</div>`).join('');
   $('cal-col').querySelectorAll('.ct[data-name]').forEach(b => b.addEventListener('click', () => showCollectionDetail(b.dataset.name)));
 }
@@ -1734,13 +1734,15 @@ function showCollectionDetail(name) {
   document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
   const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
   const showRecipe = E.officialRecipeVisible(name, store.data.days); // round 73: only colors you finished as a daily
-  const b = rec.best, bPct = E.collectedBestPct(rec, c.thex), bStar = E.starTier(bPct);
+  const playedAsDaily = E.dailyStarPct(name, store.data.days) !== null; // round 94: a played day's target (duo: either color)
+  const b = rec.best, bPct = E.collectedBestPct(rec, c.thex), bStar = E.collectionStar(name, store.data.days); // round 94: star from that color's own dailies only
   const when = rec.date ? new Date(rec.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'before the Collection existed';
   el.innerHTML = `<div class="cdt-title">“${escapeHtml(titleCase(name))}”</div>` +
     `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${bPct}%${bStar ? ` · <span class="star-word">${starBadge(bStar, 'inline')}${bStar.id} star</span>` : ''}</div>` +
     `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.thex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${bPct}%</b></span></div>` +
     recipeRowHTML('Your mix', bPct + '%', b.comp) +
-    (showRecipe ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>`);
+    (playedAsDaily ? '' : `<p class="col-found">Found by a nearby mix. Stars are earned only on the color of the day.</p>`) + // round 94
+    ((showRecipe || playedAsDaily) ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>`);
   try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
   el.scrollIntoView({ block: 'nearest', behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
 }
@@ -2075,7 +2077,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.33.0',
+  version: '1.34.0',
   DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,

@@ -838,7 +838,7 @@ function officialRecipeVisible(name, finishedDays) {
  * A small star in the corner of a swatch for a high score, using the same
  * rounded % the player sees. Round 75 tiers: 85-89 bronze, 90-96 silver,
  * 97-99 gold, 100 diamond (a higher tier replaces a lower one). Shown on Calendar day circles (that day's
- * best attempt), Collection tiles (best mix against that color) and the reveal.
+ * best attempt), Collection tiles (round 94: only colors that were a played day's target) and the reveal.
  * Purely derived from saved scores: nothing new is stored, so old saves work. */
 // round 75 (Franklin): re-pointed. 100 diamond, 97-99 gold, 90-96 silver, 85-89 bronze (85 = par).
 const STAR_TIERS = [{ id: 'diamond', min: 100, label: 'diamond star: 100%' }, { id: 'gold', min: 97, label: 'gold star: 97%+' }, { id: 'silver', min: 90, label: 'silver star: 90%+' }, { id: 'bronze', min: 85, label: 'bronze star: 85%+' }];
@@ -846,6 +846,32 @@ function starTier(pct) {
   const n = Number(pct);
   if (!Number.isFinite(n)) return null;
   return STAR_TIERS.find(t => Math.round(n) >= t.min) || null;
+}
+/* Round 94 (Franklin): "stars are only awarded on the color of the day." A
+ * Collection color earns a star only if the player played a daily whose target
+ * was that color (a `days` record with that name; on a duo day both colors are
+ * targets). The star uses the best % of those daily attempts at it. Colors found
+ * incidentally (twins sharing a recipe color, nearby mixes) stay discovered with
+ * their best closeness %, but get no star until they are a played day's color.
+ * Derived from the save: nothing stored changes, so it applies retroactively. */
+function dailyStarPct(name, days) {
+  let best = null;
+  const take = (atts, pct) => {
+    const ps = (Array.isArray(atts) ? atts : []).map(a => Number(a && a.pct)).filter(Number.isFinite);
+    if (!ps.length && Number.isFinite(Number(pct))) ps.push(Number(pct));
+    for (const p of ps) if (best === null || p > best) best = p;
+  };
+  for (const r of Object.values(days || {})) {
+    if (!r || typeof r !== 'object') continue;
+    if (r.duo && Array.isArray(r.duo.names)) {
+      r.duo.names.forEach((n, i) => { if (n === name) take(r.duo.parts && r.duo.parts[i], r.duo.pcts && r.duo.pcts[i]); });
+    } else if (r.name === name) take(r.attempts, r.pct);
+  }
+  return best;
+}
+function collectionStar(name, days) {
+  const p = dailyStarPct(name, days);
+  return p === null ? null : starTier(p);
 }
 /** The % a Collection entry's best mix scored against its color. Older or
  *  partial entries may lack pct: fall back to the stored ΔE, then to the mix
@@ -953,7 +979,7 @@ const MisnomerEngine = {
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, nextDayStart, formatCountdown, comeBackLine, dateKey, pickDailyIndex, nearestColorName,
-  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, auditCollectionSources, collectionView, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct
+  DISCOVER_DE, DISCOVER_HARD_MARGIN, discoverLimit, COLLECTION_KEY, collectibleColors, LUNAR_NEW_YEAR, HANUKKAH_FIRST_NIGHT, DIWALI, HOLIDAY_DEFS, easterDate, nthWeekday, holidaysForYear, holidayOn, HUE_FAMILIES, hueFamily, discoverColor, recordDiscovery, backfillCollection, auditCollectionSources, collectionView, officialRecipeVisible, recipeHex, recipeMatch, scoreMix, wholeDropPath, mixHint, hueWord, STAR_TIERS, starTier, collectedBestPct, dailyStarPct, collectionStar
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = MisnomerEngine;
 if (typeof window !== 'undefined') window.MisnomerEngine = MisnomerEngine;

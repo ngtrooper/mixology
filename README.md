@@ -73,6 +73,10 @@ Consequences that are **invariants**, not implementation details:
   - An attempt whose disc numbers equal the recipe's numbers is an exact match: 100%, ΔE 0, DEAD ON (`E.scoreMix`).
   - Every pool recipe is reachable with whole drops and '−' taps from a fresh pot (`E.wholeDropPath`, tested).
   - The official color shown at the reveal, in the calendar and in the Collection is the recipe color. Collection discovery is ΔE00 3 from recipe colors, with no hard-color margin. Names sharing one recipe color are discovered together.
+- **Stars only on the color of the day** (round 94, Franklin): a Collection color shows a star only if the player played a daily whose target was that color. That means a `days` record with that name; on a duo day both colors count. The star comes from the best % of those daily attempts at it (`E.collectionStar(name, days)`), never from `collectedBestPct`.
+  - Twins (names sharing a recipe color) and nearby finds are still discovered and show their best %, but carry no star. Their detail says "Found by a nearby mix. Stars are earned only on the color of the day."
+  - It is derived from the save, so it applies retroactively. `collection.data` is never pruned.
+  - Discovery toasts never mention stars.
 - **Duo days** (round 93, Franklin): only days listed in `DUO_DAYS` in game.js are two-color days. The only one is internal day 669, **Mixology #14 (Sat Oct 31, 2026), the Halloween Duo**: Pumpkin (the scheduled color) followed by Midnight Purple. There is no weekly duo yet. Each color gets two attempts, best one counts, and the day's `pct` is the **average** of the two bests.
   - One day record holds color 1's `name`/`attempts`/`hex`, plus a `duo` sub-object (`names`, `parts`, `pcts`, `hexes`, `des`). That way save transfer, streaks, stats and the collection keep working unchanged.
   - Everything is gated on `duoFor(day)`, so nothing about a duo is visible before that local date.
