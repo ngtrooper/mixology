@@ -2,6 +2,25 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 95 (2026-10-21, Grok Bot): ALL-TIME UNIQUE BROWSERS, v1.35.0 (Franklin)
+
+- **New events:** `first-visit` (a browser with no Mixology history) and `known-player` (an existing player's first load after this deploy).
+  - Each is sent **once ever per browser**, on page load next to `open`. They use their own permanent flag `mixology.analytics.ever.v1` (`<kind>:pending` → `<kind>|<date>` when sent), not the daily sent-flags.
+  - Unique browsers since the deploy = first-visit + known-player.
+- **Transfer:**
+  - A `#import=` arrival counts as known-player.
+  - transfer.js now exposes `MixTransfer.pending`, which is true when load-time code navigates away. When it does, nothing is sent and the returning page decides: bridge with a save → known-player, `#import-none` → first-visit. This load's own writes never make it "known".
+- **Opt-outs:** all existing ones apply (webdriver, `?noanalytics`, opt-out flag, skipgc, local hosts, file://).
+- **Tests:**
+  - Unit: 5 new tests, run against analytics.js in a vm with a fake GoatCounter; 1 exemption added to r84; the runner now supports async tests. 259 pass.
+  - New e2e `/workspace/game/mixology-duo/live-build/ever-e2e.cjs`, 12/12 in Chromium and WebKit. Every request is intercepted; mixologydaily.com and the bridge are served locally and count.js is a stub. It covers:
+    - a new browser, including a next-day reload;
+    - an existing save;
+    - a bridge pull of an old save;
+    - a new browser via bridge `#import-none`;
+    - opt-outs.
+  - Duo e2e 40/40, stars e2e 22/22.
+
 ## Round 94 (2026-10-21, Grok Bot): STARS ONLY ON THE COLOR OF THE DAY, v1.34.0 (Franklin)
 
 - **Problem:** Franklin's 99% on #3 Manilla also gave gold stars to Butter, Faded Yellow, Light Yellow and Yellowish Tan. They share Manilla's recipe color, so discovery credited them all.

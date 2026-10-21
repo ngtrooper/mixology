@@ -21,11 +21,32 @@ const ANALYTICS_CODE = 'ngtrooper';
  * recipe-distance numbers, see below). Each event is sent at most once
  * per day per browser (sent-flags in localStorage, reset each local day).
  * Everything is wrapped in try/catch: offline, ad blockers, a blocked or
- * broken count.js, or full storage can never break or delay the game. */
+ * broken count.js, or full storage can never break or delay the game.
+ *
+ * Round 95 (Franklin): an exact all-time count of unique browsers. Two
+ * once-EVER events, sent at most once per browser for good (their own
+ * permanent flag `mixology.analytics.ever.v1`, never the daily sent-flags):
+ *   first-visit   the browser had NO Mixology history when it first loaded
+ *                 the game after round 95 (a truly new browser);
+ *   known-player  it already had history from before (a save, collection,
+ *                 welcome/pour flag or analytics sent-flags), so existing
+ *                 players are counted once too.
+ * Unique browsers since the round-95 deploy = first-visit + known-player.
+ * The kind is decided when analytics.js loads, i.e. AFTER transfer.js merged
+ * any #import= link and BEFORE game.js writes anything, so a player arriving
+ * with a transferred save counts as known-player. If transfer.js is about to
+ * leave the page (bridge pull / https hop / migration), nothing is sent: the
+ * page it comes back to decides (bridge returns with the save -> known-player,
+ * with #import-none -> first-visit). The flag is written only when the event
+ * is actually handed to GoatCounter, so a blocked count.js retries next load;
+ * until then it holds the decision as '<kind>:pending' (see everKind).
+ * The flag is per origin and is NOT carried by save transfer (unknown key). */
 (function (root) {
   'use strict';
   const OPTOUT_KEY = 'mixology.noanalytics.v1';
   const SENT_KEY = 'mixology.analytics.sent.v1';
+  const EVER_KEY = 'mixology.analytics.ever.v1'; // round 95: permanent once-ever flag (never reset)
+  const EVER_EVENTS = ['first-visit', 'known-player'];
   const SCRIPT_SRC = 'https://gc.zgo.at/count.js';
   const STEP_BUCKETS = [1, 2, 3, 5, 7, 14, 30]; // streak-N / played-days-N: largest step <= n; 30 means "30+"
 
@@ -75,7 +96,7 @@ const ANALYTICS_CODE = 'ngtrooper';
   function paintCount(mine) { const c = PAINTS.filter(k => whole(mine && mine[k]) > 0).length; return c >= 1 ? c : null; }
 
   /** Only these shapes may ever leave the browser (no names, no free text). */
-  const EVENT_RE = /^(open|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+)|duo-c2-#\d{1,5}|pct-#\d{1,5}-(a1|final|c1|c2)-(<60|[6-9]\d|100)|off-#\d{1,5}-([0-5]|6-10|11-20|21\+)|paints-#\d{1,5}-[1-5])$/;
+  const EVENT_RE = /^(open|first-visit|known-player|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+)|duo-c2-#\d{1,5}|pct-#\d{1,5}-(a1|final|c1|c2)-(<60|[6-9]\d|100)|off-#\d{1,5}-([0-5]|6-10|11-20|21\+)|paints-#\d{1,5}-[1-5])$/;
   function validEvent(name) { return typeof name === 'string' && EVENT_RE.test(name); }
 
   function localHost(h) {
@@ -107,15 +128,55 @@ const ANALYTICS_CODE = 'ngtrooper';
   }
 
   const memStore = (() => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); } }; })();
+  /** Round 95: does this browser already have Mixology history (from before this load)? */
+  function hasHistory(storage) {
+    const get = k => { try { return storage.getItem(k); } catch (e) { return null; } };
+    const json = k => { try { return JSON.parse(get(k) || 'null'); } catch (e) { return null; } };
+    const save = json('misnomer.save.v1'), col = json('mixology.collection.v1');
+    if (save && typeof save === 'object' && ((save.days && typeof save.days === 'object' && Object.keys(save.days).length) || save.wip)) return true;
+    if (col && col.found && typeof col.found === 'object' && Object.keys(col.found).length) return true;
+    if (get('mixology.welcomed.v1') === '1' || get('mixology.poured.v1') === '1') return true;
+    return get(SENT_KEY) != null;
+  }
+  /** Round 95: which once-ever event this browser still owes (null if already
+   *  sent or storage is not persistent). The decision is stored at once as
+   *  '<kind>:pending' so this browser's own later writes (its first `open`,
+   *  its save) can't turn a first visit into a "known player" if the event is
+   *  only sent on a later load (bridge hop, blocked count.js). The one upgrade:
+   *  a pending first-visit whose load brought in a transferred save (#import=)
+   *  becomes known-player. `imported` = transfer.js merged a save this load. */
+  function everKind(storage, imported) {
+    let v = null;
+    try { if (!storage || storage === memStore) return null; v = storage.getItem(EVER_KEY); } catch (e) { return null; }
+    let kind;
+    if (v) { const m = /^(first-visit|known-player):pending$/.exec(v); if (!m) return null; kind = m[1]; } // sent already
+    else kind = hasHistory(storage) ? 'known-player' : 'first-visit';
+    if (kind === 'first-visit' && imported) kind = 'known-player';
+    try { storage.setItem(EVER_KEY, kind + ':pending'); } catch (e) { return null; }
+    return kind;
+  }
+  const isSentEver = v => !!v && !/:pending$/.test(v);
   function safeStorage() { try { const s = root.localStorage; s.getItem(SENT_KEY); return s; } catch (e) { return memStore; } }
   function todayKey() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 
-  let enabled = false, reason = 'not started', queue = [], timer = null, tries = 0;
+  let enabled = false, reason = 'not started', queue = [], timer = null, tries = 0, everPending = null, everQueued = false;
   function flush() {
     const gc = root.goatcounter;
     if (!gc || typeof gc.count !== 'function') return false;
-    while (queue.length) { const name = queue.shift(); try { gc.count({ path: name, title: name, event: true }); } catch (e) { /* swallow */ } }
+    while (queue.length) {
+      const name = queue.shift();
+      if (EVER_EVENTS.includes(name)) { // round 95: claim the permanent flag only as it is really sent
+        const st = safeStorage();
+        try { if (isSentEver(st.getItem(EVER_KEY))) continue; st.setItem(EVER_KEY, name + '|' + todayKey()); } catch (e) { continue; }
+      }
+      try { gc.count({ path: name, title: name, event: true }); } catch (e) { /* swallow */ }
+    }
     return true;
+  }
+  function kick() {
+    if (!flush() && !timer) {
+      timer = setInterval(() => { if (flush() || ++tries > 60 || !enabled) { clearInterval(timer); timer = null; } }, 500);
+    }
   }
   function start() {
     try {
@@ -126,6 +187,8 @@ const ANALYTICS_CODE = 'ngtrooper';
       reason = disabledReason({ code: ANALYTICS_CODE, protocol: loc.protocol, hostname: loc.hostname, search: q, webdriver: !!(root.navigator && root.navigator.webdriver), storage });
       enabled = !reason;
       if (!enabled || !root.document) return;
+      const li = root.MixTransfer && root.MixTransfer.lastImport; // round 95: transfer.js ran first
+      everPending = everKind(storage, !!(li && li.ok && li.changed && li.days > 0)); // decided before game.js touches storage
       // the automatic page view is sent without the query string (duel links carry a mix code)
       root.goatcounter = Object.assign({}, root.goatcounter, { path: loc.pathname || '/' });
       const s = root.document.createElement('script');
@@ -141,15 +204,30 @@ const ANALYTICS_CODE = 'ngtrooper';
       if (!enabled || !validEvent(name)) return false;
       if (!claimOncePerDay(safeStorage(), name, todayKey())) return false;
       queue.push(name);
-      if (!flush() && !timer) {
-        timer = setInterval(() => { if (flush() || ++tries > 60 || !enabled) { clearInterval(timer); timer = null; } }, 500);
-      }
+      kick();
+      return true;
+    } catch (e) { return false; }
+  }
+  /** Round 95: send first-visit / known-player once ever (called with `open`).
+   *  Waits for transfer.js's load-time redirect check; sends nothing if it
+   *  navigates away (the page it lands on decides). */
+  function trackEver() {
+    try {
+      if (!enabled || !everPending || everQueued) return false;
+      const go = () => { try { if (!enabled || everQueued || !validEvent(everPending)) return; everQueued = true; queue.push(everPending); kick(); } catch (e) { /* ignore */ } };
+      const T = root.MixTransfer, p = T && T.pending;
+      if (p && typeof p.then === 'function') {
+        let done = false; const once = f => v => { if (!done) { done = true; f(v); } };
+        p.then(once(left => { if (!left) go(); }), once(go));
+        setTimeout(once(go), 8000); // a hung check never loses the count
+      } else go();
       return true;
     } catch (e) { return false; }
   }
 
   const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, returnBucket, scoreBand, scoreLabel, offBucket, recipeOff, paintCount, validEvent, disabledReason, claimOncePerDay, localHost, track,
-    get enabled() { return enabled; }, get reason() { return reason; } };
+    EVER_KEY, EVER_EVENTS, hasHistory, everKind, trackEver,
+    get enabled() { return enabled; }, get reason() { return reason; }, get everPending() { return everPending; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') { window.MixAnalytics = api; start(); }
 })(typeof window !== 'undefined' ? window : globalThis);

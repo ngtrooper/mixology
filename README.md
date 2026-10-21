@@ -185,6 +185,13 @@ Optional, internal-only play counts use [GoatCounter](https://www.goatcounter.co
     - `off-#N-<k>`: the final scored mix's distance from the recipe, as the sum of |yours − official| over the five disc numbers, bucketed 0–5, 6-10, 11-20, 21+. It is always even: 2 = one paint 1% high and another 1% low.
     - `paints-#N-1..5`: how many paints the final mix uses.
   - `open`
+  - **Round 95 (Franklin): `first-visit` and `known-player`.** These are sent **once ever per browser**, never daily, and fire with `open` on page load. Their permanent flag is `mixology.analytics.ever.v1`.
+    - `first-visit`: the browser had no Mixology history.
+    - `known-player`: it already had a save, collection, welcome/pour flag or analytics sent-flags from before this change.
+    - **Reading it:** in GoatCounter, pick a range from 2026-10-21 (the deploy) to today and add the two rows. That sum is the exact number of unique browsers since the deploy.
+    - **Timing:** the kind is decided when analytics.js loads, after transfer.js merged any `#import=` and before game.js writes. It is stored as `<kind>:pending` until GoatCounter takes it, so a blocked count.js retries on the next load without changing the kind.
+    - **Transfer:** a player arriving with a transferred save counts as `known-player`. If transfer.js navigates away on load (bridge pull, https hop), nothing is sent and the page it returns to decides: a returned save means `known-player`, `#import-none` means `first-visit`. The flag is per origin and does not travel with a transfer.
+    - **Not counted:** opted-out and automated browsers are never counted. Neither is storage that can't persist.
   - `start-#N` (first dose of the day's daily)
   - `finish-#N`
   - `score-band-none|bronze|silver|gold|diamond` (the star tiers)

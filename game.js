@@ -2056,6 +2056,7 @@ initPotHint(); // round 81: decided once, from the save as loaded
 initDaily();
 // round 78: anonymous counts (no-op until ANALYTICS_CODE is set in analytics.js)
 track('open'); trackReturn(); if (incomingDuel) track('duel-open');
+try { if (MA && MA.trackEver) MA.trackEver(); } catch (e) { /* round 95: first-visit / known-player, once ever per browser */ }
 /* Round 86: save transfer to mixologydaily.com (transfer.js runs first and has
  * already merged any #import=... link into storage before this file loaded). */
 (function transferUI() {
@@ -2077,7 +2078,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.34.0',
+  version: '1.35.0',
   DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,

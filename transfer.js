@@ -213,7 +213,7 @@
     return stable(strip(x)) === stable(strip(y));
   }
   /* ---------- import (new origin) ---------- */
-  let lastImport = null;
+  let lastImport = null, pending = null; // round 95: pending resolves true if load-time code navigates away
   /** Reads #import=<payload> (or the bridge's #import-none), merges, strips the hash. */
   function importFromHash(loc, storage, hist) {
     const h = String((loc && loc.hash) || '');
@@ -306,16 +306,16 @@
   const api = { CONFIG, KEYS, SAVE_KEY, COLLECTION_KEY, BRIDGE_CHECKED_KEY, PAR_PCT, pack, unpack, snapshot, validate, encode, decode,
     mergeSave, mergeCollection, mergeSent, merge, hasSave, importFromHash, buildLink, pageBase, shareBase, shareHost, isOldOrigin,
     showMoveButton, reachable, maybeMigrate, maybeUpgrade, maybePullFromBridge, bridgeReturnLink,
-    get lastImport() { return lastImport; } };
+    get lastImport() { return lastImport; }, get pending() { return pending; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined' && !root.MIX_TRANSFER_NO_AUTO) {
     root.MixTransfer = api;
     try {
       lastImport = importFromHash(root.location, root.localStorage, root.history);
       if (!lastImport) {
-        maybeUpgrade(root.location, root.localStorage).then(done => done || maybeMigrate(root.location, root.localStorage))
-          .then(done => done || maybePullFromBridge(root.location, root.localStorage)).catch(() => {});
-      }
+        pending = maybeUpgrade(root.location, root.localStorage).then(done => done || maybeMigrate(root.location, root.localStorage))
+          .then(done => done || maybePullFromBridge(root.location, root.localStorage)).then(done => !!done, () => false);
+      } else pending = Promise.resolve(false);
     } catch (e) { /* never break the game */ }
   } else if (typeof window !== 'undefined') root.MixTransfer = api;
 })(typeof window !== 'undefined' ? window : globalThis);

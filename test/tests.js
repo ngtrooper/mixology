@@ -1926,7 +1926,7 @@ console.log('— round 84: practice counts for nothing persistent —');
     const tracks = lines.map((l, i) => [l, i]).filter(([l]) => /\b(trackScore|trackFinish|trackMix|trackStart|MA\.track\w*)\(/.test(l) && !/^\s*(function|\/\/|\*)/.test(l));
     for (const [l, i] of tracks) {
       const ctx = lines.slice(Math.max(0, i - 12), i + 1).join('\n');
-      if (/'(open|share|duel-open)'|trackOpen|trackShare|trackDuel|return-day|streak-|played-days/.test(l)) continue;
+      if (/'(open|share|duel-open)'|trackOpen|trackShare|trackDuel|trackEver|return-day|streak-|played-days/.test(l)) continue; // r95: trackEver is a page-load event like 'open'
       assert.ok(/round\.mode === 'daily'|mode === 'daily'|isDaily/.test(ctx), 'ungated track call at line ' + (i + 1) + ': ' + l.trim());
     }
   });
@@ -2316,5 +2316,107 @@ test('r94: the Collection grid and detail use collectionStar (derived, nothing p
   assert.ok(/\.col-found \{/.test(htmlSrc));
 });
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+console.log('— round 95: once-ever unique-browser events —');
+const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // async tests run before the summary
+{
+  const vm = require('vm');
+  const anSrc = fs.readFileSync(path.join(__dirname, '..', 'analytics.js'), 'utf8');
+  const mkStore = init => { const m = { ...(init || {}) }; return { m, getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
+  // load analytics.js as the live page would (real hostname, no webdriver), with a fake GoatCounter
+  function boot(storage, opts = {}) {
+    const sent = [], timers = [];
+    const win = { localStorage: storage, location: { protocol: 'https:', hostname: opts.host || 'mixologydaily.com', search: opts.search || '', pathname: '/' },
+      navigator: { webdriver: !!opts.webdriver }, document: { createElement: () => ({ setAttribute() {} }), head: { appendChild() {} } },
+      MixTransfer: opts.transfer, setInterval: f => { timers.push(f); return timers.length; }, clearInterval() {}, setTimeout: (f) => { timers.push(f); return 0; } };
+    win.window = win;
+    const ctx = vm.createContext({ window: win, globalThis: win, Promise, JSON, Object, Array, String, Number, RegExp, Date, Math, setInterval: win.setInterval, clearInterval: win.clearInterval, setTimeout: win.setTimeout });
+    vm.runInContext(anSrc, ctx);
+    if (!opts.noGc) win.goatcounter = Object.assign({}, win.goatcounter, { count: o => sent.push(o.path) });
+    return { A: win.MixAnalytics, sent, storage, timers };
+  }
+  const flushAll = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+  test('r95: first-visit / known-player are allowed event names', () => {
+    const A = require('../analytics.js');
+    for (const ok of ['first-visit', 'known-player']) assert.ok(A.validEvent(ok), ok);
+    for (const bad of ['first-visit-#3', 'known-players', 'firstvisit']) assert.ok(!A.validEvent(bad), bad);
+    assert.strictEqual(A.EVER_KEY, 'mixology.analytics.ever.v1');
+    assert.notStrictEqual(A.EVER_KEY, A.SENT_KEY);
+  });
+  atest('r95: a brand-new browser sends first-visit exactly once ever (across days); reloads send nothing more', async () => {
+    const st = mkStore();
+    let b = boot(st); assert.strictEqual(b.A.everPending, 'first-visit');
+    b.A.track('open'); b.A.trackEver(); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['open', 'first-visit']);
+    assert.ok(/^first-visit\|\d{4}-\d\d-\d\d$/.test(st.m['mixology.analytics.ever.v1']));
+    // next day (daily sent-flags reset) and a reload: open again, never first-visit/known-player
+    st.setItem('mixology.analytics.sent.v1', JSON.stringify({ day: '1999-01-01', sent: [] }));
+    b = boot(st); assert.strictEqual(b.A.everPending, null);
+    b.A.track('open'); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['open']);
+  });
+  atest('r95: a browser with history from before (save / collection / flags / sent-flags) sends known-player once', async () => {
+    const cases = [
+      { 'misnomer.save.v1': JSON.stringify({ v: 2, days: { 658: { name: 'manilla', attempts: [] } } }) },
+      { 'misnomer.save.v1': JSON.stringify({ v: 2, days: {}, wip: { day: 659 } }) },
+      { 'mixology.collection.v1': JSON.stringify({ v: 1, found: { butter: { best: {} } } }) },
+      { 'mixology.welcomed.v1': '1' },
+      { 'mixology.analytics.sent.v1': JSON.stringify({ day: '2026-10-20', sent: ['open'] }) },
+    ];
+    for (const init of cases) {
+      const st = mkStore(init), b = boot(st);
+      b.A.trackEver(); await flushAll();
+      assert.deepStrictEqual(b.sent, ['known-player'], JSON.stringify(init));
+      const again = boot(st); again.A.trackEver(); await flushAll(); assert.deepStrictEqual(again.sent, [], 'twice');
+    }
+    // an empty save shell is not history
+    const e = boot(mkStore({ 'misnomer.save.v1': JSON.stringify({ v: 2, days: {} }) })); assert.strictEqual(e.A.everPending, 'first-visit');
+  });
+  atest('r95: every opt-out sends nothing and sets no flag', async () => {
+    // an existing sent value is final
+    { const st = mkStore({ 'mixology.analytics.ever.v1': 'known-player|2026-10-21' }), b = boot(st); assert.strictEqual(b.A.everPending, null); }
+    for (const o of [{ webdriver: true }, { search: '?noanalytics' }, { host: 'localhost' }, { host: '192.168.1.5' }]) {
+      const st = mkStore(), b = boot(st, o); b.A.track('open'); b.A.trackEver(); await flushAll();
+      assert.deepStrictEqual(b.sent, [], JSON.stringify(o)); assert.strictEqual(st.m['mixology.analytics.ever.v1'], undefined);
+    }
+    const st = mkStore({ 'mixology.noanalytics.v1': '1' }), b = boot(st); b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, []);
+  });
+  atest('r95: transfer: waits for the load-time redirect check; sends nothing if the page navigates away', async () => {
+    let st = mkStore(), b = boot(st, { transfer: { pending: Promise.resolve(true) } });
+    b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, []); assert.strictEqual(st.m['mixology.analytics.ever.v1'], 'first-visit:pending', 'decided, not sent');
+    // it comes back (bridge #import-none) after this load's own writes: still first-visit
+    st.setItem('mixology.analytics.sent.v1', JSON.stringify({ day: '2026-10-21', sent: ['open'] })); st.setItem('mixology.welcomed.v1', '1');
+    b = boot(st, { transfer: { pending: Promise.resolve(false), lastImport: { ok: true, none: true, changed: false } } }); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['first-visit'], 'own writes are not history');
+    // ... or it comes back with a transferred save: known-player
+    st = mkStore({ 'mixology.analytics.ever.v1': 'first-visit:pending', 'misnomer.save.v1': JSON.stringify({ v: 2, days: { 657: { name: 'evergreen', attempts: [] } } }) });
+    b = boot(st, { transfer: { pending: Promise.resolve(false), lastImport: { ok: true, changed: true, days: 1 } } }); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['known-player'], 'bridge brought a save');
+    st = mkStore(); b = boot(st, { transfer: { pending: Promise.resolve(false) } });
+    b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, ['first-visit']);
+    // an imported save (transfer.js merged #import= before analytics.js loaded) counts as known-player
+    const T = require('../transfer.js');
+    const old = mkStore({ 'misnomer.save.v1': JSON.stringify({ v: 2, streak: 1, lastDay: 658, days: { 658: { date: '2026-10-20', name: 'manilla', attempts: [{ comp: { y: 57 }, hex: '#E6DB85', pct: 99 }], pct: 99 } } }) });
+    const link = T.buildLink(old, { base: 'https://mixologydaily.com/' });
+    st = mkStore();
+    const r = T.importFromHash({ hash: link.slice(link.indexOf('#')), pathname: '/', search: '' }, st, null);
+    assert.ok(r && r.ok && r.changed, 'import');
+    b = boot(st, { transfer: { pending: Promise.resolve(false) } }); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['known-player']);
+    assert.ok(!T.KEYS.includes('mixology.analytics.ever.v1'), 'the ever flag must not travel with a transfer');
+    // the flag is set only when GoatCounter really takes the event (blocked count.js: retry next load)
+    st = mkStore(); b = boot(st, { noGc: true }); b.A.trackEver(); await flushAll();
+    assert.strictEqual(st.m['mixology.analytics.ever.v1'], 'first-visit:pending', 'blocked: decided but not sent');
+    b = boot(st); b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, ['first-visit'], 'retried next load');
+    assert.ok(gameSrc.includes("try { if (MA && MA.trackEver) MA.trackEver(); } catch (e)"), 'game fires it with open');
+    assert.ok(fs.readFileSync(path.join(__dirname, '..', 'transfer.js'), 'utf8').includes('get pending() { return pending; }'));
+  });
+}
+
+(async () => {
+  for (const [name, fn] of ATESTS) {
+    try { await fn(); pass++; console.log('  ok  ' + name); }
+    catch (e) { fail++; console.log('FAIL  ' + name + ' — ' + e.message); }
+  }
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})();
