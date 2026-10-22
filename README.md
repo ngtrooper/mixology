@@ -155,6 +155,7 @@ Consequences that are **invariants**, not implementation details:
   derive a day's color from the pool size again; past days, duel links
   and today's color must not move when the bank or pool changes. Change
   future days only with `node tools/build-schedule.js`.
+  - Round 96 (Franklin): one future day was swapped by hand. Internal day 664, **Mixology #9 (Mon Oct 26, 2026)**, is now **Coral** (#FC5A50) instead of Banana, which was nearly identical to #3 Manilla. Coral is daily-eligible and not used within 120 days (its nearest uses are days 436 and 1648), so `build-schedule.js` keeps it on a rebuild.
 
 ## Moving to mixologydaily.com (round 86)
 - The app is path-agnostic: every asset and manifest URL is relative, so it runs at `/mixology/` and at a domain root `/`. The canonical and og:url are `https://mixologydaily.com/`. og:image stays on github.io until the switch, because GitHub's 301 will carry it over.

@@ -2412,6 +2412,18 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
   });
 }
 
+console.log('— round 96: #9 Banana → Coral —');
+test('r96: #9 (Mon 2026-10-26 local, internal day 664) is coral; neighbours unchanged; coral playable and not within 120 days', () => {
+  assert.strictEqual(E.dayNumber(new Date(2026, 9, 26, 0, 0, 1)) + 1, 664);
+  assert.strictEqual(E.publicNumber(664), 9);
+  assert.strictEqual(SCHEDULE[664], 'coral');
+  assert.strictEqual(SCHEDULE[663], 'scarlet'); assert.strictEqual(SCHEDULE[665], 'greeny brown');
+  assert.strictEqual(SCHEDULE[658], 'manilla');
+  const c = bank.find(x => x.name === 'coral'); assert.ok(c && c.hex === '#FC5A50' && !c.retired && E.isDailyEligible(c.de));
+  for (let j = 664 - 120; j <= 664 + 120; j++) if (j !== 664) assert.notStrictEqual(SCHEDULE[j], 'coral', `coral also on day ${j}`);
+  assert.strictEqual(E.holidayOn(new Date(2026, 9, 26)), null);
+});
+
 (async () => {
   for (const [name, fn] of ATESTS) {
     try { await fn(); pass++; console.log('  ok  ' + name); }

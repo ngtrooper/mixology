@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 96 (2026-10-22, Grok Bot): #9 BANANA → CORAL, v1.35.1 (Franklin approved)
+
+- **Why:** Banana (#9, Mon Oct 26, 2026, internal day 664) is nearly identical to Manilla (#3), so Franklin approved swapping it for Coral (#FC5A50, already in the bank, pink family).
+- **Change:** `schedule.js` day 664 only, `banana` → `coral`. Every other day is unchanged, including frozen days 0..658, which stay hash-locked. Oct 26 is not a holiday or a duo day.
+- **Checks:** Coral is daily-eligible (ΔE 3.48) and not retired. It is not used within 120 days of day 664 (its nearest uses are days 436 and 1648), so the 120-day rule passes, pre-launch days included. A rebuild with `tools/build-schedule.js` keeps it.
+- **Tests:** 1 new unit test pins day 664 = coral with neighbours 663 scarlet / 665 greeny brown. The old "banana recipe" test still applies to the bank color, so it is unchanged.
+
 ## Round 95 (2026-10-21, Grok Bot): ALL-TIME UNIQUE BROWSERS, v1.35.0 (Franklin)
 
 - **New events:** `first-visit` (a browser with no Mixology history) and `known-player` (an existing player's first load after this deploy).
