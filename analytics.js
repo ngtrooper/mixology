@@ -173,9 +173,11 @@ const ANALYTICS_CODE = 'ngtrooper';
   /** The referrer to report. `bridged` = this load came back from the bridge / an import link. */
   function pickReferrer(docRef, bridged, ss) {
     docRef = String(docRef || '');
-    if (bridged && refHost(docRef) === OLD_HOST) {
+    if (refHost(docRef) === OLD_HOST) { // back from the bridge, or a reload of that page (the browser keeps its referrer)
       let saved = null; try { saved = ss && ss.getItem(REF_KEY); } catch (e) { saved = null; }
-      return saved == null ? '' : saved; // '' = direct (no referrer)
+      if (saved != null) return saved; // round 99: also on reloads, not only on the #import return
+      if (bridged) return ''; // '' = direct (no referrer)
+      return docRef; // a real link from a github.io page
     }
     try { if (ss) ss.setItem(REF_KEY, docRef); } catch (e) { /* ignore */ }
     return docRef;

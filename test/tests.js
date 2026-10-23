@@ -2448,6 +2448,14 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
     assert.deepStrictEqual(b.sent, ['known-player']);
     b = boot(mkStore()); assert.strictEqual(b.A.track('open'), false, 'open is not allowed any more');
   });
+  atest('r99: a reload after the bridge hop keeps the real referrer (not ngtrooper.github.io)', async () => {
+    const ss = mkStore(); boot(mkStore(), { ss, referrer: 'https://l.instagram.com/', transfer: { pending: Promise.resolve(true) } });
+    boot(mkStore(), { ss, referrer: 'https://ngtrooper.github.io/', transfer: { pending: Promise.resolve(false), lastImport: { ok: true, none: true } } });
+    const b = boot(mkStore(), { ss, referrer: 'https://ngtrooper.github.io/', transfer: { pending: Promise.resolve(false) } }); // reload: no lastImport
+    assert.strictEqual(b.win.goatcounter.referrer, 'https://l.instagram.com/');
+    const A = require('../analytics.js');
+    assert.strictEqual(A.pickReferrer('https://ngtrooper.github.io/some-page', false, mkStore()), 'https://ngtrooper.github.io/some-page', 'a real github.io link stays');
+  });
   atest('r98: the query string never leaves the browser except utm_* / ref', async () => {
     const A = require('../analytics.js');
     assert.strictEqual(A.cleanQuery('?d=661&p=93&x=r3b2&s=2'), '');
