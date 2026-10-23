@@ -1310,9 +1310,10 @@ console.log('— round 69: Collection (Franklin) —');
     // today's color, not finished yet (no record): locked; never a daily: locked
     assert.strictEqual(E.officialRecipeVisible(SCH[658], played), false);
     assert.strictEqual(E.officialRecipeVisible('x', undefined), false);
-    assert.ok(gameSrc.includes("E.officialRecipeVisible(name, store.data.days)"));
+    // round 97: the engine rule stays (tested above), but game.js no longer shows any official recipe
+    assert.ok(!gameSrc.includes('officialRecipeVisible('), 'r97: game.js must not unlock an official recipe');
     assert.ok(!gameSrc.includes('SCHEDULE_DAYS'), 'no schedule lookup in the spoiler rule');
-    assert.ok(gameSrc.includes('The official recipe unlocks once you finish this color as a daily.'), 'locked copy must not say whether it is upcoming');
+    assert.ok(!gameSrc.includes('The official recipe unlocks'), 'r97: no unlock copy left');
   });
   test('spoiler rule (r73): calendar shows a recipe only for finished days', () => {
     const fn = gameSrc.slice(gameSrc.indexOf('function showCalDetail'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function showCalDetail')));
@@ -1902,12 +1903,10 @@ console.log('— round 84: practice counts for nothing persistent —');
     assert.ok(gameSrc.includes("const practice = round.mode !== 'daily';"));
     assert.ok(gameSrc.includes('const rStar = practice ? null : E.starTier(fin.pct);'), 'reveal star not gated');
   });
-  test('r84: practice reveal shows your mix, hides the official recipe unless finished as a daily', () => {
+  test('r84/r97: practice reveal shows your mix and the practice note, never the official recipe', () => {
     const f = gameSrc.slice(gameSrc.indexOf('function practiceRecipesHTML'), gameSrc.indexOf('function recipesHTML'));
-    assert.ok(f.includes('E.officialRecipeVisible(color.name, store.data.days)'), 'spoiler rule not applied');
-    assert.ok(/open && color\.recipe \? recipeRowHTML\('Recipe'/.test(f), 'official row not gated on the rule');
-    assert.ok(f.includes("recipeRowHTML('Your mix'"), 'your mix row missing');
-    assert.ok(f.includes('unlocks once you finish this color as a daily'), 'no lock note');
+    assert.ok(f.includes('recipesHTML(color, att)') && f.includes('PRACTICE_NOTE'), 'your mix / note missing');
+    assert.ok(!/recipeRowHTML\('Recipe'|color\.recipe|officialRecipeVisible/.test(f), 'official recipe in practice');
   });
   test('r84: official recipe visibility comes only from finished dailies', () => {
     const name = bank[0].name;
@@ -1916,9 +1915,9 @@ console.log('— round 84: practice counts for nothing persistent —');
     assert.strictEqual(E.officialRecipeVisible(name, { 5: { name, attempts: [] } }), true);
     assert.strictEqual(E.officialRecipeVisible(name, {}), false, 'unlock without a daily');
   });
-  test("r84: practice is labelled \"Practice — doesn't count toward stars, recipes or collection\"", () => {
-    assert.ok(htmlSrc.includes("<span>Practice — doesn't count toward stars, recipes or collection</span>"), 'practice bar label');
-    assert.ok(gameSrc.includes(`const PRACTICE_NOTE = "Practice — doesn't count toward stars, recipes or collection";`), 'end-screen note');
+  test("r84/r97: practice is labelled \"Practice — doesn't count toward stars or collection\"", () => {
+    assert.ok(htmlSrc.includes("<span>Practice — doesn't count toward stars or collection</span>"), 'practice bar label');
+    assert.ok(gameSrc.includes(`const PRACTICE_NOTE = "Practice — doesn't count toward stars or collection";`), 'end-screen note');
     assert.ok(htmlSrc.includes('.practice-note'), 'note style');
   });
   test('r84: no analytics events from practice (every track call is daily-gated)', () => {
@@ -2412,6 +2411,17 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
   });
 }
 
+console.log('— round 97: no official recipe anywhere —');
+test('r97: the official recipe is never rendered (reveal, practice, calendar, duo, Collection); only your mix', () => {
+  const rec = gameSrc.slice(gameSrc.indexOf('function recipesHTML'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function recipesHTML')));
+  assert.ok(rec.includes("recipeRowHTML('Your mix'") && !/color\.recipe|'Recipe'/.test(rec), 'recipesHTML still renders the recipe');
+  const col = gameSrc.slice(gameSrc.indexOf('function showCollectionDetail'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function showCollectionDetail')));
+  assert.ok(col.includes("recipeRowHTML('Your mix'") && !/c\.recipe|'Official', ''/.test(col), 'Collection detail shows the recipe');
+  // no recipeRowHTML call anywhere is fed an official recipe
+  for (const m of gameSrc.matchAll(/recipeRowHTML\(([^)]*)\)/g)) assert.ok(!/\.recipe\b/.test(m[1]), 'recipe row fed a recipe: ' + m[0]);
+  assert.ok(!/official recipe/i.test(htmlSrc), 'Tips/help still promise the official recipe');
+  assert.ok(!/recipe exactly/.test(gameSrc), 'exact-match copy still says recipe');
+});
 console.log('— round 96: #9 Banana → Coral —');
 test('r96: #9 (Mon 2026-10-26 local, internal day 664) is coral; neighbours unchanged; coral playable and not within 120 days', () => {
   assert.strictEqual(E.dayNumber(new Date(2026, 9, 26, 0, 0, 1)) + 1, 664);

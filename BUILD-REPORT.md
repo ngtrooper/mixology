@@ -2,6 +2,22 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 97 (2026-10-23, Grok Bot): NO OFFICIAL RECIPE ANYWHERE, v1.36.0 (Franklin)
+
+- **Why:** Franklin: "Can we remove the correct recipe from being given to the player? I don't want all the recipes out there."
+- **Removed (player-visible):**
+  - Regular reveal: the "Recipe 100%" bar above "Your mix".
+  - Practice end screen: the recipe row for colors finished as a daily, and the "The official recipe unlocks once you finish this color as a daily." note.
+  - Calendar detail of a played day (single and duo): the recipe bar(s).
+  - Duo #14 end screen: the per-color recipe bars (Pumpkin, Midnight Purple).
+  - Collection detail: the "Official" recipe bar (incl. the round-94 unlock for Midnight Purple after Oct 31) and the lock note.
+  - Copy: exact-match line "you matched the official X recipe exactly" -> "you matched the official X exactly"; Tips "The reveal shows the official recipe next to your mix" -> "the official color next to your mix, with your paint amounts"; practice label drops "recipes".
+- **Kept:** the player's own mix bar + %, official swatch and name, score, band, stars, duo pumpkins and rows. Share card/line and duel links already carried no recipe. Scoring, stars, schedule, analytics and save format unchanged; `E.officialRecipeVisible` kept in the engine (unused by game.js).
+- **Honest limit:** recipes live client-side (`colors.js`, engine scoring), so a technical user can still derive them. Not obfuscated. A 100% player's own mix equals the recipe.
+- **Tests:** 3 unit tests updated (r73, r84 x2), 1 new (r97); 261 pass. New e2e `/workspace/game/mixology-duo/live-build/norecipe-e2e.cjs` 26/26 in Chromium and WebKit (light + dark; regular reveal, practice, calendar, Collection, duo #14). Regression: e2e 40/40, stars-e2e 22/22, ever-e2e 12/12 in both engines; coral-e2e 7/8 only because it pins the version string 1.35.1.
+- **Screens:** `/workspace/game/mixology-duo/screens/no-recipe-{regular-end,duo14-end,collection}-{light,dark}.png`.
+- **Reels/covers:** `make_clip.js` already hides `#reveal-recipes` and disc %; `make_cover.js` shows only the swatch. No change needed.
+
 ## Round 96 (2026-10-22, Grok Bot): #9 BANANA → CORAL, v1.35.1 (Franklin approved)
 
 - **Why:** Banana (#9, Mon Oct 26, 2026, internal day 664) is nearly identical to Manilla (#3), so Franklin approved swapping it for Coral (#FC5A50, already in the bank, pink family).

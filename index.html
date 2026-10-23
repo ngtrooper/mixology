@@ -403,7 +403,7 @@
   #reveal-band { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; margin-top: 4px; }
   #reveal-de { text-align: center; color: var(--muted); font-size: 13px; margin-top: 4px; text-wrap: balance; }
   p, #status { text-wrap: pretty; } /* r48: no one-word orphan lines where supported */
-  /* round 10: recipe vs your mix — segmented R/Y/B/K/W bars (post-reveal only) */
+  /* round 10: your mix — segmented R/Y/B/K/W bars (post-reveal only; round 97: never the official mix) */
   #reveal-recipes { margin-top: 14px; display: grid; gap: 8px; }
   .rrow { display: grid; grid-template-columns: 66px 1fr; gap: 8px; align-items: center; }
   .rrow .rl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); line-height: 1.2; }
@@ -782,7 +782,7 @@
     <div id="color-name">…</div>
     <p id="prompt-sub">How well do you know your colors?</p>
     <div id="duo-progress" hidden></div>
-    <div id="practice-bar"><span>Practice — doesn't count toward stars, recipes or collection</span></div>
+    <div id="practice-bar"><span>Practice — doesn't count toward stars or collection</span></div>
     <div id="done-banner" hidden>
       <p class="db-head" id="db-head">✓ You've played today's color</p>
       <p class="db-next" id="db-next"></p>
@@ -970,7 +970,7 @@
     <p>Your score is % accuracy: 100% means your mix is indistinguishable from the official color, measured by perceptual distance (CIEDE2000). 85% or better beats par.</p>
     <p>A fresh color arrives every day — same name for everyone. Come back tomorrow.</p>
     <h3>After the round</h3>
-    <p>The reveal shows the official recipe next to your mix. <b>Share result</b> shares just an image of your result card (your score, tries and streak, never the color's name), so no spoilers. <b>Copy duel link</b> lets a friend try to beat you on the same color.</p>
+    <p>The reveal shows the official color next to your mix, with your paint amounts. <b>Share result</b> shares just an image of your result card (your score, tries and streak, never the color's name), so no spoilers. <b>Copy duel link</b> lets a friend try to beat you on the same color.</p>
     <p><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8.5" cy="14.5" r="1.4" fill="currentColor"/><circle cx="12" cy="14.5" r="1.4" fill="#b3541e"/><circle cx="15.5" cy="14.5" r="1.4" fill="currentColor"/></svg>opens your calendar: every day you've played. The <b>Stats</b> button (bars) shows your streaks and how your scores spread, and <b>Collection</b> (tiles) shows every named color you've discovered. All of it is saved on this device only.</p>
     <p class="tips-foot"><button id="btn-replay-intro" type="button">Replay the intro</button></p>
     <p id="move-row" class="tips-foot" hidden><button id="btn-move" type="button">Move my progress to mixologydaily.com</button></p>
@@ -997,11 +997,11 @@
   });
 })();
 </script>
-<script src="colors.js?v=1.35.1"></script>
-<script src="schedule.js?v=1.35.1"></script>
-<script src="engine.js?v=1.35.1"></script>
-<script src="transfer.js?v=1.35.1"></script>
-<script src="analytics.js?v=1.35.1"></script>
-<script src="game.js?v=1.35.1"></script>
+<script src="colors.js?v=1.36.0"></script>
+<script src="schedule.js?v=1.36.0"></script>
+<script src="engine.js?v=1.36.0"></script>
+<script src="transfer.js?v=1.36.0"></script>
+<script src="analytics.js?v=1.36.0"></script>
+<script src="game.js?v=1.36.0"></script>
 </body>
 </html>

@@ -1215,7 +1215,7 @@ function renderAll() {
     $('reveal-pct').textContent = fin.pct + '%';
     $('reveal-band').textContent = E.bandForDeltaE(fin.de);
     $('reveal-de').textContent = fin.exact || (fin.pct === 100 && fin.de === 0)
-      ? `you matched the official ${titleCase(round.color.name)} recipe exactly`
+      ? `you matched the official ${titleCase(round.color.name)} exactly`
       : `accuracy · perceptual distance ΔE ${fin.de} from the official ${titleCase(round.color.name)}`;
     $('reveal').classList.toggle('duo', !!duo);
     if (duo) renderDuoReveal(duo.def, duo.parts); // round 93: pumpkins, both colors, the average
@@ -1274,7 +1274,7 @@ function liveStreaks() {
   const alive = s.lastDay != null && s.lastDay >= DAY - 1;
   return { streak: alive ? s.streak : 0, parStreak: alive ? s.parStreak : 0 };
 }
-/* Round 10: official recipe vs the player's mix, as segmented bars. Only
+/* Round 10: the player's mix as segmented bars (round 97: no official recipe row). Only
  * ever rendered after a round is finished (reveal, calendar detail of a
  * played day) — never in share text or duel links. */
 const PIG_NAMES = { r: 'Red', y: 'Yellow', b: 'Blue', k: 'Black', w: 'White' };
@@ -1287,22 +1287,19 @@ function recipeRowHTML(label, sub, comp) {
   const leg = keys.map(k => `<span><i style="background:${PIGMENT_HEX[k]}"></i>${k.toUpperCase()} ${dp[k]}</span>`).join('');
   return `<div class="rrow"><div class="rl">${label}${sub ? `<b>${sub}</b>` : ''}</div><div class="rbar" role="img" aria-label="${label}: ${keys.map(k => PIG_NAMES[k] + ' ' + Math.round(c[k]) + '%').join(', ')}">${bar}</div><div class="rleg">${leg}</div></div>`;
 }
-/* Round 84: the end of a practice round. Your mix always; the official recipe
- * only if you have finished this color as a daily (round 73 spoiler rule). */
-const PRACTICE_NOTE = "Practice — doesn't count toward stars, recipes or collection";
+/* Round 84: the end of a practice round: your mix and the practice note.
+ * Round 97 (Franklin, v1.36.0): the official recipe is never shown anywhere. */
+const PRACTICE_NOTE = "Practice — doesn't count toward stars or collection";
 function practiceRecipesHTML(color, att) {
   if (!color) return '';
-  const open = E.officialRecipeVisible(color.name, store.data.days);
-  return (open && color.recipe ? recipeRowHTML('Recipe', '100%', color.recipe) : '') +
-    (att && att.comp ? recipeRowHTML('Your mix', `${att.pct}%`, att.comp) : '') +
-    (open || (att && att.exact) ? '' : '<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>') +
-    `<p class="practice-note">${PRACTICE_NOTE}.</p>`;
+  return recipesHTML(color, att) + `<p class="practice-note">${PRACTICE_NOTE}.</p>`;
 }
+/* Round 97 (Franklin, v1.36.0): "I don't want all the recipes out there."
+ * Only the PLAYER'S OWN mix (their disc numbers + %) is shown; the official
+ * recipe row is gone from the reveal, calendar, duo and Collection. */
 function recipesHTML(color, att) {
-  if (!color || !color.recipe) return '';
-  // round 77: the recipe IS the target (100%); whole-number legend like the discs
-  return recipeRowHTML('Recipe', '100%', color.recipe) +
-    (att && att.comp ? recipeRowHTML('Your mix', `${att.pct}%`, att.comp) : '');
+  if (!color) return '';
+  return att && att.comp ? recipeRowHTML('Your mix', `${att.pct}%`, att.comp) : '';
 }
 
 /* Round 10: public label for a day — "#1" from launch (internal 656), or
@@ -1733,7 +1730,6 @@ function showCollectionDetail(name) {
   if (!el || !rec || !c || collectionHidden().has(name)) return;
   document.querySelectorAll('.ct.sel').forEach(x => x.classList.remove('sel'));
   const tile = [...document.querySelectorAll('.ct[data-name]')].find(x => x.dataset.name === name); if (tile) tile.classList.add('sel');
-  const showRecipe = E.officialRecipeVisible(name, store.data.days); // round 73: only colors you finished as a daily
   const playedAsDaily = E.dailyStarPct(name, store.data.days) !== null; // round 94: a played day's target (duo: either color)
   const b = rec.best, bPct = E.collectedBestPct(rec, c.thex), bStar = E.collectionStar(name, store.data.days); // round 94: star from that color's own dailies only
   const when = rec.date ? new Date(rec.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'before the Collection existed';
@@ -1741,8 +1737,7 @@ function showCollectionDetail(name) {
     `<div class="cdt-sub">Discovered ${escapeHtml(when)} · your best ${bPct}%${bStar ? ` · <span class="star-word">${starBadge(bStar, 'inline')}${bStar.id} star</span>` : ''}</div>` +
     `<div class="cdt-row"><span class="cdt-sw"><i style="background:${c.thex}"></i>Official</span><span class="cdt-sw best"><i style="background:${b.hex}"></i>Your best: <b>${bPct}%</b></span></div>` +
     recipeRowHTML('Your mix', bPct + '%', b.comp) +
-    (playedAsDaily ? '' : `<p class="col-found">Found by a nearby mix. Stars are earned only on the color of the day.</p>`) + // round 94
-    ((showRecipe || playedAsDaily) ? recipeRowHTML('Official', '', c.recipe) : `<p class="col-lock">The official recipe unlocks once you finish this color as a daily.</p>`);
+    (playedAsDaily ? '' : `<p class="col-found">Found by a nearby mix. Stars are earned only on the color of the day.</p>`); // round 94; round 97: no official recipe row
   try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
   el.scrollIntoView({ block: 'nearest', behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
 }
@@ -2078,7 +2073,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.35.1',
+  version: '1.36.0',
   DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
