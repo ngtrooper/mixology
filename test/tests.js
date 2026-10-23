@@ -1603,14 +1603,15 @@ console.log('— round 78: private analytics (GoatCounter) —');
     assert.strictEqual(A.disabledReason(env({ code: '' })), 'no code');
     // start() returns before creating the script tag whenever there is a reason
     const st = aSrc.slice(aSrc.indexOf('function start()'), aSrc.indexOf('function track('));
-    assert.ok(st.indexOf("if (!enabled || !root.document) return;") < st.indexOf("createElement('script')"));
+    assert.ok(st.indexOf("if (!enabled || !root.document) return;") < st.indexOf("inject(path)"));
+    assert.ok(aSrc.slice(aSrc.indexOf('function inject('), aSrc.indexOf('function start()')).includes("if (injected || !enabled) return;"));
     assert.ok(A.track('open') === false && A.enabled === false);
   });
   test('count.js: async from gc.zgo.at with data-goatcounter https://<code>.goatcounter.com/count; page view path has no query string', () => {
     assert.strictEqual(A.SCRIPT_SRC, 'https://gc.zgo.at/count.js');
     assert.ok(aSrc.includes("s.async = true; s.src = SCRIPT_SRC;"));
     assert.ok(aSrc.includes("s.setAttribute('data-goatcounter', `https://${encodeURIComponent(ANALYTICS_CODE)}.goatcounter.com/count`);"));
-    assert.ok(aSrc.includes("{ path: loc.pathname || '/' }"));
+    assert.ok(aSrc.includes("const path = loc.pathname || '/';") && aSrc.includes('{ path, no_onload: true, referrer:'));
     assert.ok(aSrc.includes('gc.count({ path: name, title: name, event: true })'));
   });
   test('skipped: localhost/private/file, automated browsers, ?noanalytics, opt-out flag, skipgc', () => {
@@ -2323,15 +2324,19 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
   const mkStore = init => { const m = { ...(init || {}) }; return { m, getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
   // load analytics.js as the live page would (real hostname, no webdriver), with a fake GoatCounter
   function boot(storage, opts = {}) {
-    const sent = [], timers = [];
-    const win = { localStorage: storage, location: { protocol: 'https:', hostname: opts.host || 'mixologydaily.com', search: opts.search || '', pathname: '/' },
-      navigator: { webdriver: !!opts.webdriver }, document: { createElement: () => ({ setAttribute() {} }), head: { appendChild() {} } },
+    const sent = [], views = [], timers = [], scripts = [];
+    const win = { localStorage: storage, sessionStorage: opts.ss, location: { protocol: 'https:', hostname: opts.host || 'mixologydaily.com', search: opts.search || '', pathname: '/' },
+      navigator: { webdriver: !!opts.webdriver },
+      // round 98: the fake count.js "loads" one microtask after the tag is appended
+      document: { referrer: opts.referrer || '', visibilityState: 'visible', createElement: () => ({ setAttribute() {} }),
+        head: { appendChild: s => { scripts.push(s); Promise.resolve().then(() => { if (!opts.noGc && s.onload) s.onload(); }); } } },
       MixTransfer: opts.transfer, setInterval: f => { timers.push(f); return timers.length; }, clearInterval() {}, setTimeout: (f) => { timers.push(f); return 0; } };
     win.window = win;
     const ctx = vm.createContext({ window: win, globalThis: win, Promise, JSON, Object, Array, String, Number, RegExp, Date, Math, setInterval: win.setInterval, clearInterval: win.clearInterval, setTimeout: win.setTimeout });
     vm.runInContext(anSrc, ctx);
-    if (!opts.noGc) win.goatcounter = Object.assign({}, win.goatcounter, { count: o => sent.push(o.path) });
-    return { A: win.MixAnalytics, sent, storage, timers };
+    if (!opts.noGc) win.goatcounter = Object.assign({}, win.goatcounter, { count: o => (o && o.event ? sent : views).push(o && o.path),
+      get_data: () => ({ p: '/', r: win.goatcounter.referrer, q: win.location.search }) });
+    return { A: win.MixAnalytics, sent, views, storage, timers, scripts, win };
   }
   const flushAll = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
   test('r95: first-visit / known-player are allowed event names', () => {
@@ -2408,6 +2413,46 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
     b = boot(st); b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, ['first-visit'], 'retried next load');
     assert.ok(gameSrc.includes("try { if (MA && MA.trackEver) MA.trackEver(); } catch (e)"), 'game fires it with open');
     assert.ok(fs.readFileSync(path.join(__dirname, '..', 'transfer.js'), 'utf8').includes('get pending() { return pending; }'));
+  });
+  // ---- round 98: tracking cleanup (bridge hop double count, lost referrer, lost open, query leak) ----
+  atest('r98: a page that leaves for the bridge loads no count.js: no page view, no event, no daily flag burnt', async () => {
+    const st = mkStore(), ss = mkStore();
+    let b = boot(st, { ss, referrer: 'https://l.instagram.com/', transfer: { pending: Promise.resolve(true) } });
+    assert.strictEqual(b.A.track('open'), true); b.A.trackEver(); await flushAll();
+    assert.strictEqual(b.scripts.length, 0, 'count.js not even requested'); assert.deepStrictEqual(b.views, []); assert.deepStrictEqual(b.sent, []);
+    assert.strictEqual(st.m['mixology.analytics.sent.v1'], undefined, 'open still unclaimed');
+    // ... it comes back from the bridge (#import-none): ONE page view, the Instagram referrer, open + first-visit
+    b = boot(st, { ss, referrer: 'https://ngtrooper.github.io/', transfer: { pending: Promise.resolve(false), lastImport: { ok: true, none: true, changed: false } } });
+    assert.strictEqual(b.win.goatcounter.referrer, 'https://l.instagram.com/');
+    b.A.track('open'); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.views, ['/']); assert.deepStrictEqual(b.sent, ['open', 'first-visit']);
+    assert.strictEqual(b.win.goatcounter.no_onload, true, 'count.js does not send its own (query-carrying) page view');
+  });
+  atest('r98: daily flags are claimed only when really sent; repeats in one load are still dropped', async () => {
+    const st = mkStore();
+    let b = boot(st, { noGc: true }); assert.strictEqual(b.A.track('open'), true); assert.strictEqual(b.A.track('open'), false); await flushAll();
+    assert.strictEqual(st.m['mixology.analytics.sent.v1'], undefined, 'blocked count.js: retried next load');
+    b = boot(st); b.A.track('open'); b.A.track('open'); await flushAll(); assert.deepStrictEqual(b.sent, ['open']);
+    assert.ok(JSON.parse(st.m['mixology.analytics.sent.v1']).sent.includes('open'));
+    b = boot(st); assert.strictEqual(b.A.track('open'), false); await flushAll(); assert.deepStrictEqual(b.sent, []);
+  });
+  atest('r98: direct visit through the bridge stays direct; a hung redirect check still counts after 8 s', async () => {
+    const ss = mkStore(); boot(mkStore(), { ss, transfer: { pending: Promise.resolve(true) } });
+    let b = boot(mkStore(), { ss, referrer: 'https://ngtrooper.github.io/', transfer: { pending: Promise.resolve(false), lastImport: { ok: true, none: true } } });
+    assert.strictEqual(b.win.goatcounter.referrer, '');
+    b = boot(mkStore(), { ss: mkStore(), referrer: 'https://ngtrooper.github.io/', transfer: { pending: Promise.resolve(false), lastImport: { ok: true, none: true } } });
+    assert.strictEqual(b.win.goatcounter.referrer, '', 'no saved referrer: direct, not github.io');
+    b = boot(mkStore(), { referrer: 'https://www.google.com/' }); assert.strictEqual(b.win.goatcounter.referrer, 'https://www.google.com/');
+    b = boot(mkStore(), { transfer: { pending: new Promise(() => {}) } }); await flushAll(); assert.strictEqual(b.scripts.length, 0);
+    b.timers.forEach(f => f()); await flushAll(); assert.strictEqual(b.scripts.length, 1); assert.deepStrictEqual(b.views, ['/']);
+  });
+  atest('r98: the query string never leaves the browser except utm_* / ref', async () => {
+    const A = require('../analytics.js');
+    assert.strictEqual(A.cleanQuery('?d=661&p=93&x=r3b2&s=2'), '');
+    assert.strictEqual(A.cleanQuery('?utm_source=ig&d=661&ref=story'), '?utm_source=ig&ref=story');
+    assert.strictEqual(A.cleanQuery(''), '');
+    const b = boot(mkStore(), { search: '?d=661&p=93&x=r3b2&s=2&utm_source=ig' }); await flushAll();
+    assert.strictEqual(b.win.goatcounter.get_data().q, '?utm_source=ig');
   });
 }
 

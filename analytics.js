@@ -127,6 +127,13 @@ const ANALYTICS_CODE = 'ngtrooper';
     return true;
   }
 
+  /** Round 98: has `name` already been sent on `dayKey` (read-only)? */
+  function sentToday(storage, name, dayKey) {
+    let rec = null;
+    try { rec = JSON.parse(storage.getItem(SENT_KEY) || 'null'); } catch (e) { rec = null; }
+    return !!(rec && rec.day === dayKey && Array.isArray(rec.sent) && rec.sent.includes(name));
+  }
+
   const memStore = (() => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); } }; })();
   /** Round 95: does this browser already have Mixology history (from before this load)? */
   function hasHistory(storage) {
@@ -160,15 +167,16 @@ const ANALYTICS_CODE = 'ngtrooper';
   function todayKey() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 
   let enabled = false, reason = 'not started', queue = [], timer = null, tries = 0, everPending = null, everQueued = false;
+  let gcReady = false, injected = false; const queued = new Set(); // round 98
   function flush() {
     const gc = root.goatcounter;
-    if (!gc || typeof gc.count !== 'function') return false;
+    if (!gcReady || !gc || typeof gc.count !== 'function') return false; // round 98: only once count.js is loaded AND set up
     while (queue.length) {
       const name = queue.shift();
       if (EVER_EVENTS.includes(name)) { // round 95: claim the permanent flag only as it is really sent
         const st = safeStorage();
         try { if (isSentEver(st.getItem(EVER_KEY))) continue; st.setItem(EVER_KEY, name + '|' + todayKey()); } catch (e) { continue; }
-      }
+      } else if (!claimOncePerDay(safeStorage(), name, todayKey())) continue; // round 98: the daily flag is claimed only as it is really sent
       try { gc.count({ path: name, title: name, event: true }); } catch (e) { /* swallow */ }
     }
     return true;
@@ -177,6 +185,64 @@ const ANALYTICS_CODE = 'ngtrooper';
     if (!flush() && !timer) {
       timer = setInterval(() => { if (flush() || ++tries > 60 || !enabled) { clearInterval(timer); timer = null; } }, 500);
     }
+  }
+  /* Round 98 (Franklin, tracking cleanup):
+   *  - count.js is injected only once transfer.js knows the page STAYS (MixTransfer.pending
+   *    resolved false). A brand-new browser is bounced once through the bridge
+   *    (ngtrooper.github.io/mixology-move) and back; before, that sent a page view on the way
+   *    out AND one on the way back, and the way-out page burnt the day's `open` flag before
+   *    count.js could send it, so new players' `open` was never counted.
+   *  - the visitor's real referrer (e.g. Instagram) is kept across that bounce (sessionStorage),
+   *    instead of every new visitor showing up as "from ngtrooper.github.io".
+   *  - the query string (duel links carry a mix code) is never sent: count.js's automatic
+   *    page view is off (no_onload) and its `q` field is reduced to utm_* / ref only. */
+  const REF_KEY = 'mixology.analytics.ref.v1', OLD_HOST = 'ngtrooper.github.io';
+  const refHost = r => ((/^https?:\/\/([^/?#:]+)/i.exec(String(r || '')) || [])[1] || '').toLowerCase();
+  /** The referrer to report. `bridged` = this load came back from the bridge / an import link. */
+  function pickReferrer(docRef, bridged, ss) {
+    docRef = String(docRef || '');
+    if (bridged && refHost(docRef) === OLD_HOST) {
+      let saved = null; try { saved = ss && ss.getItem(REF_KEY); } catch (e) { saved = null; }
+      return saved == null ? '' : saved; // '' = direct (no referrer)
+    }
+    try { if (ss) ss.setItem(REF_KEY, docRef); } catch (e) { /* ignore */ }
+    return docRef;
+  }
+  /** Only campaign tags (utm_*, ref) may leave the browser from the query string. */
+  function cleanQuery(q) {
+    const keep = String(q || '').replace(/^\?/, '').split('&').filter(kv => /^(utm_(source|medium|campaign|content|term)|ref)=/i.test(kv) && kv.length <= 120);
+    return keep.length ? '?' + keep.join('&') : '';
+  }
+  function countPageview(path) {
+    const gc = root.goatcounter, d = root.document;
+    const go = () => { try { gc.count({ path }); } catch (e) { /* swallow */ } };
+    if (!d || !('visibilityState' in d) || d.visibilityState === 'visible') return go();
+    const f = () => { if (d.visibilityState !== 'visible') return; d.removeEventListener('visibilitychange', f); go(); };
+    d.addEventListener('visibilitychange', f);
+  }
+  function inject(path) {
+    try {
+      if (injected || !enabled) return; injected = true;
+      const s = root.document.createElement('script');
+      s.async = true; s.src = SCRIPT_SRC;
+      s.setAttribute('data-goatcounter', `https://${encodeURIComponent(ANALYTICS_CODE)}.goatcounter.com/count`);
+      s.onload = () => {
+        try {
+          const gc = root.goatcounter;
+          if (!enabled || !gc || typeof gc.count !== 'function') return;
+          if (typeof gc.get_data === 'function' && !gc.get_data.__mix) {
+            const orig = gc.get_data;
+            gc.get_data = function () { const dd = orig.apply(this, arguments); if (dd) dd.q = cleanQuery(dd.q); return dd; };
+            gc.get_data.__mix = true;
+          }
+          gcReady = true;
+          countPageview(path);
+          kick();
+        } catch (e) { /* never break the game */ }
+      };
+      s.onerror = () => { enabled = false; queue = []; reason = 'blocked'; }; // ad blocker / offline: just stop
+      (root.document.head || root.document.documentElement).appendChild(s);
+    } catch (e) { enabled = false; reason = 'error'; }
   }
   function start() {
     try {
@@ -187,23 +253,26 @@ const ANALYTICS_CODE = 'ngtrooper';
       reason = disabledReason({ code: ANALYTICS_CODE, protocol: loc.protocol, hostname: loc.hostname, search: q, webdriver: !!(root.navigator && root.navigator.webdriver), storage });
       enabled = !reason;
       if (!enabled || !root.document) return;
-      const li = root.MixTransfer && root.MixTransfer.lastImport; // round 95: transfer.js ran first
+      const T = root.MixTransfer, li = T && T.lastImport; // round 95: transfer.js ran first
       everPending = everKind(storage, !!(li && li.ok && li.changed && li.days > 0)); // decided before game.js touches storage
-      // the automatic page view is sent without the query string (duel links carry a mix code)
-      root.goatcounter = Object.assign({}, root.goatcounter, { path: loc.pathname || '/' });
-      const s = root.document.createElement('script');
-      s.async = true; s.src = SCRIPT_SRC;
-      s.setAttribute('data-goatcounter', `https://${encodeURIComponent(ANALYTICS_CODE)}.goatcounter.com/count`);
-      s.onerror = () => { enabled = false; queue = []; reason = 'blocked'; }; // ad blocker / offline: just stop
-      (root.document.head || root.document.documentElement).appendChild(s);
+      let ss = null; try { ss = root.sessionStorage; } catch (e) { ss = null; }
+      const path = loc.pathname || '/';
+      // page views are sent by inject() (no_onload): path without the query string, real referrer
+      root.goatcounter = Object.assign({}, root.goatcounter, { path, no_onload: true, referrer: pickReferrer(root.document.referrer, !!li, ss) });
+      const p = T && T.pending;
+      if (p && typeof p.then === 'function') {
+        let done = false; const once = f => v => { if (!done) { done = true; f(v); } };
+        p.then(once(left => { if (!left) inject(path); }), once(() => inject(path)));
+        (root.setTimeout || setTimeout)(once(() => inject(path)), 8000); // a hung check never loses the count
+      } else inject(path);
     } catch (e) { enabled = false; reason = 'error'; }
   }
   /** Fire-and-forget. Unknown or malformed names are dropped. */
   function track(name) {
     try {
       if (!enabled || !validEvent(name)) return false;
-      if (!claimOncePerDay(safeStorage(), name, todayKey())) return false;
-      queue.push(name);
+      if (queued.has(name) || sentToday(safeStorage(), name, todayKey())) return false; // round 98: claimed in flush()
+      queued.add(name); queue.push(name);
       kick();
       return true;
     } catch (e) { return false; }
@@ -225,7 +294,7 @@ const ANALYTICS_CODE = 'ngtrooper';
     } catch (e) { return false; }
   }
 
-  const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, returnBucket, scoreBand, scoreLabel, offBucket, recipeOff, paintCount, validEvent, disabledReason, claimOncePerDay, localHost, track,
+  const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, returnBucket, scoreBand, scoreLabel, offBucket, recipeOff, paintCount, validEvent, disabledReason, claimOncePerDay, sentToday, localHost, track, pickReferrer, cleanQuery, REF_KEY,
     EVER_KEY, EVER_EVENTS, hasHistory, everKind, trackEver,
     get enabled() { return enabled; }, get reason() { return reason; }, get everPending() { return everPending; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

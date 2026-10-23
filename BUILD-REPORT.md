@@ -2,6 +2,13 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 98 (2026-10-23, Grok Bot): GOATCOUNTER TRACKING CLEANUP, v1.36.1 (Franklin)
+
+- **Why:** Franklin: "can you also take a look at goatcounter and cleanup with its tracking? i dont see numbers moving today so i dont know if because of what we changed."
+- **Finding:** tracking was NOT broken by v1.36.0 — live count.js loads and hits reach ngtrooper.goatcounter.com/count (200) in Chromium and WebKit, no JS errors. But since the save bridge went live (round 88) every brand-new browser: (a) counted `/` twice (once before the bridge hop, once after `#import-none`), (b) lost its real referrer (shown as ngtrooper.github.io), (c) never sent `open` on its first day (the flag was claimed on the page that left), (d) sent the duel query string (`?d=&p=&x=`) to GoatCounter.
+- **Fix (analytics.js only, no gameplay change):** inject count.js only after `MixTransfer.pending` resolves false (8 s fallback); restore the pre-hop referrer from sessionStorage; `no_onload` + own page view via `goatcounter.count({ path })`; `get_data` wrapped so `q` keeps only utm_*/ref; daily flags claimed in flush(). No event renamed.
+- **Tests:** r98 unit tests (bridge hop, flags, referrer, 8 s fallback, query strip); README opt-out link moved to mixologydaily.com.
+
 ## Round 97 (2026-10-23, Grok Bot): NO OFFICIAL RECIPE ANYWHERE, v1.36.0 (Franklin)
 
 - **Why:** Franklin: "Can we remove the correct recipe from being given to the player? I don't want all the recipes out there."
