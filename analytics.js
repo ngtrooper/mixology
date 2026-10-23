@@ -48,7 +48,7 @@ const ANALYTICS_CODE = 'ngtrooper';
   const EVER_KEY = 'mixology.analytics.ever.v1'; // round 95: permanent once-ever flag (never reset)
   const EVER_EVENTS = ['first-visit', 'known-player'];
   const SCRIPT_SRC = 'https://gc.zgo.at/count.js';
-  const STEP_BUCKETS = [1, 2, 3, 5, 7, 14, 30]; // streak-N / played-days-N: largest step <= n; 30 means "30+"
+  const STEP_BUCKETS = [1, 2, 3, 5, 7, 14, 30]; // streak-N: largest step <= n; 30 means "30+"
 
   /** 1,2,3,5,7,14,30+ bucket label for a count (null for < 1). */
   function stepBucket(n) {
@@ -57,46 +57,18 @@ const ANALYTICS_CODE = 'ngtrooper';
     let b = 1; for (const s of STEP_BUCKETS) if (n >= s) b = s;
     return b === 30 ? '30+' : String(b);
   }
-  /** return-day-<k>: days since this browser's first play; 0..7, then '8+'. */
-  function returnBucket(days) {
-    days = Math.floor(Number(days));
-    if (!Number.isFinite(days) || days < 0) return null;
-    return days >= 8 ? '8+' : String(days);
-  }
-  /** score-band-<tier>: the star tier names (diamond 100, gold 97+, silver 90+, bronze 85+) or none. */
+  /** score-#N-<tier>: the star tier names (diamond 100, gold 97+, silver 90+, bronze 85+) or none. */
   function scoreBand(pct) {
     const n = Math.round(Number(pct));
     if (!Number.isFinite(n)) return 'none';
     return n >= 100 ? 'diamond' : n >= 97 ? 'gold' : n >= 90 ? 'silver' : n >= 85 ? 'bronze' : 'none';
   }
-  /* Round 83 (Franklin): anonymous difficulty data, to see whether it is too
-   * hard and whether near-misses are 1-2% off. Numbers only, never a name:
-   *   pct-#N-a1-<score> / pct-#N-final-<score>  score 60..100 exactly, '<60' below
-   *   off-#N-<k>      L1 distance of the final (scored) mix from the official
-   *                   recipe in whole disc percents: 0..5, 6-10, 11-20, 21+.
-   *                   Both sum to 100, so k is always even: 2 = one paint 1%
-   *                   too high and another 1% too low.
-   *   paints-#N-<c>   how many paints (1-5) the final mix uses
-   * Round 93 (duo days): duo-c2-#N when a player reaches color 2, and
-   * pct-#N-c1-<score> / pct-#N-c2-<score> for each color's best try (final = the average). */
-  function scoreLabel(pct) {
-    const n = Math.round(Number(pct));
-    if (!Number.isFinite(n) || n < 0 || n > 100) return null;
-    return n < 60 ? '<60' : String(n);
-  }
-  function offBucket(k) {
-    k = Math.round(Number(k));
-    if (!Number.isFinite(k) || k < 0) return null;
-    return k <= 5 ? String(k) : k <= 10 ? '6-10' : k <= 20 ? '11-20' : '21+';
-  }
-  const PAINTS = ['r', 'y', 'b', 'k', 'w'];
-  const whole = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; }; // '30%' or 30 -> 30
-  /** sum over the five paints of |mine - official| (whole percents, e.g. the disc numbers) */
-  function recipeOff(mine, official) { return PAINTS.reduce((s, k) => s + Math.abs(whole(mine && mine[k]) - whole(official && official[k])), 0); }
-  function paintCount(mine) { const c = PAINTS.filter(k => whole(mine && mine[k]) > 0).length; return c >= 1 ? c : null; }
-
+  /* Round 99 (Franklin, v1.37.0): trimmed event set. The round-83 difficulty events
+   * (pct-#N-*, off-#N-*, paints-#N-*), return-day-*, played-days-*, score-band-* and
+   * open are no longer sent; score-#N-<tier> (one row per finished puzzle) replaces
+   * score-band-* and pct-*. Kept names are unchanged so GoatCounter history lines up. */
   /** Only these shapes may ever leave the browser (no names, no free text). */
-  const EVENT_RE = /^(open|first-visit|known-player|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|score-band-(none|bronze|silver|gold|diamond)|return-day-([0-7]|8\+)|streak-(1|2|3|5|7|14|30\+)|played-days-(1|2|3|5|7|14|30\+)|duo-c2-#\d{1,5}|pct-#\d{1,5}-(a1|final|c1|c2)-(<60|[6-9]\d|100)|off-#\d{1,5}-([0-5]|6-10|11-20|21\+)|paints-#\d{1,5}-[1-5])$/;
+  const EVENT_RE = /^(first-visit|known-player|share|duel-open|start-#\d{1,5}|finish-#\d{1,5}|duo-c2-#\d{1,5}|score-#\d{1,5}-(none|bronze|silver|gold|diamond)|streak-(1|2|3|5|7|14|30\+))$/;
   function validEvent(name) { return typeof name === 'string' && EVENT_RE.test(name); }
 
   function localHost(h) {
@@ -147,7 +119,7 @@ const ANALYTICS_CODE = 'ngtrooper';
   }
   /** Round 95: which once-ever event this browser still owes (null if already
    *  sent or storage is not persistent). The decision is stored at once as
-   *  '<kind>:pending' so this browser's own later writes (its first `open`,
+   *  '<kind>:pending' so this browser's own later writes (its first daily event,
    *  its save) can't turn a first visit into a "known player" if the event is
    *  only sent on a later load (bridge hop, blocked count.js). The one upgrade:
    *  a pending first-visit whose load brought in a transferred save (#import=)
@@ -294,7 +266,7 @@ const ANALYTICS_CODE = 'ngtrooper';
     } catch (e) { return false; }
   }
 
-  const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, returnBucket, scoreBand, scoreLabel, offBucket, recipeOff, paintCount, validEvent, disabledReason, claimOncePerDay, sentToday, localHost, track, pickReferrer, cleanQuery, REF_KEY,
+  const api = { ANALYTICS_CODE, OPTOUT_KEY, SENT_KEY, SCRIPT_SRC, stepBucket, scoreBand, validEvent, disabledReason, claimOncePerDay, sentToday, localHost, track, pickReferrer, cleanQuery, REF_KEY,
     EVER_KEY, EVER_EVENTS, hasHistory, everKind, trackEver,
     get enabled() { return enabled; }, get reason() { return reason; }, get everPending() { return everPending; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

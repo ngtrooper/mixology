@@ -456,9 +456,6 @@ function seal() {
   const att = { comp: { ...round.pot }, hex: sc.hex, pct: sc.pct, de: sc.de };
   if (sc.exact) att.exact = true;
   round.attempts.push(att);
-  if (!(round.duo && round.duo.idx > 0)) { // round 93: on a duo day a1 is color 1's first try only
-    if (round.mode === 'daily' && round.attempts.length === 1) trackScore('a1', round.day, sc.pct); // round 83
-  }
   justSealed = round.attempts.length - 1;
   sfx.seal();
   announce(`Attempt ${round.attempts.length} submitted: ${att.pct}% accuracy.` + (round.attempts.length === 1 && round.attempts.length < MAX_ATTEMPTS ? ` Hint: ${hintText(att)}.` : ''));
@@ -482,33 +479,11 @@ function hintHTML(att) {
 const MA = window.MixAnalytics;
 function track(name) { try { if (MA) MA.track(name); } catch (e) { /* never break the game */ } }
 function trackDaily(kind, day) { const n = E.publicNumber(day); if (n) track(`${kind}-#${n}`); }
-function trackReturn() {
-  if (!MA) return;
-  const f = firstPlayedDay(); if (f == null) return;
-  const b = MA.returnBucket(DAY - f); if (b) track('return-day-' + b);
-}
-/* Round 83: difficulty numbers (attempt-1 score, final score, how far the
- * final mix's disc numbers are from the recipe's, how many paints it uses).
- * Built from numbers by analytics.js helpers; no name ever goes in. */
-function trackScore(stage, day, score) {
-  if (!MA) return;
-  const n = E.publicNumber(day), lbl = MA.scoreLabel(score);
-  if (n && lbl) track(`pct-#${n}-${stage}-${lbl}`);
-}
-function trackMix(day, mix, target) {
-  if (!MA || !mix || !target) return;
-  const n = E.publicNumber(day); if (!n) return;
-  const mine = E.displayPercents(mix), off = MA.offBucket(MA.recipeOff(mine, E.displayPercents(target))), pc = MA.paintCount(mine);
-  if (off) track(`off-#${n}-${off}`);
-  if (pc) track(`paints-#${n}-${pc}`);
-}
 function trackFinish(day, pct) {
   if (!MA) return;
   trackDaily('finish', day);
-  track('score-band-' + MA.scoreBand(pct));
+  const n = E.publicNumber(day); if (n) track(`score-#${n}-${MA.scoreBand(pct)}`); // round 99: one score row per puzzle (replaces score-band-* and pct-*)
   const st = MA.stepBucket(liveStreaks().streak); if (st) track('streak-' + st);
-  const pd = MA.stepBucket(Object.keys(store.data.days).length); if (pd) track('played-days-' + pd);
-  trackReturn();
 }
 
 function finish() {
@@ -554,7 +529,6 @@ function finish() {
   celebrate(final.pct, round.mode === 'daily' && store.data.streak > (streakBefore || 0));
   if (round.mode === 'daily') queueDiscoveryToasts(collectRound(round.attempts, round.color.name)); // round 69: announced only now, at the reveal; round 84: dailies only
   if (round.mode === 'daily') trackFinish(round.day, final.pct); // round 78
-  if (round.mode === 'daily') { trackScore('final', round.day, final.pct); trackMix(round.day, final.comp, round.color.recipe); } // round 83
 }
 /* Round 93: the end of a duo day (daily rounds only; duo state never exists in
  * practice). ONE day record: name/attempts/hex are color 1's, so every older
@@ -598,10 +572,7 @@ function finishDuo() {
     const fresh = []; // both colors collect
     duo.def.colors.forEach((c, i) => { for (const n of collectRound(duo.parts[i], c.name)) if (!fresh.includes(n)) fresh.push(n); });
     queueDiscoveryToasts(fresh);
-    trackFinish(day, sum.pct); // score-band etc. from the average
-    trackScore('final', day, sum.pct);
-    trackScore('c2', day, finals[1].pct);
-    trackMix(day, finals[0].comp, duo.def.colors[0].recipe); // off-/paints- describe color 1 (the scheduled color)
+    trackFinish(day, sum.pct); // score-#N from the average
   }
 }
 
@@ -930,7 +901,7 @@ function duoAdvance() {
   round.attempts = []; round.pot = freshPot(); round.undo = [];
   selectedTool = 'pour';
   d.flash = true;
-  if (round.mode === 'daily') { trackScore('c1', round.day, b.pct); trackDaily('duo-c2', round.day); } // round 93
+  if (round.mode === 'daily') trackDaily('duo-c2', round.day); // round 93
   sfx.reveal(); buzz([14, 50, 14]);
   announce(`Color 1 done: ${b.pct}%. Color 2 of 2 is called ${titleCase(round.color.name)}.`);
   persistWip(); renderAll();
@@ -2050,7 +2021,7 @@ renderMute();
 initPotHint(); // round 81: decided once, from the save as loaded
 initDaily();
 // round 78: anonymous counts (no-op until ANALYTICS_CODE is set in analytics.js)
-track('open'); trackReturn(); if (incomingDuel) track('duel-open');
+if (incomingDuel) track('duel-open'); // round 99: no more open / return-day
 try { if (MA && MA.trackEver) MA.trackEver(); } catch (e) { /* round 95: first-visit / known-player, once ever per browser */ }
 /* Round 86: save transfer to mixologydaily.com (transfer.js runs first and has
  * already merged any #import=... link into storage before this file loaded). */
@@ -2073,7 +2044,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.36.1',
+  version: '1.37.0',
   DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,

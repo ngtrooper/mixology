@@ -2,6 +2,14 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
+## Round 99 (2026-10-23, Grok Bot): GOATCOUNTER EVENTS TRIMMED, v1.37.0 (Franklin)
+
+- **Why:** Franklin approved trimming the event list to the rows he reads.
+- **Sent now:** `first-visit`, `known-player`, `start-#N`, `duo-c2-#N`, `finish-#N`, `score-#N-<none|bronze|silver|gold|diamond>` (new, once per finished puzzle, same thresholds as score-band, duo = average), `streak-<1|2|3|5|7|14|30+>`, `share`, `duel-open`. Kept names unchanged.
+- **Removed:** `open`, `return-day-*`, `played-days-*`, `score-band-*`, `pct-#N-a1|final|c1|c2-*`, `off-#N-*`, `paints-#N-*` (from game.js, the analytics.js allowlist and its helpers scoreLabel/offBucket/recipeOff/paintCount/returnBucket).
+- **Kept:** the v1.36.1 fixes (count.js deferred during the bridge hop, real referrer restored, query string reduced to utm_*/ref) and `?noanalytics`. first-visit/known-player no longer rely on `open`; an old `open` sent-flag still marks a known player.
+- **Tests:** unit tests updated (+ r99 tests: removed events rejected by the allowlist, unique-player logic without open); e2e friend-duo check now expects one `score-#14-*` row and none of the removed events; ever-e2e expects no `open`; coral-e2e no longer pins version 1.35.1.
+
 ## Round 98 (2026-10-23, Grok Bot): GOATCOUNTER TRACKING CLEANUP, v1.36.1 (Franklin)
 
 - **Why:** Franklin: "can you also take a look at goatcounter and cleanup with its tracking? i dont see numbers moving today so i dont know if because of what we changed."

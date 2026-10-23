@@ -1633,23 +1633,27 @@ console.log('— round 78: private analytics (GoatCounter) —');
     assert.deepStrictEqual(JSON.parse(st.getItem(A.SENT_KEY)), { day: '2026-10-20', sent: ['open'] });
     const bad = mem(); bad.setItem(A.SENT_KEY, '{oops'); assert.strictEqual(A.claimOncePerDay(bad, 'open', '2026-10-19'), true);
   });
-  test('buckets: streak/played-days 1,2,3,5,7,14,30+; return-day 0..7, 8+; score bands = star tiers', () => {
+  test('buckets: streak 1,2,3,5,7,14,30+; score bands = star tiers', () => {
     assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6, 7, 13, 14, 29, 30, 365].map(A.stepBucket), [null, '1', '2', '3', '3', '5', '5', '7', '7', '14', '14', '30+', '30+']);
-    assert.deepStrictEqual([-1, 0, 1, 2, 7, 8, 40].map(A.returnBucket), [null, '0', '1', '2', '7', '8+', '8+']);
     assert.deepStrictEqual([0, 84, 85, 89, 90, 96, 97, 99, 100].map(A.scoreBand), ['none', 'none', 'bronze', 'bronze', 'silver', 'silver', 'gold', 'gold', 'diamond']);
   });
   test('only whitelisted anonymous event shapes; no bank color name can ever be an event', () => {
-    for (const ok of ['open', 'share', 'duel-open', 'start-#2', 'finish-#120', 'score-band-gold', 'return-day-1', 'return-day-8+', 'streak-30+', 'played-days-7']) assert.ok(A.validEvent(ok), ok);
-    // ('bronze', 'silver', 'gold' are also bank names; score-band-<tier> is the star tier, so those three are allowed only there)
+    for (const ok of ['share', 'duel-open', 'start-#2', 'finish-#120', 'score-#2-gold', 'score-#120-none', 'streak-30+', 'first-visit', 'known-player']) assert.ok(A.validEvent(ok), ok);
+    // ('bronze', 'silver', 'gold' are also bank names; score-#N-<tier> is the star tier, so those three are allowed only there)
     const TIERS = ['none', 'bronze', 'silver', 'gold', 'diamond'];
-    for (const n of bank.map(c => c.name)) for (const ev of [n, 'start-' + n, 'finish-' + n, ...(TIERS.includes(n) ? [] : ['score-band-' + n])]) assert.ok(!A.validEvent(ev), ev);
-    for (const bad of ['score-97', 'streak-4', 'return-day-9', 'start-#', 'finish-#2 lipstick', '']) assert.ok(!A.validEvent(bad), bad);
+    for (const n of bank.map(c => c.name)) for (const ev of [n, 'start-' + n, 'finish-' + n, ...(TIERS.includes(n) ? [] : ['score-#2-' + n])]) assert.ok(!A.validEvent(ev), ev);
+    for (const bad of ['score-97', 'score-#2-97', 'score-gold', 'streak-4', 'start-#', 'finish-#2 lipstick', '']) assert.ok(!A.validEvent(bad), bad);
+    // round 99: removed events can never be sent again
+    for (const gone of ['open', 'score-band-gold', 'return-day-1', 'return-day-8+', 'played-days-7', 'pct-#2-a1-90', 'pct-#2-final-100', 'pct-#14-c1-90', 'pct-#14-c2-<60', 'off-#2-0', 'paints-#2-3']) assert.ok(!A.validEvent(gone), gone);
     // game.js builds events only from puzzle numbers and buckets
     const calls = [...gSrc.matchAll(/(?<!function )track\(([^;]*?)\);/g)].map(m => m[1]).filter(c => c !== "name"); // the wrapper forwards its argument
-    assert.ok(calls.length >= 6 && calls.every(c => !/name|hex|recipe|comp|\.pct\b/.test(c)), calls.join(' | '));
+    assert.ok(calls.length >= 5 && calls.every(c => !/name|hex|recipe|comp|\.pct\b/.test(c)), calls.join(' | '));
   });
-  test('game hooks: open, return-day, duel-open at load; start on first daily dose; finish/band/streak/played-days; share', () => {
-    assert.ok(gSrc.includes("track('open'); trackReturn(); if (incomingDuel) track('duel-open');"));
+  test('game hooks: duel-open at load; start on first daily dose; finish/score/streak; share (r99: no open, return-day, played-days)', () => {
+    assert.ok(gSrc.includes("if (incomingDuel) track('duel-open'); // round 99: no more open / return-day"));
+    assert.ok(!/track\('open'\)|return-day|played-days|score-band|trackScore|trackMix|pct-#|off-#|paints-#/.test(gSrc.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, '')), 'a removed event is still sent');
+    const tf = gSrc.slice(gSrc.indexOf('function trackFinish'), gSrc.indexOf('function finish()'));
+    assert.ok(tf.includes("trackDaily('finish', day);") && tf.includes('track(`score-#${n}-${MA.scoreBand(pct)}`)') && tf.includes("track('streak-' + st)"));
     assert.ok(gSrc.includes("if (round.mode === 'daily' && !round.finished) trackDaily('start', round.day);"));
     assert.ok(gSrc.includes("if (round.mode === 'daily') trackFinish(round.day, final.pct);"));
     assert.ok(gSrc.includes("track('share'); // round 78"));
@@ -1860,20 +1864,9 @@ console.log('— round 83: the pot starts EMPTY; difficulty analytics —');
     const mixed = { r: 20, y: 0, b: 0, k: 0, w: 80 }; assert.deepStrictEqual(migrate(E, fresh, { pot: mixed }), mixed);
     assert.ok(gameSrc.includes('pot: lastAtt.comp ? { ...lastAtt.comp } : freshPot(),'), 'finished days still show their saved mix');
   });
-  test('difficulty events: score labels, recipe-distance buckets, paint counts; allowlist; never a color name', () => {
-    assert.deepStrictEqual([0, 59, 59.4, 60, 85, 97, 100, 101, NaN].map(A83.scoreLabel), ['<60', '<60', '<60', '60', '85', '97', '100', null, null]);
-    assert.deepStrictEqual([0, 1, 2, 5, 6, 10, 11, 20, 21, 90, -1].map(A83.offBucket), ['0', '1', '2', '5', '6-10', '6-10', '11-20', '11-20', '21+', '21+', null]);
-    assert.strictEqual(A83.recipeOff({ r: '0%', y: '31%', b: '28%', k: '41%', w: '0%' }, { r: 0, y: 30, b: 29, k: 41, w: 0 }), 2);
-    assert.strictEqual(A83.recipeOff(E.displayPercents({ w: 100 }), { y: 30, b: 29, k: 41 }), 200);
-    assert.deepStrictEqual([{ y: '100%' }, { r: '1%', y: '99%' }, { r: '20%', y: '20%', b: '20%', k: '20%', w: '20%' }, {}].map(A83.paintCount), [1, 2, 5, null]);
-    for (const ok of ['pct-#2-a1-<60', 'pct-#2-a1-60', 'pct-#2-final-97', 'pct-#120-final-100', 'off-#2-0', 'off-#2-6-10', 'off-#2-11-20', 'off-#2-21+', 'paints-#2-1', 'paints-#2-5']) assert.ok(A83.validEvent(ok), ok);
-    for (const bad of ['pct-#2-final-59', 'pct-#2-final-101', 'pct-#2-a2-90', 'off-#2-7', 'off-#2-6', 'paints-#2-0', 'paints-#2-6', 'pct-#2-final-97 x']) assert.ok(!A83.validEvent(bad), bad);
-    for (const n of bank.map(c => c.name)) for (const ev of ['pct-' + n, 'off-' + n, 'paints-' + n, `pct-#2-final-${n}`, `off-#2-${n}`]) assert.ok(!A83.validEvent(ev), ev);
-    // the game only sends them for daily rounds, from numbers
-    assert.ok(gameSrc.includes("if (round.mode === 'daily' && round.attempts.length === 1) trackScore('a1', round.day, sc.pct); // round 83"));
-    assert.ok(gameSrc.includes("if (round.mode === 'daily') { trackScore('final', round.day, final.pct); trackMix(round.day, final.comp, round.color.recipe); } // round 83"));
-    const tm = gameSrc.slice(gameSrc.indexOf('function trackScore'), gameSrc.indexOf('function trackFinish'));
-    assert.ok(tm.includes('track(`pct-#${n}-${stage}-${lbl}`)') && tm.includes('track(`off-#${n}-${off}`)') && tm.includes('track(`paints-#${n}-${pc}`)') && !/\.name\b/.test(tm));
+  test('r99: the round-83 difficulty events (pct-/off-/paints-) are gone, helpers too', () => {
+    for (const f of ['scoreLabel', 'offBucket', 'recipeOff', 'paintCount', 'returnBucket']) assert.strictEqual(A83[f], undefined, f);
+    for (const gone of ['pct-#2-a1-<60', 'pct-#2-final-97', 'off-#2-6-10', 'paints-#2-5']) assert.ok(!A83.validEvent(gone), gone);
   });
   test('schedule.js is not reshuffled by this round (dark forest green is still #2, day 657)', () => {
     assert.strictEqual(SCHED83[657], 'dark forest green');
@@ -1923,10 +1916,10 @@ console.log('— round 84: practice counts for nothing persistent —');
   });
   test('r84: no analytics events from practice (every track call is daily-gated)', () => {
     const lines = gameSrc.split('\n');
-    const tracks = lines.map((l, i) => [l, i]).filter(([l]) => /\b(trackScore|trackFinish|trackMix|trackStart|MA\.track\w*)\(/.test(l) && !/^\s*(function|\/\/|\*)/.test(l));
+    const tracks = lines.map((l, i) => [l, i]).filter(([l]) => /\b(trackDaily|trackFinish|trackStart|MA\.track\w*)\(/.test(l) && !/^\s*(function|\/\/|\*)/.test(l));
     for (const [l, i] of tracks) {
       const ctx = lines.slice(Math.max(0, i - 12), i + 1).join('\n');
-      if (/'(open|share|duel-open)'|trackOpen|trackShare|trackDuel|trackEver|return-day|streak-|played-days/.test(l)) continue; // r95: trackEver is a page-load event like 'open'
+      if (/'(share|duel-open)'|trackShare|trackDuel|trackEver|streak-|function trackDaily|trackDaily\(`?\$\{?kind|score-#|trackDaily\('finish', day\)/.test(l)) continue; // r95: trackEver is a page-load event; r99: inside trackFinish/trackDaily
       assert.ok(/round\.mode === 'daily'|mode === 'daily'|isDaily/.test(ctx), 'ungated track call at line ' + (i + 1) + ': ' + l.trim());
     }
   });
@@ -2259,9 +2252,9 @@ test('r93: only internal day 669 (#14, Sat 2026-10-31 local) is a duo; color 1 i
 });
 test('r93: duo analytics events are allowed; names never are', () => {
   const A = require('../analytics.js');
-  for (const ok of ['duo-c2-#14', 'pct-#14-c1-90', 'pct-#14-c2-<60', 'pct-#14-c2-100', 'start-#14', 'finish-#14']) assert.ok(A.validEvent(ok), ok);
-  for (const bad of ['duo-c2-pumpkin', 'duo-c2-#14 x', 'pct-#14-c3-90', 'duo-#14', 'pct-#14-c1-midnight purple']) assert.ok(!A.validEvent(bad), bad);
-  assert.ok(gameSrc.includes("trackDaily('duo-c2', round.day)") && gameSrc.includes("trackScore('c1', round.day, b.pct)") && gameSrc.includes("trackScore('c2', day, finals[1].pct)"));
+  for (const ok of ['duo-c2-#14', 'start-#14', 'finish-#14', 'score-#14-silver']) assert.ok(A.validEvent(ok), ok);
+  for (const bad of ['duo-c2-pumpkin', 'duo-c2-#14 x', 'pct-#14-c1-90', 'pct-#14-c2-100', 'duo-#14', 'score-#14-midnight purple']) assert.ok(!A.validEvent(bad), bad);
+  assert.ok(gameSrc.includes("if (round.mode === 'daily') trackDaily('duo-c2', round.day); // round 93") && gameSrc.includes('trackFinish(day, sum.pct); // score-#N from the average'));
 });
 test('r93: a duo day is one day record (pct = average, duo = both colors); streak rules match finish()', () => {
   const fd = gameSrc.slice(gameSrc.indexOf('function finishDuo()'), gameSrc.indexOf('\n}\n', gameSrc.indexOf('function finishDuo()')));
@@ -2349,14 +2342,14 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
   atest('r95: a brand-new browser sends first-visit exactly once ever (across days); reloads send nothing more', async () => {
     const st = mkStore();
     let b = boot(st); assert.strictEqual(b.A.everPending, 'first-visit');
-    b.A.track('open'); b.A.trackEver(); b.A.trackEver(); await flushAll();
-    assert.deepStrictEqual(b.sent, ['open', 'first-visit']);
+    b.A.track('share'); b.A.trackEver(); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['share', 'first-visit']);
     assert.ok(/^first-visit\|\d{4}-\d\d-\d\d$/.test(st.m['mixology.analytics.ever.v1']));
-    // next day (daily sent-flags reset) and a reload: open again, never first-visit/known-player
+    // next day (daily sent-flags reset) and a reload: daily events again, never first-visit/known-player
     st.setItem('mixology.analytics.sent.v1', JSON.stringify({ day: '1999-01-01', sent: [] }));
     b = boot(st); assert.strictEqual(b.A.everPending, null);
-    b.A.track('open'); b.A.trackEver(); await flushAll();
-    assert.deepStrictEqual(b.sent, ['open']);
+    b.A.track('share'); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['share']);
   });
   atest('r95: a browser with history from before (save / collection / flags / sent-flags) sends known-player once', async () => {
     const cases = [
@@ -2379,7 +2372,7 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
     // an existing sent value is final
     { const st = mkStore({ 'mixology.analytics.ever.v1': 'known-player|2026-10-21' }), b = boot(st); assert.strictEqual(b.A.everPending, null); }
     for (const o of [{ webdriver: true }, { search: '?noanalytics' }, { host: 'localhost' }, { host: '192.168.1.5' }]) {
-      const st = mkStore(), b = boot(st, o); b.A.track('open'); b.A.trackEver(); await flushAll();
+      const st = mkStore(), b = boot(st, o); b.A.track('share'); b.A.trackEver(); await flushAll();
       assert.deepStrictEqual(b.sent, [], JSON.stringify(o)); assert.strictEqual(st.m['mixology.analytics.ever.v1'], undefined);
     }
     const st = mkStore({ 'mixology.noanalytics.v1': '1' }), b = boot(st); b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, []);
@@ -2418,23 +2411,23 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
   atest('r98: a page that leaves for the bridge loads no count.js: no page view, no event, no daily flag burnt', async () => {
     const st = mkStore(), ss = mkStore();
     let b = boot(st, { ss, referrer: 'https://l.instagram.com/', transfer: { pending: Promise.resolve(true) } });
-    assert.strictEqual(b.A.track('open'), true); b.A.trackEver(); await flushAll();
+    assert.strictEqual(b.A.track('share'), true); b.A.trackEver(); await flushAll();
     assert.strictEqual(b.scripts.length, 0, 'count.js not even requested'); assert.deepStrictEqual(b.views, []); assert.deepStrictEqual(b.sent, []);
     assert.strictEqual(st.m['mixology.analytics.sent.v1'], undefined, 'open still unclaimed');
     // ... it comes back from the bridge (#import-none): ONE page view, the Instagram referrer, open + first-visit
     b = boot(st, { ss, referrer: 'https://ngtrooper.github.io/', transfer: { pending: Promise.resolve(false), lastImport: { ok: true, none: true, changed: false } } });
     assert.strictEqual(b.win.goatcounter.referrer, 'https://l.instagram.com/');
-    b.A.track('open'); b.A.trackEver(); await flushAll();
-    assert.deepStrictEqual(b.views, ['/']); assert.deepStrictEqual(b.sent, ['open', 'first-visit']);
+    b.A.track('share'); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.views, ['/']); assert.deepStrictEqual(b.sent, ['share', 'first-visit']);
     assert.strictEqual(b.win.goatcounter.no_onload, true, 'count.js does not send its own (query-carrying) page view');
   });
   atest('r98: daily flags are claimed only when really sent; repeats in one load are still dropped', async () => {
     const st = mkStore();
-    let b = boot(st, { noGc: true }); assert.strictEqual(b.A.track('open'), true); assert.strictEqual(b.A.track('open'), false); await flushAll();
+    let b = boot(st, { noGc: true }); assert.strictEqual(b.A.track('share'), true); assert.strictEqual(b.A.track('share'), false); await flushAll();
     assert.strictEqual(st.m['mixology.analytics.sent.v1'], undefined, 'blocked count.js: retried next load');
-    b = boot(st); b.A.track('open'); b.A.track('open'); await flushAll(); assert.deepStrictEqual(b.sent, ['open']);
-    assert.ok(JSON.parse(st.m['mixology.analytics.sent.v1']).sent.includes('open'));
-    b = boot(st); assert.strictEqual(b.A.track('open'), false); await flushAll(); assert.deepStrictEqual(b.sent, []);
+    b = boot(st); b.A.track('share'); b.A.track('share'); await flushAll(); assert.deepStrictEqual(b.sent, ['share']);
+    assert.ok(JSON.parse(st.m['mixology.analytics.sent.v1']).sent.includes('share'));
+    b = boot(st); assert.strictEqual(b.A.track('share'), false); await flushAll(); assert.deepStrictEqual(b.sent, []);
   });
   atest('r98: direct visit through the bridge stays direct; a hung redirect check still counts after 8 s', async () => {
     const ss = mkStore(); boot(mkStore(), { ss, transfer: { pending: Promise.resolve(true) } });
@@ -2445,6 +2438,15 @@ const ATESTS = []; function atest(name, fn) { ATESTS.push([name, fn]); } // asyn
     b = boot(mkStore(), { referrer: 'https://www.google.com/' }); assert.strictEqual(b.win.goatcounter.referrer, 'https://www.google.com/');
     b = boot(mkStore(), { transfer: { pending: new Promise(() => {}) } }); await flushAll(); assert.strictEqual(b.scripts.length, 0);
     b.timers.forEach(f => f()); await flushAll(); assert.strictEqual(b.scripts.length, 1); assert.deepStrictEqual(b.views, ['/']);
+  });
+  atest('r99: first-visit / known-player still work with no open event (page load alone)', async () => {
+    const st = mkStore();
+    let b = boot(st); b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, ['first-visit'], 'a pure visit, no daily event');
+    b = boot(st); b.A.trackEver(); await flushAll(); assert.deepStrictEqual(b.sent, [], 'never twice');
+    // an old browser whose only trace is the old open sent-flag is still a known player
+    b = boot(mkStore({ 'mixology.analytics.sent.v1': JSON.stringify({ day: '2026-10-20', sent: ['open'] }) })); b.A.trackEver(); await flushAll();
+    assert.deepStrictEqual(b.sent, ['known-player']);
+    b = boot(mkStore()); assert.strictEqual(b.A.track('open'), false, 'open is not allowed any more');
   });
   atest('r98: the query string never leaves the browser except utm_* / ref', async () => {
     const A = require('../analytics.js');

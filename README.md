@@ -176,30 +176,21 @@ Optional, internal-only play counts use [GoatCounter](https://www.goatcounter.co
 - **Turn on/off:** in `analytics.js`, set `const ANALYTICS_CODE = '<code>';` (the `<code>` of `https://<code>.goatcounter.com`). That one line is the only change, and an empty string means no script and no network request at all.
 - **Loading:** when on, `count.js` loads async from `gc.zgo.at`. Failures (offline, ad blockers, errors) are swallowed and never affect the game. The page view is sent as the path only, never the query string, because duel links carry a mix code.
 - **Never counted:** localhost, private IPs, `file://`, and automated or headless browsers (`navigator.webdriver`).
-- **Bridge hop and page views (round 98, v1.36.1):** a brand-new browser on mixologydaily.com is bounced once through `ngtrooper.github.io/mixology-move` to pick up an old save (round 88). count.js is now loaded only after transfer.js knows the page stays (`MixTransfer.pending` resolved false; 8 s fallback), so that bounce no longer counts `/` twice, no longer burns the day's `open` flag on the page that leaves, and the visitor's real referrer is restored from `sessionStorage['mixology.analytics.ref.v1']` instead of showing ngtrooper.github.io. Page views are sent by analytics.js (`no_onload`), and the query string sent to GoatCounter keeps only `utm_*` / `ref` (duel links carry a mix code). Daily event flags are claimed only when the event is really sent.
+- **Bridge hop and page views (round 98, v1.36.1):** a brand-new browser on mixologydaily.com is bounced once through `ngtrooper.github.io/mixology-move` to pick up an old save (round 88). count.js is now loaded only after transfer.js knows the page stays (`MixTransfer.pending` resolved false; 8 s fallback), so that bounce no longer counts `/` twice, no longer burns a daily flag on the page that leaves, and the visitor's real referrer is restored from `sessionStorage['mixology.analytics.ref.v1']` instead of showing ngtrooper.github.io. Page views are sent by analytics.js (`no_onload`), and the query string sent to GoatCounter keeps only `utm_*` / `ref` (duel links carry a mix code). Daily event flags are claimed only when the event is really sent.
 - **Excluding yourself:** open the game once with `?noanalytics` (e.g. `https://mixologydaily.com/?noanalytics`; the opt-out is per site, so a browser opted out on the old github.io address must do it again here). That sets `localStorage['mixology.noanalytics.v1'] = '1'` for that browser permanently, so do it on each device and browser you use. `?analytics=on` undoes it. GoatCounter's own `localStorage.skipgc = 't'` is honored too.
-- **Events:** at most once per day per browser, and only puzzle numbers, scores and buckets. Never a color name, recipe or hex. The whitelist is `validEvent` in `analytics.js`.
-  - Round 83 difficulty events (daily rounds only):
-    - `pct-#N-a1-<score>` and `pct-#N-final-<score>`: the score 60–100, or `<60`.
-    - `off-#N-<k>`: the final scored mix's distance from the recipe, as the sum of |yours − official| over the five disc numbers, bucketed 0–5, 6-10, 11-20, 21+. It is always even: 2 = one paint 1% high and another 1% low.
-    - `paints-#N-1..5`: how many paints the final mix uses.
-  - `open`
-  - **Round 95 (Franklin): `first-visit` and `known-player`.** These are sent **once ever per browser**, never daily, and fire with `open` on page load. Their permanent flag is `mixology.analytics.ever.v1`.
-    - `first-visit`: the browser had no Mixology history.
-    - `known-player`: it already had a save, collection, welcome/pour flag or analytics sent-flags from before this change.
-    - **Reading it:** in GoatCounter, pick a range from 2026-10-21 (the deploy) to today and add the two rows. That sum is the exact number of unique browsers since the deploy.
-    - **Timing:** the kind is decided when analytics.js loads, after transfer.js merged any `#import=` and before game.js writes. It is stored as `<kind>:pending` until GoatCounter takes it, so a blocked count.js retries on the next load without changing the kind.
-    - **Transfer:** a player arriving with a transferred save counts as `known-player`. If transfer.js navigates away on load (bridge pull, https hop), nothing is sent and the page it returns to decides: a returned save means `known-player`, `#import-none` means `first-visit`. The flag is per origin and does not travel with a transfer.
-    - **Not counted:** opted-out and automated browsers are never counted. Neither is storage that can't persist.
-  - `start-#N` (first dose of the day's daily)
-  - `finish-#N`
-  - `score-band-none|bronze|silver|gold|diamond` (the star tiers)
-  - `return-day-0..7|8+` (days since this browser's first finished daily, sent on each visit and finish)
-  - `streak-1|2|3|5|7|14|30+`
-  - `played-days-1|2|3|5|7|14|30+` (largest step not over the count)
-  - `share`
-  - `duel-open`
-- **Retention read-out:** in GoatCounter, compare unique `return-day-1` / `return-day-7` counts with `return-day-0`.
+- **Events (round 99, v1.37.0, trimmed by Franklin):** at most once per day per browser (in practice once per puzzle, since a daily is finished once), and only puzzle numbers and buckets. Never a color name, recipe or hex. The whitelist is `validEvent` in `analytics.js`; anything else is dropped before it can be sent. Daily rounds only, never practice.
+  - **`first-visit` / `known-player`** (round 95): sent **once ever per browser** on page load. Permanent flag `mixology.analytics.ever.v1`.
+    - `first-visit`: the browser had no Mixology history. `known-player`: it already had a save, collection, welcome/pour flag or analytics sent-flags from before (including an old `open` flag).
+    - **Reading it:** pick a range from 2026-10-21 to today and add the two rows: the number of unique browsers since then.
+    - **Timing:** decided when analytics.js loads (after transfer.js merged any `#import=`, before game.js writes), stored as `<kind>:pending` until GoatCounter takes it. It no longer depends on `open` (removed).
+    - **Transfer:** a transferred save counts as `known-player`; after the bridge hop, `#import-none` means `first-visit`. Opted-out/automated browsers and non-persistent storage are never counted.
+  - `start-#N`: first dose of the day's daily (duo days too).
+  - `duo-c2-#N`: a duo day's player reached color 2 (the duo's mid-way step).
+  - `finish-#N`: the daily (or both duo colors) finished.
+  - `score-#N-none|bronze|silver|gold|diamond`: one score row per finished puzzle, the star tiers (diamond 100, gold 97+, silver 90+, bronze 85+, else none); a duo day uses the average. Replaces `score-band-*` and every `pct-*`.
+  - `streak-1|2|3|5|7|14|30+`: the streak after the finish (largest step not over it).
+  - `share`, `duel-open`.
+  - **No longer sent (round 99):** `open`, `return-day-*`, `played-days-*`, `score-band-*`, `pct-#N-a1|final|c1|c2-*`, `off-#N-*`, `paints-#N-*`. Their old rows stay in GoatCounter history; finish rate = `finish-#N` / `start-#N`, retention now comes from `streak-*` and `known-player`.
 - **Visible:** while analytics is on, the Tips overlay shows "No cookies. Anonymous play counts only."
 
 ## Files
