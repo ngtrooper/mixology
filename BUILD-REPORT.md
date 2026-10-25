@@ -2,7 +2,20 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
-## Round 100 (2026-10-25, Grok Bot): FIRST-TIME WALKTHROUGH + TYPE-THE-PERCENT, v1.38.0 (Franklin) — DEPLOYED
+## Round 101 (2026-10-25, Grok Bot): TYPE MIX TOOL, v1.39.0 (Franklin) — LOCAL BUILD, NOT PUSHED
+
+- **Why:** Franklin, after trying the round-100 tap-the-number editor: "may be a type the mix as an option next to pour bucket and then just reduce the size of those tools", then: remove the tap-the-number editor, Type mix is the only typed-input solution.
+- **What:** third tool "Type mix" beside Dropper and Pour Bucket. Panel: one numeric box per paint (all five, prefilled from the pot, `inputmode=numeric`, 22px so iOS never zooms), live total (N / 100, green at 100, amber otherwise), one Apply that sets ALL shares together via `E.setMix` (so typing one paint never shifts another already typed), Cancel/Escape/tap outside close with no change. Enter moves to the next box; Enter in the last box applies. Explicit Apply button because iOS numeric pads have no Return key.
+- **Total is not 100:** Apply scales proportionally to 100 (chosen over "require a fix": simplest, most forgiving). The note says so and previews the balance ("Total is 80, not 100. Apply will scale it to 100 and keep the balance: Red 63%, Yellow 37%."). Paints that would end under 0.5% (TRACE_PCT) drop out with a note. Blank or 0 = paint out; total 0 empties the pot; anything not a whole number 0 to 100 shows an error and disables Apply.
+- **Undo:** the whole apply is one gesture = one undo step; an Apply that changes nothing makes none.
+- **Tool bar:** all three tools 12.5px label / 14px icon, nowrap, about 98 to 121 x 35 px. Toolbar is 1 to 3px shorter than v1.38.0, so the iPhone fit is the same or slightly better.
+- **Removed (superseded round-100 feature):** tap-the-number editor, its pencil cue, the pct panel, `E.setShare` and the aria-label suffix; the Tips "Exact amount" paragraph is now a Type mix paragraph. Disc taps are exactly v1.37.0 again.
+- **Unchanged:** normal tap and hold-to-pour (Type mix does not change the selected pot tool), scoring and paint math, no recipes shown, analytics.js untouched (no new events), finished days cannot open it, no keyboard shortcut.
+- **Tests:** unit 274 passed. e2e: onboarding 139 (A-G, both engines), e2e 40, stars 22, ever 12, norecipe 26, coral 8, all passing in Chromium and WebKit. Fit at 375x667, 390x844, 430x932, 360x740: Submit in view at all four; 390x844 seal 737 to 783, docH 1023 (v1.38.0: 738 to 784, 1024).
+- **Screenshots:** `mixology-posts/onboarding/{mobile,desktop}-typemix-1..5`. Obsolete round-100 editor shots (5 to 9) deleted.
+
+## Round 100 (2026-10-25, Grok Bot): FIRST-TIME WALKTHROUGH + TYPE-THE-PERCENT, v1.38.0 (Franklin) — DEPLOYED (the tap-the-number editor below was REMOVED in Round 101)
+
 
 - **Why:** Franklin: "lets see how it works" (a short first-time walkthrough) and "my brother has a disabled patient ... he can only do taps and not holds". An opt-in Easy tap mode (step bar, `?tap=1`) was built first, then **dropped by Franklin's decision**: "can we have tap and hold and just add the ability to type the % if you click on the number after you select the color?" Nothing of tap mode remains (no toggle, no `?tap=1`, no step bar, no `stepShare`, no tap/step storage keys).
 - **Walkthrough (replaces the one-screen welcome card):** 3 callouts on the real controls (the stage/paints, the pot, Submit), each with Next and a clear Skip, Escape also skips, plus "Read the full tips". About 10 s. Shown once: it sets the existing `mixology.welcomed.v1`, and anyone with saved days or a work-in-progress never sees it (same first-visit logic as before). Tips → "Replay the intro" replays it. Spotlight + card are `position: fixed`, so nothing moves in the page layout (iPhone no-scroll fit identical to v1.37.0 at 375x667, 390x844, 430x932, 360x740). On a short desktop window the target is scrolled into view first.

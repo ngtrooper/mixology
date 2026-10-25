@@ -230,48 +230,62 @@ function renderPotHint() {
   clearTimeout(el._t); el._t = setTimeout(() => { if (!potHintShown()) el.hidden = true; }, REDUCED_MOTION ? 0 : 400);
 }
 
-/* Typed percent (round 100, Franklin: always on, for everyone): with a paint selected,
- * tapping the PERCENT NUMBER on that paint opens a one-field editor (numeric keypad on phones). OK / Enter sets that paint to exactly that share of
- * the pot through E.setShare (the same displacement as pouring); one undo step. */
-/* Is this click on the percent number itself? Geometry only (the number keeps
- * pointer-events: none): the text box padded to a thumb-sized target. A keyboard
- * click has no coordinates, so it never counts. */
-function clickOnNumber(btn, e) {
-  if (!e || e.detail === 0 || (!e.clientX && !e.clientY)) return false;
-  const el = btn.querySelector('.ppct'); if (!el || !el.firstChild) return false;
-  const rg = document.createRange(); rg.selectNodeContents(el);
-  const r = rg.getBoundingClientRect(); if (!r.width) return false;
-  const padX = Math.max(8, (30 - r.width) / 2), padY = Math.max(10, (30 - r.height) / 2);
-  return e.clientX >= r.left - padX && e.clientX <= r.right + padX && e.clientY >= r.top - padY && e.clientY <= r.bottom + padY;
+/* Type mix (round 101, Franklin): a third entry in the tool bar opens a panel with one
+ * numeric box per paint and ONE Apply that sets the whole mix at once, so typing one paint
+ * never shifts another you already typed. All five paints are listed (blank = 0 = not in the
+ * pot). The live total shows next to /100. When it is not 100, Apply scales the numbers
+ * proportionally to 100 (E.setMix; the panel says so and previews the result), so nothing
+ * has to be fixed by hand. One undo step. Same pot math and scoring as pouring: the result is
+ * just a composition. No analytics event. Round 100's tap-the-number editor was removed. */
+const MIX_KEYS = ['r', 'y', 'b', 'k', 'w'];
+function mixInputs() { return MIX_KEYS.map(k => $('mix-' + k)); }
+function mixRead() { const sh = {}; MIX_KEYS.forEach(k => { sh[k] = $('mix-' + k).value.trim(); }); return sh; }
+function mixErr(msg) { const el = $('mix-err'); el.textContent = msg || ''; el.hidden = !msg; }
+function mixRefresh() {
+  const r = E.setMix(mixRead());
+  const tot = $('mix-total'), note = $('mix-note'), ap = $('btn-mix-apply');
+  mixErr('');
+  if (!r.ok) { $('mix-sum').textContent = '—'; tot.className = 'mix-total warn'; note.textContent = `${PIG_NAMES[r.key]} must be a whole number from 0 to 100.`; ap.disabled = true; $('mix-' + r.key).setAttribute('aria-invalid', 'true'); return r; }
+  mixInputs().forEach(i => i.removeAttribute('aria-invalid'));
+  ap.disabled = false;
+  $('mix-sum').textContent = String(r.total);
+  tot.className = 'mix-total' + (r.total === 100 ? ' ok' : ' warn');
+  if (r.total === 0) note.textContent = potIsEmpty() ? 'Nothing typed. Type an amount for at least one paint.' : 'Nothing typed. Apply will empty the pot.';
+  else if (r.total === 100) note.textContent = 'Total is 100. Apply sets this mix.';
+  else {
+    const dp = E.displayPercents(r.comp);
+    const parts = MIX_KEYS.filter(k => r.comp[k] > 0).map(k => `${PIG_NAMES[k]} ${dp[k]}`);
+    note.textContent = `Total is ${r.total}, not 100. Apply will scale it to 100 and keep the balance: ${parts.join(', ')}.`
+      + (r.dropped.length ? ` ${r.dropped.map(k => PIG_NAMES[k]).join(' and ')} would be under half a percent and drops out.` : '');
+  }
+  ap.disabled = r.total === 0 && potIsEmpty();
+  return r;
 }
-function openPct(key) {
+function openMix() {
   if (!round || round.finished) return;
-  pctKey = key;
-  const cur = E.displayPercents(round.pot)[key];
-  $('pct-title').textContent = `How much ${PIG_NAMES[key].toLowerCase()}?`;
-  $('pct-input').value = String(parseInt(cur, 10) || 0);
-  $('pct-err').hidden = true; $('pct-input').removeAttribute('aria-invalid');
-  openOverlay('pct-overlay');
-  const i = $('pct-input'); try { i.focus({ preventScroll: true }); i.select(); } catch (e) { /* ignore */ }
+  stopPour(); stopRemove();
+  const dp = E.displayPercents(round.pot), empty = potIsEmpty();
+  MIX_KEYS.forEach(k => { $('mix-' + k).value = !empty && round.pot[k] > 0 ? String(parseInt(dp[k], 10)) : ''; });
+  openOverlay('mix-overlay');
+  mixRefresh();
+  const first = MIX_KEYS.map(k => $('mix-' + k)).find(i => i.value === '') || $('mix-r');
+  try { first.focus({ preventScroll: true }); first.select(); } catch (e) { /* ignore */ }
 }
-let pctKey = null;
-function closePct() { if (pctKey === null && !$('pct-overlay').classList.contains('open')) return; pctKey = null; closeOverlay('pct-overlay'); }
-function pctError(msg) { const el = $('pct-err'); el.textContent = msg; el.hidden = false; $('pct-input').setAttribute('aria-invalid', 'true'); }
-function applyTypedPercent(key, raw) {
-  const txt = String(raw).trim();
-  if (!/^\d{1,3}$/.test(txt) || Number(txt) > 100) return { ok: false, msg: 'Type a whole number from 0 to 100.' };
-  const r = E.setShare(round.pot, key, Number(txt));
-  if (r.reason === 'alone') return { ok: false, msg: 'Add another paint first. A paint on its own is always 100%.' };
-  if (r.reason === 'trace') return { ok: false, msg: `${Number(txt)}% would squeeze a paint below half a percent, so it would drop out. Try a lower number.` };
-  if (r.reason === 'range') return { ok: false, msg: 'Type a whole number from 0 to 100.' };
-  if (!r.changed) return { ok: true, changed: false };
+function closeMix() { closeOverlay('mix-overlay'); }
+function applyMix(shares) {
+  const r = E.setMix(shares);
+  if (!r.ok) return { ok: false, key: r.key, msg: 'Type whole numbers from 0 to 100.' };
+  const before = E.displayPercents(round.pot), emptyBefore = potIsEmpty();
+  const emptyAfter = E.isEmptyComp(r.comp);
+  if (emptyBefore && emptyAfter) return { ok: true, changed: false };
+  if (!emptyBefore && !emptyAfter && JSON.stringify(E.displayPercents(r.comp)) === JSON.stringify(before)) return { ok: true, changed: false };
   stopPour(); stopRemove();
   beginGesture();
   round.pot = r.comp;
-  markPoured(); retireFirstHint();
+  if (!emptyAfter) { markPoured(); retireFirstHint(); }
   sfx.dose();
   renderAll(); persistWip(); endGesture();
-  announce(`${PIG_NAMES[key]} set to ${E.displayPercents(round.pot)[key]} of the pot`);
+  announce(emptyAfter ? 'Pot emptied' : 'Mix set: ' + MIX_KEYS.filter(k => r.comp[k] > 0).map(k => `${PIG_NAMES[k]} ${E.displayPercents(r.comp)[k]}`).join(', '));
   return { ok: true, changed: true };
 }
 
@@ -1130,7 +1144,7 @@ function renderDiscPercents() {
   for (const b of BUCKET_KEYS) {
     const btn = $(BUCKET_EL[b]); if (!btn) continue;
     const el = btn.querySelector('.ppct'); if (el && el.textContent !== pct[b]) el.textContent = pct[b];
-    btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot` + (selectedBucket === b && round && !round.finished ? '. Tap the percent to type an exact amount' : ''));
+    btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot`);
     // round 68: the remove badge shows only when taking this paint out would change the pot
     const rm = $('rm-' + b); if (!rm) continue;
     const show = !round.finished && round.pot[b] > 0; // round 83: also at 100%, taking out the last paint empties the pot
@@ -1848,9 +1862,6 @@ document.querySelectorAll('.bucket').forEach(btn => {
   btn.addEventListener('click', e => {
     stopPour();
     const again = selectedBucket === btn.dataset.bucket;
-    // round 100: a tap on the percent NUMBER of the already-selected paint opens the typed-percent editor;
-    // any other tap on a selected paint behaves exactly as before
-    if (again && round && !round.finished && clickOnNumber(btn, e)) { openPct(selectedBucket); return; }
     if (selectedBucket !== btn.dataset.bucket) { sfx.pick(); buzz(6); } // round 27: tactile select
     selectedBucket = btn.dataset.bucket; renderAll();
     if (!again) maybeFirstHint(); // round 100: first paint tap
@@ -1870,6 +1881,7 @@ document.querySelectorAll('.premove').forEach(btn => {
   btn.addEventListener('click', e => { if (e.detail === 0) removePaint(key); });
   btn.addEventListener('contextmenu', e => e.preventDefault()); // a long press must not open a menu
 });
+$('tool-mix').addEventListener('click', () => { stopPour(); openMix(); });
 document.querySelectorAll('.tool[data-tool]').forEach(btn => {
   btn.addEventListener('click', () => {
     stopPour();
@@ -2022,7 +2034,7 @@ document.addEventListener('keydown', e => {
   if (k === 'd') { $('tool-dropper').click(); announce('Dropper selected'); }
   else if (k === 'p') { $('tool-pour').click(); announce('Pour Bucket selected'); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); closePct(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); closeMix(); } });
 /* Round 14 -> 100: first-visit walkthrough. Shown once per device, only to someone with
  * no saved days. 3 short callouts that point at the REAL controls (paints, pot,
  * Submit), Next and Skip on every step, under ten seconds. Done or skipped, the flag
@@ -2102,17 +2114,21 @@ $('btn-tour-skip').addEventListener('click', () => endTour(false));
 $('btn-tour-tips').addEventListener('click', () => { endTour(false); openOverlay('tips-overlay'); });
 window.addEventListener('resize', tourLayout);
 window.addEventListener('orientationchange', () => setTimeout(tourLayout, 150));
-// Round 100: typed-percent editor + walkthrough controls
-$('pct-panel').addEventListener('submit', e => {
+// Round 101: Type mix panel
+$('mix-panel').addEventListener('submit', e => {
   e.preventDefault();
-  if (pctKey === null || !round) return;
-  const r = applyTypedPercent(pctKey, $('pct-input').value);
-  if (!r.ok) { pctError(r.msg); try { $('pct-input').focus(); $('pct-input').select(); } catch (err) { /* ignore */ } return; }
-  closePct();
+  if (!round || round.finished) { closeMix(); return; }
+  const r = applyMix(mixRead());
+  if (!r.ok) { mixErr(r.msg); try { $('mix-' + r.key).focus(); } catch (err) { /* ignore */ } return; }
+  closeMix();
 });
-$('btn-pct-cancel').addEventListener('click', closePct);
-$('pct-overlay').addEventListener('click', e => { if (e.target === $('pct-overlay')) closePct(); });
-$('pct-input').addEventListener('input', () => { const el = $('pct-input'); const v = el.value.replace(/\D/g, '').slice(0, 3); if (v !== el.value) el.value = v; $('pct-err').hidden = true; el.removeAttribute('aria-invalid'); });
+$('btn-mix-cancel').addEventListener('click', closeMix);
+$('mix-overlay').addEventListener('click', e => { if (e.target === $('mix-overlay')) closeMix(); });
+mixInputs().forEach((el, i, all) => {
+  el.addEventListener('input', () => { const v = el.value.replace(/\D/g, '').slice(0, 3); if (v !== el.value) el.value = v; mixRefresh(); });
+  el.addEventListener('focus', () => { try { el.select(); } catch (err) { /* ignore */ } });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && i < all.length - 1) { e.preventDefault(); all[i + 1].focus(); } });
+});
 initFirstHint(); // round 100: before the first render
 $('btn-undo').addEventListener('click', undo);
 $('btn-reset').addEventListener('click', resetPot);
@@ -2190,7 +2206,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.38.0',
+  version: '1.39.0',
   DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
@@ -2213,7 +2229,7 @@ window.MISNOMER = {
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,
   newPractice: startPractice,
-  openPct, applyTypedPercent, startTour, // round 100
+  openMix, applyMix, startTour, // round 100 / 101
   shareLine, shareImage, maybeWelcome, WELCOME_KEY, untilNextColor, titleCase,
   engine: E, bank: BANK, pool: POOL
 };

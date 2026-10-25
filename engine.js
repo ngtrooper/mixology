@@ -253,30 +253,27 @@ function addUnits(comp, key, n) {
 }
 /** Round 68: take `n` units of `key` out of the pot (the remove control). */
 function removeUnits(comp, key, n) { return addUnits(comp, key, -Math.abs(n)); }
-/** Round 100 (typed percent): set `key` to `pct` % of the pot by typing it. It is the
- *  SAME displacement math as pouring, just a whole-number dose: the other paints keep
- *  their proportions and shrink or grow to fill the rest (addUnits with the n that lands
- *  on pct). Returns {comp, changed, reason}. A paint alone in the pot is always 100%, so
- *  with no other paint present only 0 (empty) or 100 can be set. Pure. */
-function setShare(comp, key, pct) {
-  const c = normalizeComp(comp), want = Math.round(Number(pct));
-  if (!COMP_KEYS.includes(key) || !Number.isFinite(want) || want < 0 || want > 100) return { comp: c, changed: false, reason: 'range' };
-  const others = COMP_KEYS.reduce((a, q) => a + (q === key ? 0 : c[q]), 0);
-  if (others <= 1e-9) { // alone in the pot (or an empty pot)
-    if (want === 0) return { comp: { ...FRESH_COMP }, changed: c[key] > 0, reason: '' };
-    if (want < 100) return { comp: c, changed: false, reason: 'alone' };
-    return { comp: addUnits(c, key, 100), changed: c[key] < 100, reason: '' };
+/** Round 101 (Type mix): turn the typed shares of ALL paints into a composition. `shares` is
+ *  {r,y,b,k,w}; a blank, missing or 0 entry means "not in the pot". Entries must be whole
+ *  numbers 0..100 (else {ok:false, key, reason:'range'}). If they total 100 the pot is exactly
+ *  those numbers; any other total is scaled proportionally to 100 (normalizeComp), the
+ *  forgiving choice. Traces under half a percent after scaling drop out (snapTraces, same as
+ *  pouring) and are listed in `dropped`. All zero = an empty pot. Pure; no pot is needed
+ *  because every paint is set at once, so no paint can disturb another. Returns
+ *  {ok, comp, total, dropped}. */
+function setMix(shares) {
+  const raw = {}; let total = 0;
+  for (const k of COMP_KEYS) {
+    const s = shares && shares[k];
+    const txt = s === undefined || s === null ? '' : String(s).trim();
+    if (txt === '') { raw[k] = 0; continue; }
+    const v = Number(txt);
+    if (!/^\d{1,3}$/.test(txt) || !Number.isFinite(v) || v < 0 || v > 100) return { ok: false, key: k, reason: 'range' };
+    raw[k] = v; total += v;
   }
-  if (want === 100) { const o = { ...FRESH_COMP }; o[key] = 100; return { comp: o, changed: true, reason: '' }; }
-  const cur = c[key];
-  if (want > 0 && displayPercents(c)[key] === want + '%') return { comp: c, changed: false, reason: '' }; // already shows that number
-  if (want === 0) return { comp: addUnits(c, key, -cur), changed: cur > 0, reason: '' };
-  const n = (want - cur) * 100 / (100 - want); // (cur+n)/(100+n) = want/100
-  const out = addUnits(c, key, n);
-  // addUnits snaps a trace under 0.5% to 0, which can swallow the other paints (typing 99 with three
-  // small ones left). Refuse rather than land on a different number than the one typed.
-  if (displayPercents(out)[key] !== want + '%') return { comp: c, changed: false, reason: 'trace' };
-  return { comp: out, changed: Math.abs(n) > 1e-9, reason: '' };
+  if (total <= 0) return { ok: true, comp: { ...FRESH_COMP }, total: 0, dropped: [] };
+  const comp = snapTraces(raw);
+  return { ok: true, comp, total, dropped: COMP_KEYS.filter(k => raw[k] > 0 && !(comp[k] > 0)) };
 }
 
 /** composition {r,y,b,k,w} (%) -> [R,G,B] 0..255 floats
@@ -1000,7 +997,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP, OLD_WHITE_START, isEmptyComp,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, setShare, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, setMix, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, nextDayStart, formatCountdown, comeBackLine, dateKey, pickDailyIndex, nearestColorName,
