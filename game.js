@@ -230,11 +230,152 @@ function renderPotHint() {
   clearTimeout(el._t); el._t = setTimeout(() => { if (!potHintShown()) el.hidden = true; }, REDUCED_MOTION ? 0 : 400);
 }
 
+/* Round 100 (Franklin): EASY TAP MODE, for a player who can only tap (no holds,
+ * drags, timing or multi-touch). It is a pure input layer: every tap adds or
+ * removes ONE fixed step (Small 1% / Medium 5% / Large 10%) through the same
+ * engine displacement as pouring, so the pot math, scoring, tracking and saves
+ * are exactly the same. The setting lives in its own keys (never the save), can be
+ * switched on from a link (?tap=1, ?tap=0 turns it off) and from Tips. Taps act
+ * on RELEASE (pointerup on the same control), so a slow or shaky press that slides
+ * off the pot cancels instead of firing, and nothing depends on how long a press lasts. */
+const TAP_KEY = 'mixology.tapmode.v1', TAPSTEP_KEY = 'mixology.tapstep.v1';
+const TAP_STEPS = { small: 1, medium: 5, large: 10 };
+const tap = { on: false, step: 'medium' };
+function tapUnits() { return TAP_STEPS[tap.step] || 5; }
+function setTapStep(step) {
+  if (!TAP_STEPS[step]) return;
+  tap.step = step;
+  try { localStorage.setItem(TAPSTEP_KEY, step); } catch (e) { /* private mode */ }
+  renderAll();
+}
+function setTapMode(on) {
+  tap.on = !!on;
+  try { localStorage.setItem(TAP_KEY, tap.on ? '1' : '0'); } catch (e) { /* private mode */ }
+  stopPour(); stopRemove(); closePct();
+  if (round) renderAll();
+  announce(tap.on ? `Easy tap mode on. Each tap adds ${tapUnits()} percent.` : 'Easy tap mode off');
+}
+function initTapMode() {
+  try {
+    if (TAP_STEPS[localStorage.getItem(TAPSTEP_KEY)]) tap.step = localStorage.getItem(TAPSTEP_KEY);
+    tap.on = localStorage.getItem(TAP_KEY) === '1';
+  } catch (e) { /* private mode */ }
+  let q = ''; try { q = new URLSearchParams(location.search).get('tap') || ''; } catch (e) { /* ignore */ }
+  if (/^(1|on|true|yes)$/i.test(q)) { tap.on = true; try { localStorage.setItem(TAP_KEY, '1'); } catch (e) { /* ignore */ } }
+  else if (/^(0|off|false|no)$/i.test(q)) { tap.on = false; try { localStorage.setItem(TAP_KEY, '0'); } catch (e) { /* ignore */ } }
+}
+function renderTapUi() {
+  $('app').classList.toggle('tapmode', tap.on);
+  for (const b of document.querySelectorAll('.tapstep')) {
+    const on = b.dataset.step === tap.step;
+    b.classList.toggle('sel', on); b.setAttribute('aria-pressed', String(on));
+  }
+  const sw = $('btn-tapmode');
+  if (sw) { sw.setAttribute('aria-checked', String(tap.on)); sw.textContent = 'Easy tap mode: ' + (tap.on ? 'On' : 'Off'); }
+  const ph = document.querySelector('#pot-hint > span:last-child');
+  if (ph) ph.textContent = tap.on ? 'Tap to add' : 'Hold to pour';
+}
+/* One tap on the pot: add one step of the selected paint (one undo step). */
+function tapAdd() {
+  if (!round) return false;
+  if (round.finished) { lockedFeedback(); return false; }
+  stopPour();
+  beginGesture();
+  round.pot = E.stepShare(round.pot, selectedBucket, tapUnits());
+  markPoured(); retireFirstHint();
+  sfx.dose();
+  renderAll(); persistWip(); endGesture(); dropAnim();
+  announce(`${PIG_NAMES[selectedBucket]} is now ${E.displayPercents(round.pot)[selectedBucket]} of the pot`);
+  return true;
+}
+/* One tap on a paint's − badge: take out one step of that paint (one undo step). */
+function tapRemove(key) {
+  if (!round || round.finished || !(round.pot[key] > 0)) return false;
+  stopPour(); stopRemove();
+  beginGesture();
+  round.pot = E.stepShare(round.pot, key, -tapUnits());
+  sfx.undo(); buzz(6);
+  renderAll(); persistWip(); endGesture();
+  announce(`${PIG_NAMES[key]} is now ${E.displayPercents(round.pot)[key]} of the pot`);
+  return true;
+}
+/* Tap-to-activate on release. Records which control got the press and fires only
+ * if the same pointer is released over that control. */
+function bindTapPress(el, fire) {
+  let id = null;
+  const over = e => { const r = el.getBoundingClientRect(); const m = 8; return e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m; };
+  el.addEventListener('pointerdown', e => { if (tap.on && (e.button === undefined || e.button === 0)) id = e.pointerId; }, true);
+  el.addEventListener('pointerup', e => { if (tap.on && id === e.pointerId && over(e)) fire(); id = null; });
+  for (const t of ['pointercancel']) el.addEventListener(t, () => { id = null; });
+}
+/* Typed percent: with a paint selected, tapping it again opens a one-field editor
+ * (numeric keypad on phones). OK / Enter sets that paint to exactly that share of
+ * the pot through E.setShare (the same displacement as pouring); one undo step. */
+function openPct(key) {
+  if (!round || round.finished) return;
+  pctKey = key;
+  const cur = E.displayPercents(round.pot)[key];
+  $('pct-title').textContent = `How much ${PIG_NAMES[key].toLowerCase()}?`;
+  $('pct-input').value = String(parseInt(cur, 10) || 0);
+  $('pct-err').hidden = true; $('pct-input').removeAttribute('aria-invalid');
+  openOverlay('pct-overlay');
+  const i = $('pct-input'); try { i.focus({ preventScroll: true }); i.select(); } catch (e) { /* ignore */ }
+}
+let pctKey = null;
+function closePct() { if (pctKey === null && !$('pct-overlay').classList.contains('open')) return; pctKey = null; closeOverlay('pct-overlay'); }
+function pctError(msg) { const el = $('pct-err'); el.textContent = msg; el.hidden = false; $('pct-input').setAttribute('aria-invalid', 'true'); }
+function applyTypedPercent(key, raw) {
+  const txt = String(raw).trim();
+  if (!/^\d{1,3}$/.test(txt) || Number(txt) > 100) return { ok: false, msg: 'Type a whole number from 0 to 100.' };
+  const r = E.setShare(round.pot, key, Number(txt));
+  if (r.reason === 'alone') return { ok: false, msg: 'Add another paint first. A paint on its own is always 100%.' };
+  if (r.reason === 'trace') return { ok: false, msg: `${Number(txt)}% would squeeze a paint below half a percent, so it would drop out. Try a lower number.` };
+  if (r.reason === 'range') return { ok: false, msg: 'Type a whole number from 0 to 100.' };
+  if (!r.changed) return { ok: true, changed: false };
+  stopPour(); stopRemove();
+  beginGesture();
+  round.pot = r.comp;
+  markPoured(); retireFirstHint();
+  sfx.dose();
+  renderAll(); persistWip(); endGesture();
+  announce(`${PIG_NAMES[key]} set to ${E.displayPercents(round.pot)[key]} of the pot`);
+  return { ok: true, changed: true };
+}
+
+/* Round 100 (Franklin): a first-time player gets a quick walkthrough (below) and, if
+ * they skipped it, ONE soft hint after their first paint tap that fades on its own.
+ * Own key; anyone with progress never sees it. No analytics event. */
+const HINTED_KEY = 'mixology.hinted.v1';
+const firstHint = { on: false, t: null };
+function initFirstHint() {
+  let hinted = false; try { hinted = !!localStorage.getItem(HINTED_KEY); } catch (e) { hinted = true; }
+  const hasHistory = Object.keys(store.data.days || {}).length > 0 || !!store.data.wip;
+  firstHint.on = !hinted && !hasHistory;
+}
+function retireFirstHint() {
+  if (!firstHint.on && !$('first-hint').classList.contains('show')) return;
+  firstHint.on = false; clearTimeout(firstHint.t);
+  try { localStorage.setItem(HINTED_KEY, '1'); } catch (e) { /* private mode */ }
+  const el = $('first-hint'); el.classList.remove('show');
+  setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, REDUCED_MOTION ? 0 : 400);
+}
+function maybeFirstHint() {
+  if (!firstHint.on || !round || round.finished || !potIsEmpty() || $('tour-overlay').classList.contains('open')) return;
+  const el = $('first-hint');
+  el.textContent = tap.on ? 'Tap the pot to add a step. Change the step below.' : 'Tap the pot to add this paint. Hold to pour more.';
+  el.hidden = false; void el.offsetWidth; el.classList.add('show');
+  firstHint.on = false; // shown once
+  try { localStorage.setItem(HINTED_KEY, '1'); } catch (e) { /* private mode */ }
+  clearTimeout(firstHint.t);
+  firstHint.t = setTimeout(() => { el.classList.remove('show'); setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, REDUCED_MOTION ? 0 : 400); }, 4500);
+}
+
 /* Apply ONE unit (one drop = 1% of the pot) of the selected pigment.
  * Displacement is the engine's job (addUnits renormalizes to 100). */
 function applyUnit(silent) {
   round.pot = E.addUnits(round.pot, selectedBucket, 1);
   markPoured(); // round 81: the first drop retires the "Hold to pour" label for good
+  retireFirstHint(); // round 100
   if (!silent) sfx.dose();
   renderAll(); persistWip();
 }
@@ -1056,12 +1197,12 @@ function renderDiscPercents() {
   for (const b of BUCKET_KEYS) {
     const btn = $(BUCKET_EL[b]); if (!btn) continue;
     const el = btn.querySelector('.ppct'); if (el && el.textContent !== pct[b]) el.textContent = pct[b];
-    btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot`);
+    btn.setAttribute('aria-label', `Select ${PIG_NAMES[b].toLowerCase()} pigment, ${pct[b]} of the pot` + (tap.on && selectedBucket === b ? '. Tap again to type an exact percent' : ''));
     // round 68: the remove badge shows only when taking this paint out would change the pot
     const rm = $('rm-' + b); if (!rm) continue;
     const show = !round.finished && round.pot[b] > 0; // round 83: also at 100%, taking out the last paint empties the pot
     if (rm.hidden === show) rm.hidden = !show;
-    rm.setAttribute('aria-label', `Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. Hold to keep removing`);
+    rm.setAttribute('aria-label', `Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. ` + (tap.on ? `Tap to take out ${tapUnits()} percent` : 'Hold to keep removing'));
   }
 }
 function renderAll() {
@@ -1121,17 +1262,19 @@ function renderAll() {
   }
   { // round 26: the pot says what a press will do (the selected pigment and tool, which are already visible)
     const pn = { r: 'red', y: 'yellow', b: 'blue', k: 'black', w: 'white' }[selectedBucket] || 'paint';
-    $('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (empty && !round.finished ? 'The pot is empty. ' : '') + (round.finished ? 'Pot (round complete)'
+    $('pot').setAttribute('aria-label', (potHintShown() ? (tap.on ? 'Tap to add. ' : 'Hold to pour. ') : '') + (empty && !round.finished ? 'The pot is empty. ' : '') + (round.finished ? 'Pot (round complete)'
+      : tap.on ? `Add ${tapUnits()} percent ${pn} to the pot (one tap)`
       : selectedTool === 'pour' ? `Pour ${pn} into the pot (hold to keep pouring)` : `Add one drop of ${pn} to the pot`));
     renderPotHint(); // round 81
   }
   { // round 20: same SVG icon as the selected tool button
     const src = $('tool-' + selectedTool).querySelector('svg');
-    $('toolbar-current').innerHTML = (src ? src.outerHTML : '') + (selectedTool === 'dropper' ? 'Dropper' : 'Pour Bucket');
+    $('toolbar-current').innerHTML = tap.on ? `Easy tap · ${tapUnits()}% a tap` : (src ? src.outerHTML : '') + (selectedTool === 'dropper' ? 'Dropper' : 'Pour Bucket');
   }
   // Round 9: show the selected tool's rig over the pot, tinted with the pigment
-  $('stage').classList.toggle('tool-pour', selectedTool === 'pour');
-  $('stage').classList.toggle('tool-dropper', selectedTool === 'dropper');
+  $('stage').classList.toggle('tool-pour', !tap.on && selectedTool === 'pour'); // round 100: tap mode shows the Dropper
+  $('stage').classList.toggle('tool-dropper', tap.on || selectedTool === 'dropper');
+  renderTapUi(); // round 100
   document.querySelectorAll('#fx .pig-fill').forEach(el => el.setAttribute('fill', PIGMENT_HEX[selectedBucket]));
 
   // Round 9: two slots. A finished pre-round-9 day can hold 3 attempts —
@@ -1773,8 +1916,11 @@ function initDaily() {
 document.querySelectorAll('.bucket').forEach(btn => {
   btn.addEventListener('click', () => {
     stopPour();
+    const again = selectedBucket === btn.dataset.bucket;
     if (selectedBucket !== btn.dataset.bucket) { sfx.pick(); buzz(6); } // round 27: tactile select
     selectedBucket = btn.dataset.bucket; renderAll();
+    if (tap.on && again && !btn._shortcut && round && !round.finished) openPct(selectedBucket); // round 100: tap a selected paint to type its percent
+    if (!again || !tap.on) maybeFirstHint(); // round 100: first paint tap
   });
 });
 // Round 68: remove badges. Pointer press = remove (hold ramps); the trailing
@@ -1784,11 +1930,13 @@ document.querySelectorAll('.premove').forEach(btn => {
   btn.addEventListener('pointerdown', e => {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
+    if (tap.on) return; // round 100: easy tap mode acts on release, never on a hold
     try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     startRemove(key);
   });
+  bindTapPress(btn, () => tapRemove(key)); // round 100
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(t, () => { if (removeTimer || removeKey) stopRemove(); });
-  btn.addEventListener('click', e => { if (e.detail === 0) removePaint(key); });
+  btn.addEventListener('click', e => { if (e.detail === 0) { if (tap.on) tapRemove(key); else removePaint(key); } });
   btn.addEventListener('contextmenu', e => e.preventDefault()); // a long press must not open a menu
 });
 document.querySelectorAll('.tool[data-tool]').forEach(btn => {
@@ -1838,19 +1986,21 @@ potEl.addEventListener('pointerdown', e => {
   if (!round) return;
   if (round.finished) { lockedFeedback(); return; }
   e.preventDefault();
+  if (tap.on) return; // round 100: easy tap mode acts on release (bindTapPress below)
   try { potEl.setPointerCapture(e.pointerId); } catch (err) { /* not critical */ }
   if (selectedTool === 'pour') startPour();
   else { dose(); dropAnim(); }
 });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev =>
   potEl.addEventListener(ev, stopPour));
+bindTapPress(potEl, () => { if (round && !round.finished) tapAdd(); }); // round 100
 /* Round 63: keyboard parity for the Pour Bucket. Holding Enter or Space on the
  * pot pours exactly like holding a finger: the same ramp, and one undo step for
  * the whole hold. Before, key auto-repeat dosed about 30 separate single drops,
  * each its own undo step. Screen-reader activation (a synthetic click) still
  * doses once through the click handler below. */
 potEl.addEventListener('keydown', e => {
-  if ((e.key !== 'Enter' && e.key !== ' ') || !round || round.finished || selectedTool !== 'pour') return;
+  if ((e.key !== 'Enter' && e.key !== ' ') || !round || round.finished || selectedTool !== 'pour' || tap.on) return;
   e.preventDefault(); // no click: the hold itself doses
   if (!e.repeat) startPour();
 });
@@ -1862,6 +2012,7 @@ potEl.addEventListener('blur', stopPour);
 potEl.addEventListener('click', e => {
   if (e.detail !== 0 || !round) return; // keyboard only
   if (round.finished) { lockedFeedback(); return; }
+  if (tap.on) { tapAdd(); return; } // round 100
   if (selectedTool === 'pour') dose();
   else { dose(); dropAnim(); }
 });
@@ -1922,7 +2073,7 @@ document.addEventListener('keydown', e => {
 });
 $('btn-tips-close').addEventListener('click', closeTips);
 // Round 49: the welcome card can be reopened from Tips (it no longer auto-shows after the first visit)
-$('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });
+$('btn-replay-intro').addEventListener('click', () => { closeTips(); startTour(); });
 $('tips-overlay').addEventListener('click', e => { if (e.target === $('tips-overlay')) closeTips(); });
 /* Round 40: desktop keyboard shortcuts. 1–5 pick red/yellow/blue/black/white
  * (ring order; round 68: Shift+1–5 removes 1% of that paint), D = Dropper, P = Pour Bucket, Z or Ctrl/Cmd+Z = Undo. There is
@@ -1936,22 +2087,74 @@ document.addEventListener('keydown', e => {
   if (mod) return;
   // round 68: Shift+1–5 takes 1% of that paint out
   const rmPig = e.shiftKey ? { Digit1: 'r', Digit2: 'y', Digit3: 'b', Digit4: 'k', Digit5: 'w' }[e.code] : null;
-  if (rmPig) { e.preventDefault(); if (!removePaint(rmPig)) announce(`No ${PIG_NAMES[rmPig].toLowerCase()} to remove`); return; }
+  if (rmPig) { e.preventDefault(); if (!(tap.on ? tapRemove(rmPig) : removePaint(rmPig))) announce(`No ${PIG_NAMES[rmPig].toLowerCase()} to remove`); return; }
   const pig = { 1: 'r', 2: 'y', 3: 'b', 4: 'k', 5: 'w' }[e.key];
   // round 60: focus stays where it was, so say what changed for screen readers
-  if (pig) { const btn = $(BUCKET_EL[pig]); if (btn) { btn.click(); announce(`${PIG_NAMES[pig]} paint selected`); } return; }
+  if (pig) { const btn = $(BUCKET_EL[pig]); if (btn) { btn._shortcut = true; btn.click(); btn._shortcut = false; announce(`${PIG_NAMES[pig]} paint selected`); } return; }
   if (k === 'd') { $('tool-dropper').click(); announce('Dropper selected'); }
   else if (k === 'p') { $('tool-pour').click(); announce('Pour Bucket selected'); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); } });
-/* Round 14: first-visit welcome. Shown once per device, only to someone
- * with no saved days. The flag lives in its own key so the save format
- * (misnomer.save.v1) is untouched. */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); closePct(); } });
+/* Round 14 -> 100: first-visit walkthrough. Shown once per device, only to someone with
+ * no saved days. 3 short callouts that point at the REAL controls (paints, pot,
+ * Submit), Next and Skip on every step, under ten seconds. Done or skipped, the flag
+ * is set and it never auto-shows again. The flag lives in its own key so the save
+ * format (misnomer.save.v1) is untouched; no analytics event. It can be replayed from Tips. */
 const WELCOME_KEY = 'mixology.welcomed.v1';
-function closeWelcome() {
-  if (!$('welcome-overlay').classList.contains('open')) return;
-  closeOverlay('welcome-overlay');
+const TOUR_STEPS = [
+  { id: 'stage', title: 'Welcome to Mixology', pad: 4, radius: 22,
+    text: () => tap.on ? 'One new color every day. Mix the one named at the top. Tap a paint to pick it, tap it again to type an exact percent.' : 'One new color every day. Mix the one named at the top: start by tapping a paint to pick it.' },
+  { id: 'pot', title: 'Add it to the pot', pad: 6, radius: 999,
+    text: () => tap.on ? 'Tap the pot to add a step of that paint. Pick Small, Medium or Large below.' : 'Tap the pot to add that paint. Hold to pour more.' },
+  { id: 'btn-seal', title: 'Submit when it looks right', pad: 4, radius: 16,
+    text: () => 'You get two tries and your best one counts.' },
+];
+const tour = { i: 0, open: false, completed: false };
+function tourLayout() {
+  if (!tour.open) return;
+  const st = TOUR_STEPS[tour.i], t = $(st.id); if (!t) return;
+  const r = t.getBoundingClientRect(), pad = st.pad, vw = window.innerWidth, vh = window.innerHeight;
+  const sp = $('tour-spot');
+  Object.assign(sp.style, { left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + 2 * pad) + 'px', height: (r.height + 2 * pad) + 'px', borderRadius: typeof st.radius === 'number' ? st.radius + 'px' : st.radius });
+  const card = $('tour-card'), ch = card.offsetHeight, cw = card.offsetWidth, gap = 14;
+  const below = r.bottom + pad + gap + ch <= vh - 8, above = r.top - pad - gap - ch >= 8;
+  // step 2 (the pot) is mid-screen: put its card under the whole stage so it never hides a paint
+  let useBelow = below;
+  if (st.id === 'pot') { const sr = $('stage').getBoundingClientRect(); const room = vh - (sr.bottom + gap) - 8 >= ch; if (room) { card.style.top = (sr.bottom + gap) + 'px'; useBelow = true; } else { card.style.top = Math.max(8, vh - ch - 8) + 'px'; useBelow = true; } }
+  else if (below) card.style.top = (r.bottom + pad + gap) + 'px';
+  else if (above) { card.style.top = (r.top - pad - gap - ch) + 'px'; useBelow = false; }
+  else card.style.top = Math.max(8, (vh - ch) / 2) + 'px';
+  card.style.top = Math.max(8, Math.min(parseFloat(card.style.top), vh - ch - 8)) + 'px';
+  card.classList.toggle('below', useBelow); card.classList.toggle('above', !useBelow);
+  const cl = (vw - cw) / 2, cx = r.left + r.width / 2; // the arrow points at the target's centre
+  card.style.setProperty('--ax', Math.max(20, Math.min(cw - 20, cx - cl)) + 'px');
+}
+function tourShow(i) {
+  tour.i = i; const st = TOUR_STEPS[i], last = i === TOUR_STEPS.length - 1;
+  $('tour-count').textContent = `${i + 1} of ${TOUR_STEPS.length}`;
+  $('tour-title').innerHTML = i === 0 ? 'Welcome to Mixology<span class="dot">.</span>' : escapeHtml(st.title);
+  $('tour-text').textContent = st.text();
+  $('btn-tour-next').textContent = last ? 'Got it' : 'Next';
+  $('btn-tour-tips').hidden = i === 1;
+  const card = $('tour-card'); card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+  // a short desktop window can have Submit below the fold: bring the target on screen first
+  const tgt = $(st.id), tb = tgt && tgt.getBoundingClientRect();
+  if (tb && (tb.bottom > window.innerHeight - 8 || tb.top < 8)) { try { tgt.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch (e) { tgt.scrollIntoView(); } }
+  else if (i === 0 && tour.y !== undefined && window.scrollY !== tour.y) window.scrollTo(0, tour.y);
+  tourLayout();
+}
+function startTour() {
+  if (tour.open) return;
+  stopPour(); stopRemove(); tour.completed = false; tour.open = true; tour.y = window.scrollY;
+  openOverlay('tour-overlay'); tourShow(0);
+}
+function endTour(completed) {
+  if (!tour.open) return;
+  tour.open = false; tour.completed = !!completed;
+  closeOverlay('tour-overlay');
+  if (tour.y !== undefined && Math.abs(window.scrollY - tour.y) > 2) window.scrollTo(0, tour.y);
   try { localStorage.setItem(WELCOME_KEY, '1'); } catch (e) { /* private mode */ }
+  if (completed) retireFirstHint(); // they just saw how it works: no backup hint needed
   // Round 43: first-visit coach mark. Two soft rings pulse out of the pot to show
   // where to tap. CSS only, so reduced motion turns it off; it clears itself.
   const pot = $('pot');
@@ -1959,16 +2162,32 @@ function closeWelcome() {
     pot.classList.add('coach'); setTimeout(() => pot.classList.remove('coach'), 2600);
   }
 }
+function closeWelcome() { endTour(false); } // Escape / backdrop = Skip
 function maybeWelcome() {
   let seen = false; try { seen = !!localStorage.getItem(WELCOME_KEY); } catch (e) { seen = true; }
   const hasHistory = Object.keys(store.data.days || {}).length > 0 || !!store.data.wip;
   if (seen || hasHistory) return;
-  openOverlay('welcome-overlay');
+  startTour();
 }
-$('btn-welcome-go').addEventListener('click', closeWelcome);
-$('btn-welcome-tips').addEventListener('click', () => { closeWelcome(); openOverlay('tips-overlay'); });
-$('welcome-overlay').addEventListener('click', e => { if (e.target === $('welcome-overlay')) closeWelcome(); });
-maybeWelcome();
+$('btn-tour-next').addEventListener('click', () => { if (tour.i >= TOUR_STEPS.length - 1) endTour(true); else tourShow(tour.i + 1); });
+$('btn-tour-skip').addEventListener('click', () => endTour(false));
+$('btn-tour-tips').addEventListener('click', () => { endTour(false); openOverlay('tips-overlay'); });
+window.addEventListener('resize', tourLayout);
+window.addEventListener('orientationchange', () => setTimeout(tourLayout, 150));
+// Round 100: Easy tap mode controls
+document.querySelectorAll('.tapstep').forEach(b => b.addEventListener('click', () => { if (tap.step !== b.dataset.step) { sfx.pick(); setTapStep(b.dataset.step); } }));
+$('btn-tapmode').addEventListener('click', () => setTapMode(!tap.on));
+$('pct-panel').addEventListener('submit', e => {
+  e.preventDefault();
+  if (pctKey === null || !round) return;
+  const r = applyTypedPercent(pctKey, $('pct-input').value);
+  if (!r.ok) { pctError(r.msg); try { $('pct-input').focus(); $('pct-input').select(); } catch (err) { /* ignore */ } return; }
+  closePct();
+});
+$('btn-pct-cancel').addEventListener('click', closePct);
+$('pct-overlay').addEventListener('click', e => { if (e.target === $('pct-overlay')) closePct(); });
+$('pct-input').addEventListener('input', () => { const el = $('pct-input'); const v = el.value.replace(/\D/g, '').slice(0, 3); if (v !== el.value) el.value = v; $('pct-err').hidden = true; el.removeAttribute('aria-invalid'); });
+initTapMode(); initFirstHint(); // round 100: before the first render
 $('btn-undo').addEventListener('click', undo);
 $('btn-reset').addEventListener('click', resetPot);
 $('btn-seal').addEventListener('click', () => seal());
@@ -2020,6 +2239,7 @@ renderMute();
 
 initPotHint(); // round 81: decided once, from the save as loaded
 initDaily();
+maybeWelcome(); // round 14 / 100: after the first render, so the walkthrough can point at the real controls
 // round 78: anonymous counts (no-op until ANALYTICS_CODE is set in analytics.js)
 if (incomingDuel) track('duel-open'); // round 99: no more open / return-day
 try { if (MA && MA.trackEver) MA.trackEver(); } catch (e) { /* round 95: first-visit / known-player, once ever per browser */ }
@@ -2044,7 +2264,7 @@ try { if (MA && MA.enabled && $('privacy-note')) $('privacy-note').hidden = fals
 /* ---------------- debug / playtest handle --------------------------------- */
 window.MISNOMER = {
   drawShareCard,
-  version: '1.37.0',
+  version: '1.38.0',
   DUO_DAYS, duoFor: day => { const d = duoFor(day); return d && { id: d.id, title: d.title, names: d.colors.map(c => c.name), thex: d.colors.map(c => c.thex) }; },
   get today() { return { day: DAY, name: todayColor.name }; },
   colorForDay: day => colorForDay(day).name,
@@ -2067,6 +2287,7 @@ window.MISNOMER = {
   dose, undo, resetPot, seal, finish,
   startPractice, exitPractice,
   newPractice: startPractice,
+  tap, tapAdd, tapRemove, setTapMode, setTapStep, openPct, applyTypedPercent, startTour, // round 100
   shareLine, shareImage, maybeWelcome, WELCOME_KEY, untilNextColor, titleCase,
   engine: E, bank: BANK, pool: POOL
 };

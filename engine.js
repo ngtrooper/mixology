@@ -253,6 +253,46 @@ function addUnits(comp, key, n) {
 }
 /** Round 68: take `n` units of `key` out of the pot (the remove control). */
 function removeUnits(comp, key, n) { return addUnits(comp, key, -Math.abs(n)); }
+/** Round 100 (easy tap mode): set `key` to `pct` % of the pot by typing it. It is the
+ *  SAME displacement math as pouring, just a whole-number dose: the other paints keep
+ *  their proportions and shrink or grow to fill the rest (addUnits with the n that lands
+ *  on pct). Returns {comp, changed, reason}. A paint alone in the pot is always 100%, so
+ *  with no other paint present only 0 (empty) or 100 can be set. Pure. */
+function setShare(comp, key, pct) {
+  const c = normalizeComp(comp), want = Math.round(Number(pct));
+  if (!COMP_KEYS.includes(key) || !Number.isFinite(want) || want < 0 || want > 100) return { comp: c, changed: false, reason: 'range' };
+  const others = COMP_KEYS.reduce((a, q) => a + (q === key ? 0 : c[q]), 0);
+  if (others <= 1e-9) { // alone in the pot (or an empty pot)
+    if (want === 0) return { comp: { ...FRESH_COMP }, changed: c[key] > 0, reason: '' };
+    if (want < 100) return { comp: c, changed: false, reason: 'alone' };
+    return { comp: addUnits(c, key, 100), changed: c[key] < 100, reason: '' };
+  }
+  if (want === 100) { const o = { ...FRESH_COMP }; o[key] = 100; return { comp: o, changed: true, reason: '' }; }
+  const cur = c[key];
+  if (want > 0 && displayPercents(c)[key] === want + '%') return { comp: c, changed: false, reason: '' }; // already shows that number
+  if (want === 0) return { comp: addUnits(c, key, -cur), changed: cur > 0, reason: '' };
+  const n = (want - cur) * 100 / (100 - want); // (cur+n)/(100+n) = want/100
+  const out = addUnits(c, key, n);
+  // addUnits snaps a trace under 0.5% to 0, which can swallow the other paints (typing 99 with three
+  // small ones left). Refuse rather than land on a different number than the one typed.
+  if (displayPercents(out)[key] !== want + '%') return { comp: c, changed: false, reason: 'trace' };
+  return { comp: out, changed: Math.abs(n) > 1e-9, reason: '' };
+}
+/* Round 100: one tap step for Easy tap mode. The selected paint moves by exactly `delta`
+ * points of the pot (what the label says: Medium = +5%), the others keep their balance.
+ * Falls back to the plain addUnits step when an exact landing is not possible (an empty
+ * pot, a lone paint, or a number that would snap the other paints away as traces). */
+function stepShare(comp, key, delta) {
+  const c = normalizeComp(comp);
+  if (!(key in c) || !delta) return c;
+  const others = Object.keys(c).reduce((a, k) => a + (k === key ? 0 : c[k]), 0);
+  if (others < 1e-9) return addUnits(c, key, delta);
+  const cur = parseInt(displayPercents(c)[key], 10) || 0;
+  const target = Math.max(0, Math.min(100, cur + delta));
+  if (target === cur) return c;
+  const r = setShare(c, key, target);
+  return r.changed ? r.comp : addUnits(c, key, delta);
+}
 
 /** composition {r,y,b,k,w} (%) -> [R,G,B] 0..255 floats
  *
@@ -975,7 +1015,7 @@ function decodeDuelComp(x, day) {
 const MisnomerEngine = {
   CUBE, COMP_KEYS, FRESH_COMP, OLD_WHITE_START, isEmptyComp,
   STR_HALF, SHARE_GAIN, BLACK_HALF, MUD_MAX, MUD_START,
-  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
+  TINT_C, TINT_K, TINT_END, PAR_PCT, isDailyEligible, POUR_RATE_START, POUR_RATE_MAX, POUR_RAMP_FROM, POUR_RAMP_TO, pourUnitsAt, pourRateAt, displayPercents, TRACE_PCT, snapTraces, removeUnits, setShare, stepShare, LAUNCH_DAY, publicNumber, computeStats, STAT_BUCKETS,
   normalizeComp, addUnits, mixRaw, mixColor, hexToRgb, rgbToHex, rgbToXyz, rgbToLab, labToRgb, rgbToOklab, oklabToRgb, hexToLab,
   deltaE2000, accuracyFromDeltaE, bandForDeltaE, hintFor, hueAngle,
   hashSeed, mulberry32, encodeDuelComp, decodeDuelComp, dayNumber, nextDayStart, formatCountdown, comeBackLine, dateKey, pickDailyIndex, nearestColorName,

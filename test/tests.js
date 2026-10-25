@@ -786,14 +786,15 @@ test('dark mode follows the system: palette vars overridden at the end of the st
   assert.ok(htmlSrc.includes('content="#1a1815" media="(prefers-color-scheme: dark)"') && htmlSrc.includes('name="color-scheme" content="light dark"'));
 });
 console.log('— round 14: welcome + modal focus —');
-test('welcome shows once, only to brand-new players, and its flag stays out of the save format', () => {
-  assert.ok(htmlSrc.includes('id="welcome-overlay" class="modal-ov" role="dialog" aria-modal="true"'), 'welcome dialog missing');
-  const w = gameSrc.slice(gameSrc.indexOf('function maybeWelcome'), gameSrc.indexOf("$('btn-welcome-go')"));
+test('welcome shows once, only to brand-new players, and its flag stays out of the save format (round 100: the walkthrough replaced the card)', () => {
+  assert.ok(htmlSrc.includes('id="tour-overlay" class="modal-ov" role="dialog" aria-modal="true"'), 'walkthrough dialog missing');
+  assert.ok(!htmlSrc.includes('id="welcome-overlay"'), 'the old welcome card is still in the page');
+  const w = gameSrc.slice(gameSrc.indexOf('function maybeWelcome'), gameSrc.indexOf("$('btn-tour-next').addEventListener"));
   assert.ok(/Object\.keys\(store\.data\.days \|\| \{\}\)\.length > 0/.test(w) && w.includes('store.data.wip'), 'returning players could see it');
   assert.ok(gameSrc.includes("const WELCOME_KEY = 'mixology.welcomed.v1';") && !/store\.data\.welcomed/.test(gameSrc), 'flag leaks into save');
-  // the welcome copy must not carry tool dosages (those live only in Tips)
-  const wcopy = htmlSrc.slice(htmlSrc.indexOf('<div id="welcome-overlay"'), htmlSrc.indexOf('<div id="tips-overlay"'));
-  assert.ok(!/drops per second|per click|30 drops|1%/.test(wcopy), 'dosage numbers outside Tips');
+  // the walkthrough copy must not carry tool dosages (those live only in Tips)
+  const tsrc = gameSrc.slice(gameSrc.indexOf('const TOUR_STEPS'), gameSrc.indexOf('const tour = '));
+  assert.ok(!/drops per second|per click|30 drops|\d%/.test(tsrc), 'dosage numbers outside Tips');
   for (const id of ['tips-overlay', 'cal-overlay']) assert.ok(htmlSrc.includes(`id="${id}" class="modal-ov"`), id + ' not on the shared modal helper');
   assert.ok(gameSrc.includes("closeOverlay('tips-overlay')") && gameSrc.includes("openOverlay('cal-overlay')"), 'overlays bypass focus handling');
 });
@@ -987,7 +988,7 @@ test("stats: today's score bucket is highlighted once today is finished; par lab
 });
 console.log('— round 43: first-visit coach ring —');
 test('closing the welcome pulses a coach ring on the pot once (CSS-only, reduced-motion off, self-clearing)', () => {
-  const i = gameSrc.indexOf('function closeWelcome('); const f = gameSrc.slice(i, gameSrc.indexOf('function maybeWelcome', i));
+  const i = gameSrc.indexOf('function endTour('); const f = gameSrc.slice(i, gameSrc.indexOf('function closeWelcome', i));
   assert.ok(f.includes("pot.classList.add('coach')") && f.includes("pot.classList.remove('coach')") && f.includes('!REDUCED_MOTION') && f.includes('!round.finished'));
   assert.ok(htmlSrc.includes('#pot.coach::after') && /coach-ring[^}]*\b2\b/.test(htmlSrc.slice(htmlSrc.indexOf('#pot.coach::after'))), 'ring CSS missing or not limited to two pulses');
 });
@@ -1019,9 +1020,9 @@ test('typography: reveal distance line is balanced; paragraphs avoid orphans', (
   assert.ok(/#reveal-de \{[^}]*text-wrap: balance/.test(htmlSrc) && htmlSrc.includes('p, #status { text-wrap: pretty; }'));
 });
 console.log('— round 49: replay intro —');
-test('Tips offers "Replay the intro", which swaps Tips for the welcome card', () => {
+test('Tips offers "Replay the intro", which swaps Tips for the walkthrough (round 100)', () => {
   assert.ok(htmlSrc.includes('<button id="btn-replay-intro" type="button">Replay the intro</button>'));
-  assert.ok(gameSrc.includes("$('btn-replay-intro').addEventListener('click', () => { closeTips(); openOverlay('welcome-overlay'); });"));
+  assert.ok(gameSrc.includes("$('btn-replay-intro').addEventListener('click', () => { closeTips(); startTour(); });"));
 });
 console.log('— round 50: hover feedback —');
 test('desktop hover feedback lives inside @media (hover: hover) and comes before the reduced-motion kill switch', () => {
@@ -1185,9 +1186,9 @@ test('remove badge markup: five separate buttons outside the discs (not nested),
   assert.ok(/\.premove \{[^}]*touch-action: none/.test(htmlSrc), 'a hold would scroll the page');
   assert.ok(/#stage\.locked \.premove \{ display: none; \}/.test(htmlSrc), 'badges on a finished round');
   assert.ok(gameSrc.includes("const show = !round.finished && round.pot[b] > 0; // round 83"));
-  assert.ok(gameSrc.includes('`Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. Hold to keep removing`'));
+  assert.ok(gameSrc.includes('`Remove ${PIG_NAMES[b].toLowerCase()} paint, ${pct[b]} of the pot. ` + (tap.on ? `Tap to take out ${tapUnits()} percent` : \'Hold to keep removing\')'));
   assert.ok(gameSrc.includes("e.preventDefault(); e.stopPropagation();"), 'a badge press could reach the disc or pot');
-  assert.ok(gameSrc.includes("btn.addEventListener('click', e => { if (e.detail === 0) removePaint(key); });"), 'keyboard activation');
+  assert.ok(gameSrc.includes("btn.addEventListener('click', e => { if (e.detail === 0) { if (tap.on) tapRemove(key); else removePaint(key); } });"), 'keyboard activation');
 });
 test('remove hold: same ramp as the bucket, ONE undo step per hold, stops at 0, keeps the selection; Shift+1–5 shortcut; copy', () => {
   const f = gameSrc.slice(gameSrc.indexOf('function startRemove('), gameSrc.indexOf('function stopRemove('));
@@ -1195,7 +1196,7 @@ test('remove hold: same ramp as the bucket, ONE undo step per hold, stops at 0, 
   assert.ok(!f.includes('selectedBucket'), 'removing changes the selection');
   assert.ok(gameSrc.slice(gameSrc.indexOf('function stopRemove('), gameSrc.indexOf('function removePaint(')).includes('endGesture();'));
   assert.ok(gameSrc.includes("{ Digit1: 'r', Digit2: 'y', Digit3: 'b', Digit4: 'k', Digit5: 'w' }[e.code]"));
-  assert.ok(htmlSrc.includes('tap its <b>−</b> to take some out') && htmlSrc.includes('<b>Taking paint out:</b>') && htmlSrc.includes('<kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd> remove 1% of that paint'));
+  assert.ok(htmlSrc.includes('<b>Taking paint out:</b>') && htmlSrc.includes('<kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd> remove 1% of that paint'));
   assert.ok(!htmlSrc.includes('&lt;1%'), 'Tips still mention <1%');
 });
 test('disc % markup: on all five discs, no taps (pointer-events none), legible ink, aria-label, rAF-throttled, pot number-free', () => {
@@ -1682,13 +1683,13 @@ console.log('— round 80: close button always reachable on short phones —');
     assert.ok(/#tips-overlay, #cal-overlay, \.ov-sheet \{\s*padding: max\(12px, env\(safe-area-inset-top\)\) max\(12px, env\(safe-area-inset-right\)\) max\(12px, env\(safe-area-inset-bottom\)\) max\(12px, env\(safe-area-inset-left\)\);/.test(htmlSrc));
     assert.ok(/\.ov-head \.ov-close \{[^}]*position: relative;[^}]*width: 40px; height: 40px;/.test(htmlSrc));
     assert.ok(!/#btn-(tips|cal)-close[^{]*\{[^}]*position: absolute/.test(htmlSrc), 'a close button is still absolutely positioned');
-    assert.ok(/#welcome-panel \{[^}]*max-height: 100%; overflow-y: auto;/.test(htmlSrc), 'welcome card cannot scroll on short screens');
+    assert.ok(/#tour-card \{[^}]*position: fixed;/.test(htmlSrc) && /#pct-panel \{[^}]*max-width: 320px;/.test(htmlSrc), 'round 100 dialogs are not fixed/limited');
   });
   test('dialogs open at the top of their body; Escape and tap-outside still close all of them', () => {
     const f = gameSrc.slice(gameSrc.indexOf('function openOverlay'), gameSrc.indexOf('function closeOverlay'));
     assert.ok(f.includes("const body = ov.querySelector('.ov-body'); if (body) body.scrollTop = 0;"));
     for (const [ov] of dlgs) assert.ok(gameSrc.includes(`$('${ov}').addEventListener('click', e => { if (e.target === $('${ov}'))`), ov + ' tap-outside');
-    assert.ok(gameSrc.includes("if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); }"));
+    assert.ok(gameSrc.includes("if (e.key === 'Escape') { closeTips(); closeCalendar(); closeStats(); closeCollection(); closeWelcome(); closePct(); }"));
   });
 }
 
@@ -1711,7 +1712,7 @@ console.log('— round 81: "Hold to pour" on the empty pot for first-time player
   test('fresh save: the label shows on the empty pot (and the pot\'s accessible name starts with it)', () => {
     const t = boot();
     assert.ok(t.api.potHintShown() && !t.el.hidden && t.el.cls.has('show'));
-    assert.ok(gameSrc.includes("$('pot').setAttribute('aria-label', (potHintShown() ? 'Hold to pour. ' : '') + (empty && !round.finished ? 'The pot is empty. ' : '') + (round.finished"));
+    assert.ok(gameSrc.includes("$('pot').setAttribute('aria-label', (potHintShown() ? (tap.on ? 'Tap to add. ' : 'Hold to pour. ') : '') + (empty && !round.finished ? 'The pot is empty. ' : '') + (round.finished"));
   });
   test('the first drop hides it for good: flag saved, still hidden after undo to an empty pot, and after a reload', () => {
     const t = boot(); drop(t);
@@ -1791,8 +1792,9 @@ test('placement: countdown right after the result; returning finished players ge
   const pa = htmlSrc.slice(htmlSrc.indexOf('<div id="prompt-area">'), htmlSrc.indexOf('<div id="stage">'));
   assert.ok(pa.includes('<div id="done-banner" hidden>') && pa.includes('id="btn-see-result"') && pa.includes('Practice (doesn\'t count)'), 'no top banner for finished players');
   assert.ok(gameSrc.includes('banner.hidden = !show;') && gameSrc.includes("$('btn-db-practice').addEventListener('click', startPractice);"));
-  const w = htmlSrc.slice(htmlSrc.indexOf('<div id="welcome-panel">'), htmlSrc.indexOf('id="btn-welcome-go"'));
-  assert.ok(w.includes('<b>One new color every day.</b>') && w.includes('How well do you know your colors?'));
+  const w = gameSrc.slice(gameSrc.indexOf('const TOUR_STEPS'), gameSrc.indexOf('const tour = '));
+  assert.ok(w.includes('One new color every day.'), 'the walkthrough lost the daily hook');
+  assert.ok(htmlSrc.includes('How well do you know your colors?') || gameSrc.includes('How well do you know your colors?'));
   const share = gameSrc.slice(gameSrc.indexOf('function shareLine'), gameSrc.indexOf('function shareLine') + 1500);
   assert.ok(!/Next color|come back|formatCountdown/.test(share), 'share text changed');
 });
@@ -2487,6 +2489,128 @@ test('r96: #9 (Mon 2026-10-26 local, internal day 664) is coral; neighbours unch
   const c = bank.find(x => x.name === 'coral'); assert.ok(c && c.hex === '#FC5A50' && !c.retired && E.isDailyEligible(c.de));
   for (let j = 664 - 120; j <= 664 + 120; j++) if (j !== 664) assert.notStrictEqual(SCHEDULE[j], 'coral', `coral also on day ${j}`);
   assert.strictEqual(E.holidayOn(new Date(2026, 9, 26)), null);
+});
+
+console.log('— round 100: first-time walkthrough + Easy tap mode —');
+test('r100: setShare lands every paint on exactly the typed percent with the same displacement math as pouring', () => {
+  let seed = 12345; const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  const K = ['r', 'y', 'b', 'k', 'w']; let checked = 0, traces = 0;
+  for (let n = 0; n < 400; n++) {
+    let c = E.FRESH_COMP; const doses = 2 + Math.floor(rnd() * 8);
+    for (let d = 0; d < doses; d++) c = E.addUnits(c, K[Math.floor(rnd() * 5)], 1 + Math.floor(rnd() * 40));
+    const key = K[Math.floor(rnd() * 5)], want = Math.floor(rnd() * 101);
+    const others = K.filter(q => q !== key).reduce((a, q) => a + c[q], 0);
+    const r = E.setShare(c, key, want);
+    if (others <= 1e-9) { assert.ok(r.reason === 'alone' || want === 0 || want === 100); continue; }
+    if (r.reason === 'trace') { // refused: the other paints would all be traces under 0.5%
+      assert.ok(want >= 80 && !r.changed && r.comp.r === c.r); traces++; continue;
+    }
+    const sum = K.reduce((a, q) => a + r.comp[q], 0);
+    assert.ok(Math.abs(sum - 100) < 1e-6, 'sum ' + sum);
+    assert.strictEqual(E.displayPercents(r.comp)[key], want + '%', `${key} ${want} from ${JSON.stringify(c)} gave ${E.displayPercents(r.comp)[key]}`);
+    // the other paints keep their ratios (displacement, not a re-mix)
+    const o = K.filter(q => q !== key && c[q] > 0.5 && r.comp[q] > 0.6);
+    for (let i = 1; i < o.length; i++) assert.ok(Math.abs(r.comp[o[i]] / r.comp[o[0]] - c[o[i]] / c[o[0]]) < 0.06 * (c[o[i]] / c[o[0]]) + 0.02, 'ratio drift');
+    checked++;
+  }
+  assert.ok(checked > 300 && traces < 60);
+  assert.strictEqual(E.setShare({ r: 0, y: 36, b: 16, k: 32, w: 16 }, 'w', 99).reason, 'trace');
+  // same result as pouring the equivalent fractional dose
+  const c = { r: 30, y: 50, b: 20, k: 0, w: 0 }, n = (40 - 30) * 100 / (100 - 40);
+  assert.deepStrictEqual(E.setShare(c, 'r', 40).comp, E.addUnits(c, 'r', n));
+});
+test('r100: setShare edge cases: 0 removes the paint, 100 fills the pot, a lone paint stays 100, bad input is refused', () => {
+  const c = { r: 30, y: 50, b: 20, k: 0, w: 0 };
+  assert.strictEqual(E.setShare(c, 'y', 0).comp.y, 0);
+  assert.ok(Math.abs(E.setShare(c, 'y', 0).comp.r + E.setShare(c, 'y', 0).comp.b - 100) < 1e-9);
+  assert.deepStrictEqual(E.setShare(c, 'b', 100).comp, { r: 0, y: 0, b: 100, k: 0, w: 0 });
+  assert.strictEqual(E.setShare(c, 'r', 30).changed, false); // already there
+  const lone = { r: 100, y: 0, b: 0, k: 0, w: 0 };
+  assert.strictEqual(E.setShare(lone, 'r', 40).reason, 'alone'); assert.deepStrictEqual(E.setShare(lone, 'r', 40).comp, lone);
+  assert.ok(E.isEmptyComp(E.setShare(lone, 'r', 0).comp));
+  assert.deepStrictEqual(E.setShare(E.FRESH_COMP, 'k', 100).comp, { r: 0, y: 0, b: 0, k: 100, w: 0 });
+  assert.strictEqual(E.setShare(E.FRESH_COMP, 'k', 30).reason, 'alone');
+  for (const bad of [-1, 101, NaN, 'x', undefined, Infinity]) assert.strictEqual(E.setShare(c, 'r', bad).reason, 'range');
+  assert.strictEqual(E.setShare(c, 'q', 10).reason, 'range');
+  assert.ok(Object.isFrozen === Object.isFrozen && c.r === 30, 'input mutated');
+});
+test('r100: a tap step moves the paint by exactly that many points (Small 1 / Medium 5 / Large 10); fallbacks keep the pot valid', () => {
+  const sum = c => Object.values(c).reduce((a, b) => a + b, 0);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  let exact = 0, total = 0;
+  for (let t = 0; t < 600; t++) {
+    const raw = ['r', 'y', 'b', 'k', 'w'].map(() => (rnd() < 0.3 ? 0 : rnd() * 100)); const tot = raw.reduce((a, b) => a + b, 0) || 1;
+    const c = E.normalizeComp ? E.normalizeComp({ r: raw[0] * 100 / tot, y: raw[1] * 100 / tot, b: raw[2] * 100 / tot, k: raw[3] * 100 / tot, w: raw[4] * 100 / tot }) : null;
+    if (!c) break;
+    const key = ['r', 'y', 'b', 'k', 'w'][Math.floor(rnd() * 5)], n = [1, 5, 10][Math.floor(rnd() * 3)], dir = rnd() < 0.5 ? 1 : -1;
+    const cur = parseInt(E.displayPercents(c)[key], 10), out = E.stepShare(c, key, dir * n);
+    assert.ok(Math.abs(sum(out) - 100) < 1e-6 || E.isEmptyComp(out), 'pot no longer sums to 100');
+    assert.ok(Object.values(out).every(v => v >= 0));
+    const lone = ['r', 'y', 'b', 'k', 'w'].every(k => k === key || c[k] < 1e-9);
+    if (lone) continue;
+    total++;
+    if (E.displayPercents(out)[key] === Math.max(0, Math.min(100, cur + dir * n)) + '%') exact++;
+  }
+  assert.ok(total > 300 && exact / total > 0.9, `exact steps ${exact}/${total}`);
+  assert.strictEqual(E.displayPercents(E.stepShare({ r: 60, y: 40, b: 0, k: 0, w: 0 }, 'y', 5)).y, '45%');
+  assert.strictEqual(E.displayPercents(E.stepShare({ r: 60, y: 40, b: 0, k: 0, w: 0 }, 'y', -10)).y, '30%');
+  assert.strictEqual(E.displayPercents(E.stepShare({ r: 60, y: 40, b: 0, k: 0, w: 0 }, 'r', 5)).r, '65%');
+  assert.strictEqual(E.stepShare({ r: 3, y: 97, b: 0, k: 0, w: 0 }, 'r', -10).r, 0, 'a step bigger than the paint takes it out');
+  assert.strictEqual(E.displayPercents(E.stepShare({ r: 0, y: 0, b: 0, k: 0, w: 0 }, 'b', 5)).b, '100%', 'first tap into an empty pot');
+  assert.ok(E.isEmptyComp(E.stepShare({ r: 100, y: 0, b: 0, k: 0, w: 0 }, 'r', -10)), 'a step off a lone paint empties the pot');
+  assert.strictEqual(E.displayPercents(E.stepShare({ r: 5, y: 95, b: 0, k: 0, w: 0 }, 'y', 10)).y, '100%');
+});
+test('r100: Easy tap mode is an input layer only: no scoring, no tracking, no new event names, own storage keys', () => {
+  const a = gameSrc.indexOf('const TAP_KEY'), b = gameSrc.indexOf('const HINTED_KEY');
+  const tapSrc = gameSrc.slice(a, b);
+  assert.ok(!/attempts|finish\(|seal\(|track\(|trackDaily\(|store\.data/.test(tapSrc.replace(/beginGesture\(\);/g, '')), 'tap code touches scoring/tracking/saves');
+  assert.ok(/const TAP_KEY = 'mixology\.tapmode\.v1', TAPSTEP_KEY = 'mixology\.tapstep\.v1';/.test(tapSrc) && !/store\.data\.(tap|hinted)/.test(gameSrc));
+  const walk = gameSrc.slice(gameSrc.indexOf('const HINTED_KEY'), gameSrc.indexOf('/* Apply ONE unit')) + gameSrc.slice(gameSrc.indexOf('const TOUR_STEPS'), gameSrc.indexOf("$('btn-undo')"));
+  assert.ok(!/track\(|trackDaily\(|MA\./.test(walk), 'walkthrough/hint code sends analytics');
+  const an = fs.readFileSync(path.join(__dirname, '..', 'analytics.js'), 'utf8');
+  assert.ok(!/tour|walkthrough|tapmode|easy-tap|hint/i.test(an.slice(an.indexOf('validEvent'))), 'analytics learned a new event');
+  assert.ok(gameSrc.includes("tap.on = localStorage.getItem(TAP_KEY) === '1'") && gameSrc.includes("new URLSearchParams(location.search).get('tap')"), '?tap=1 / saved setting');
+  assert.deepStrictEqual(JSON.stringify(Object.fromEntries(Object.entries({ small: 1, medium: 5, large: 10 }))), JSON.stringify({ small: 1, medium: 5, large: 10 }));
+  assert.ok(gameSrc.includes('const TAP_STEPS = { small: 1, medium: 5, large: 10 };'));
+});
+test('r100: tap mode never depends on holds: the pot and the badges act on release, hold paths are skipped, keyboard clicks still work', () => {
+  assert.ok(gameSrc.includes("if (tap.on) return; // round 100: easy tap mode acts on release (bindTapPress below)"));
+  assert.ok(gameSrc.includes("bindTapPress(potEl, () => { if (round && !round.finished) tapAdd(); });"));
+  assert.ok(gameSrc.includes("bindTapPress(btn, () => tapRemove(key));"));
+  assert.ok(gameSrc.includes("if (tap.on) { tapAdd(); return; } // round 100"));
+  assert.ok(/selectedTool !== 'pour' \|\| tap\.on\) return;/.test(gameSrc), 'keyboard hold-to-pour still active in tap mode');
+  assert.ok(/function tapAdd\(\)[\s\S]*?beginGesture\(\);[\s\S]*?endGesture\(\);/.test(gameSrc), 'a tap is not one undo step');
+  assert.ok(/#app\.tapmode \.premove \{ width: 40px; height: 40px;/.test(htmlSrc) && /\.tapstep \{ min-height: 44px; \}/.test(htmlSrc), 'tap targets not enlarged');
+  // no other hold / drag / long-press needs in the game: only the pot and the remove badges take a held press
+  assert.ok(!/pointermove|touchmove|dragstart|mousedown|dblclick|setTimeout\([^)]*long/i.test(gameSrc.replace(/grid\.addEventListener\('touchstart'[\s\S]*?\{ passive: true \}\);/, '')), 'a drag/long-press gesture exists');
+});
+test('r100: typed percent editor: numeric keypad, OK and Enter confirm, errors stay in the dialog, one undo step', () => {
+  assert.ok(/id="pct-input" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="done" maxlength="3"/.test(htmlSrc));
+  assert.ok(htmlSrc.includes('<form id="pct-panel" novalidate autocomplete="off">') && htmlSrc.includes('id="btn-pct-ok" type="submit"') && htmlSrc.includes('id="btn-pct-cancel"'));
+  assert.ok(/#pct-input \{[^}]*font: 800 34px/.test(htmlSrc), 'input under 16px zooms iOS');
+  const f = gameSrc.slice(gameSrc.indexOf('function applyTypedPercent'), gameSrc.indexOf('/* Round 100 (Franklin): a first-time player'));
+  assert.ok(f.includes('E.setShare(round.pot, key,') && f.includes('beginGesture();') && f.includes('endGesture();'));
+  assert.ok(gameSrc.includes("openPct(selectedBucket); // round 100: tap a selected paint to type its percent"));
+  assert.ok(gameSrc.includes("btn._shortcut = true; btn.click(); btn._shortcut = false;"), 'keyboard 1-5 would open the editor');
+});
+test('r100: walkthrough: 3 steps on the real controls, Skip on every step, Escape skips, flag set once, replay from Tips, tips link kept', () => {
+  const steps = gameSrc.slice(gameSrc.indexOf('const TOUR_STEPS'), gameSrc.indexOf('const tour = '));
+  assert.deepStrictEqual([...steps.matchAll(/\{ id: '([^']+)'/g)].map(m => m[1]), ['stage', 'pot', 'btn-seal']);
+  for (const id of ['stage', 'pot', 'btn-seal']) assert.ok(htmlSrc.includes(`id="${id}"`));
+  assert.ok(htmlSrc.includes('id="btn-tour-skip"') && htmlSrc.includes('id="btn-tour-next"') && htmlSrc.includes('id="btn-tour-tips"') && htmlSrc.includes('Read the full tips'));
+  assert.ok(!/#btn-tour-skip[^{]*\{[^}]*display: none/.test(htmlSrc) && !gameSrc.includes("$('btn-tour-skip').hidden"), 'Skip can disappear on a step');
+  assert.ok(gameSrc.includes("function closeWelcome() { endTour(false); }") && /closeWelcome\(\); closePct\(\); \} \}\);/.test(gameSrc), 'Escape does not skip');
+  assert.ok(gameSrc.includes("localStorage.setItem(WELCOME_KEY, '1')") && gameSrc.includes('if (completed) retireFirstHint();'));
+  assert.ok(/#tour-overlay \{ display: none; position: fixed; inset: 0;/.test(htmlSrc) && /#tour-card \{\s*position: fixed;/.test(htmlSrc), 'walkthrough must be fixed (no layout impact)');
+  assert.ok(!/#tour-overlay[^{]*\{[^}]*transition: [^;]*(height|top)[^;]*\}/.test(htmlSrc.replace(/#tour-spot[^}]*\}/, '')), 'spot only');
+});
+test('r100: first-tap hint: first-time players only, once, own key, fades, retires on the first dose', () => {
+  assert.ok(gameSrc.includes("const HINTED_KEY = 'mixology.hinted.v1';"));
+  const i = gameSrc.indexOf('function initFirstHint'); const f = gameSrc.slice(i, i + 400);
+  assert.ok(/store\.data\.days/.test(f) && f.includes('store.data.wip'), 'returning players could see the hint');
+  assert.ok(gameSrc.includes("'Tap the pot to add this paint. Hold to pour more.'"));
+  assert.ok(/#first-hint \{[^}]*pointer-events: none; opacity: 0; transition: opacity/.test(htmlSrc), 'hint takes taps');
+  assert.ok(/function tapAdd[\s\S]*?retireFirstHint\(\);/.test(gameSrc));
 });
 
 (async () => {

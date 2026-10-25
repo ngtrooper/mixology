@@ -154,6 +154,8 @@ Consequences that are **invariants**, not implementation details:
   future days only with `node tools/build-schedule.js`.
   - Round 96 (Franklin): one future day was swapped by hand. Internal day 664, **Mixology #9 (Mon Oct 26, 2026)**, is now **Coral** (#FC5A50) instead of Banana, which was nearly identical to #3 Manilla. Coral is daily-eligible and not used within 120 days (its nearest uses are days 436 and 1648), so `build-schedule.js` keeps it on a rebuild.
 
+- **First-time walkthrough and Easy tap mode** (round 100, Franklin): the walkthrough is 3 callouts, Skip on every step, shown once to players without saved progress (`mixology.welcomed.v1`), `position: fixed` so it can never change the page layout. Easy tap mode (`mixology.tapmode.v1`, `?tap=1`) is an input layer ONLY: every action is one tap on release, no holds/drag/timing, and it must keep using `E.addUnits/removeUnits/setShare/stepShare` so scoring, saves and analytics stay identical. Never add GoatCounter events for either. Typed percent exists only in tap mode and refuses a lone paint below 100% and any number that would trace-snap another paint away. Details: BUILD-REPORT.md, Round 100.
+
 ## Moving to mixologydaily.com (round 86)
 - The app is path-agnostic: every asset and manifest URL is relative, so it runs at `/mixology/` and at a domain root `/`. The canonical and og:url are `https://mixologydaily.com/`. og:image stays on github.io until the switch, because GitHub's 301 will carry it over.
 - `transfer.js` loads **before** analytics.js and game.js. It reads `#import=m1.<len>.<data>` (UTF-8 JSON of every Mixology key, LZW, base64url), validates it, **merges** it, strips the hash (`history.replaceState`), and game.js shows "Your progress moved over ✓".
