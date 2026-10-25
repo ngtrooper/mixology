@@ -2,7 +2,7 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
-## Round 101 (2026-10-25, Grok Bot): TYPE MIX TOOL, v1.39.0 (Franklin) — LOCAL BUILD, NOT PUSHED
+## Round 101 (2026-10-25, Grok Bot): TYPE MIX TOOL, v1.39.0 (Franklin) — DEPLOYED
 
 - **Why:** Franklin, after trying the round-100 tap-the-number editor: "may be a type the mix as an option next to pour bucket and then just reduce the size of those tools", then: remove the tap-the-number editor, Type mix is the only typed-input solution.
 - **What:** third tool "Type mix" beside Dropper and Pour Bucket. Panel: one numeric box per paint (all five, prefilled from the pot, `inputmode=numeric`, 22px so iOS never zooms), live total (N / 100, green at 100, amber otherwise), one Apply that sets ALL shares together via `E.setMix` (so typing one paint never shifts another already typed), Cancel/Escape/tap outside close with no change. Enter moves to the next box; Enter in the last box applies. Explicit Apply button because iOS numeric pads have no Return key.
