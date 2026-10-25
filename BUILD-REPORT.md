@@ -2,7 +2,7 @@
 
 Built 2026-10-18 in `~/workspace/game-projects/misnomer/`. Local only — nothing published or submitted.
 
-## Round 100 (2026-10-25, Grok Bot): FIRST-TIME WALKTHROUGH + TYPE-THE-PERCENT, v1.38.0 (Franklin) — LOCAL BUILD, NOT PUSHED
+## Round 100 (2026-10-25, Grok Bot): FIRST-TIME WALKTHROUGH + TYPE-THE-PERCENT, v1.38.0 (Franklin) — DEPLOYED
 
 - **Why:** Franklin: "lets see how it works" (a short first-time walkthrough) and "my brother has a disabled patient ... he can only do taps and not holds". An opt-in Easy tap mode (step bar, `?tap=1`) was built first, then **dropped by Franklin's decision**: "can we have tap and hold and just add the ability to type the % if you click on the number after you select the color?" Nothing of tap mode remains (no toggle, no `?tap=1`, no step bar, no `stepShare`, no tap/step storage keys).
 - **Walkthrough (replaces the one-screen welcome card):** 3 callouts on the real controls (the stage/paints, the pot, Submit), each with Next and a clear Skip, Escape also skips, plus "Read the full tips". About 10 s. Shown once: it sets the existing `mixology.welcomed.v1`, and anyone with saved days or a work-in-progress never sees it (same first-visit logic as before). Tips → "Replay the intro" replays it. Spotlight + card are `position: fixed`, so nothing moves in the page layout (iPhone no-scroll fit identical to v1.37.0 at 375x667, 390x844, 430x932, 360x740). On a short desktop window the target is scrolled into view first.
